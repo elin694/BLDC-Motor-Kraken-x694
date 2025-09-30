@@ -12,11 +12,11 @@ char x_axis= 'r'; //key to start/stop x axis dilation
 char y_axis= 't'; //key to start/stop y axis dilation
 float dotSize = 3; // data point size(radius i believe)
 int worldx = 800;
-int worldy = 500; 
+int worldy = 400; 
 char[] splitChar = {'\n',','}; //single characters only
 
 int baudRate = 460800; //speed at which serial sends data (ex Serial.begin(115200) has baud rate 115200)
-int[] origin = new int[] {2*frame,(worldy-frame)/2}; // where the origin is placed on t
+int[] origin = new int[] {100,300}; // where the origin is placed on t
 int[] dimension = new int[] {worldx-4*frame,200};    // rectangle size that bounds graph lines 
 int[] user_defTickDistbyPixel =new int[] {50,50}; // no idea what this is 
 float[] scale =  {2f,2f}; //scale of the xy axis labels, here it is 2.5 and 1.5
@@ -35,7 +35,7 @@ Graph g1;
 Serial serial1;
 void setup() {
   //fullScreen();
-  size(900,800);
+  size(800,700);
   noSmooth();
   //printArray(PFont.list());
   if(useComicSans){
@@ -61,6 +61,9 @@ void draw() {
   }else{
    
   }
+  fill(#FFFFFF);
+  text("("+ Integer.toString(mouseX)+ ", "+Integer.toString(mouseY)+ ")",width -100, height -100);
+   
 }void mouseWheel(MouseEvent event){
   float e=event.getCount();
   g1.changeTickDist(e);
