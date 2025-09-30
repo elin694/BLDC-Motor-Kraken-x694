@@ -56,91 +56,12 @@ public class Axes{
      drawTicksX(multipelx);
      drawTicksY(multipely);
      
-    int totalTicksShown = 
-              (int)((dimensions[1]/2 * scale[1]/tickDist[1] - 
-               ogs[1]) /
-               (multipely * scale[1] / dividers)) +
-              (int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
-               ogs[1]) /
-               (multipely * scale[1] / dividers)) 
-               +1;
-           
-     for(int i = totalTicksShown;i>0;i--){
-       int newIterator = i-
-                         ((int)((dimensions```[1]/2 * scale[1]/tickDist[1] + 
-                           ogs[1]) /
-                           (multipely * scale[1] / dividers))
-                           + 1); 
-       /*
-       (int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
-               ogs[1]) /
-               (multipely * tickDist[1] / dividers))
-       check (i % <minor gridline count> == #inor_gridliens before tick)
-       
-       TICK PLACEMENT
-       origin[1]- ogs1[]*conversion_to_pixel +  
-       [(int)((dimensions[1]/2 + ogs[1]*tickDist[1]/scale[1]) /
-           (multipely* tickDist[1] / dividers))*(multipely* tickDist[1] / dividers]  
-       */
-       fill(axisColor);
-       println(multipely);
-       rect(origin[0],
-           origin[1]- ogs[1]*tickDist[1]/scale[1] +  
-           (
-             (int)((dimensions[1]/2 + ogs[1]*tickDist[1]/scale[1]) /
-             (multipely* tickDist[1] / dividers))
-             * (multipely* tickDist[1] / dividers)
-           )
-           + i * multipely *tickDist[1]/dividers
-           ,
-           tickSize[1],tickSize[0]);
-       //Y - Axis Labels|
-       int[] cset = {#FF00EF,#CFFF04,#39FF14, #4166F5, #9D00FF, #FFFFFF};
-       //int marker= 0;
-       for(int marker = 0; marker <6; marker++){
-         fill(cset[marker]);
-         rect(origin[0], 
- //START OF TICK POSITION CODE 
-           origin[1] - marker*tickDist[1]/scale[1] +
-             (
-               (int)((200 + ogs[1]*tickDist[1]/scale[1]) / //difference in space btwn orgin
-               (multipely* tickDist[1] / dividers))
-               * (multipely* tickDist[1] / dividers)
-             )
-             + marker * multipely *tickDist[1]/dividers
-  //END OF TICK POSITION CODE
-         ,2*tickSize[1],2*tickSize[0]);
-       }
-       
-       //MAKING THE LABELS (NUMBER SCALE)
-       fill(labelColor);
-       text(String.valueOf((i/dividers - 1
-                             -(int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
-                              ogs[1]) /
-                              (multipely * scale[1]))
-                            )
-                          *scale[1] *multipely
-                          ),
-            origin[0]-15,
-            ((i/dividers - 1)*tickDist[1]/scale[1] //<- divide by num divders cuz tick
-               +(int)((dimensions[1]/2 + 
-                      tickDist[1]/scale[1] * ogs[1]) /
-                (multipely * tickDist[1]))
-             )
-            *scale[1]
-            );
-     }
-     println("\n");
-     strokeWeight(1);  //y axis alignment lines
-     for(int i=(int)(dimensions[1]*dividers/tickDist[1]/multipely);i>=0;i--){
-       line(origin[0],origin[1]-i*tickDist[1]*multipely/dividers,origin[0]+dimensions[0],origin[1]-i*tickDist[1]*multipely/dividers);
-       line(origin[0],origin[1]+i*tickDist[1]*multipely/dividers,origin[0]+dimensions[0],origin[1]+i*tickDist[1]*multipely/dividers);
-     }
      textSize(labelSize+5);
      text(axesName[0],origin[0]+dimensions[0]/2,origin[1]+60);
      fill(labelColor);
      textSize(10);
      text("Axes Scroll Enabled? x,y: ("+dilationDir[0]+"," + dilationDir[1]+")", origin[0]+20,origin[1]-dimensions[1]-10);
+
   }
   
    
@@ -174,6 +95,8 @@ public class Axes{
     return this.dilationDir[i]; 
     
    }
+   
+   //=========================== WRAPPED FUCNITONS ====================================
   public void drawMainAxes(){
      if(debug)    print("axes Render, ");
      stroke(axisColor);
@@ -196,24 +119,99 @@ public class Axes{
             number of shown (aka multipley) ticks before true origin: take % (multipely * tickDistance)
             Final val: For loop instance count: (include minor gridlines): 
             
-           (dimensions[1]/2 * scale[1]/tickDist[1] - 
-           ogs[1]) /
+           (dimensions[1]/2 * scale[1]/tickDist[1] - ogs[1]) /
            (multipely * tickDist[1] / dividers) +
            
-          (dimensions[1]/2 * scale[1]/tickDist[1] + 
-           ogs[1]) /
-           (multipely * tickDist[1] / dividers) 
-           
-           +1;
+          (dimensions[1]/2 * scale[1]/tickDist[1] + ogs[1]) /
+           (multipely * tickDist[1] / dividers)            +1;
             
             2: when making tickines check (i % <minor gridline count> == #inor_gridliens before tick), 
             assume instance count starts at 1 and not 0
       */
-      
+    int totalTicksShown = 
+              (int)((dimensions[1]/2 * scale[1]/tickDist[1] - 
+               ogs[1]) /
+               (numUnscaledTicksY * scale[1] / dividers)) +
+              (int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
+               ogs[1]) /
+               (numUnscaledTicksY * scale[1] / dividers)) 
+               +1;
+           
+     for(int i = totalTicksShown;i>0;i--){
+       int newIterator = i-
+                         ((int)((dimensions```[1]/2 * scale[1]/tickDist[1] + 
+                           ogs[1]) /
+                           (numUnscaledTicksY * scale[1] / dividers))
+                           + 1); 
+       /*
+       (int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
+               ogs[1]) /
+               (numUnscaledTicksY * tickDist[1] / dividers))
+       check (i % <minor gridline count> == #inor_gridliens before tick)
+       
+       TICK PLACEMENT
+       origin[1]- ogs1[]*conversion_to_pixel +  
+       [(int)((dimensions[1]/2 + ogs[1]*tickDist[1]/scale[1]) /
+           (numUnscaledTicksY* tickDist[1] / dividers))*(numUnscaledTicksY* tickDist[1] / dividers]  
+       */
+       fill(axisColor);
+       println(numUnscaledTicksY);
+       rect(origin[0],
+           origin[1]- ogs[1]*tickDist[1]/scale[1] +  
+           (
+             (int)((dimensions[1]/2 + ogs[1]*tickDist[1]/scale[1]) /
+             (numUnscaledTicksY* tickDist[1] / dividers))
+             * (numUnscaledTicksY* tickDist[1] / dividers)
+           )
+           + i * numUnscaledTicksY *tickDist[1]/dividers
+           ,
+           tickSize[1],tickSize[0]);
+       //Y - Axis Labels|
+       int[] cset = {#FF00EF,#CFFF04,#39FF14, #4166F5, #9D00FF, #FFFFFF};
+       //int marker= 0;
+       for(int marker = 0; marker <6; marker++){
+         fill(cset[marker]);
+         rect(origin[0], 
+ //START OF TICK POSITION CODE 
+           origin[1] - marker*tickDist[1]/scale[1] +
+             (
+               (int)((200 + ogs[1]*tickDist[1]/scale[1]) / //difference in space btwn orgin
+               (numUnscaledTicksY* tickDist[1] / dividers))
+               * (numUnscaledTicksY* tickDist[1] / dividers)
+             )
+             + marker * numUnscaledTicksY *tickDist[1]/dividers
+  //END OF TICK POSITION CODE
+         ,2*tickSize[1],2*tickSize[0]);
+       }
+       
+       //MAKING THE LABELS (NUMBER SCALE)
+       fill(labelColor);
+       text(String.valueOf((i/dividers - 1
+                             -(int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
+                              ogs[1]) /
+                              (numUnscaledTicksY * scale[1]))
+                            )
+                          *scale[1] *numUnscaledTicksY
+                          ),
+            origin[0]-15,
+            ((i/dividers - 1)*tickDist[1]/scale[1] //<- divide by num divders cuz tick
+               +(int)((dimensions[1]/2 + 
+                      tickDist[1]/scale[1] * ogs[1]) /
+                (numUnscaledTicksY * tickDist[1]))
+             )
+            *scale[1]
+            );
+     }
      
+        strokeWeight(1);  //y axis alignment lines
+     for(int i=(int)(dimensions[1]*dividers/tickDist[1]/numUnscaledTicksY);i>=0;i--){
+       line(origin[0],origin[1]-i*tickDist[1]*numUnscaledTicksY/dividers,origin[0]+dimensions[0],origin[1]-i*tickDist[1]*numUnscaledTicksY/dividers);
+       line(origin[0],origin[1]+i*tickDist[1]*numUnscaledTicksY/dividers,origin[0]+dimensions[0],origin[1]+i*tickDist[1]*numUnscaledTicksY/dividers);
+     }
   }
   
-  public void drawLabelsY(){
+  public void drawLabelsY(float numUnscaledTicksY){
+    
   }
   
   public void drawTicksX(float numUnscaledTicksX){      
