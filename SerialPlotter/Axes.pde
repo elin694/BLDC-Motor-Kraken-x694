@@ -129,13 +129,10 @@ public class Axes{
             assume instance count starts at 1 and not 0
       */
     int totalTicksShown = 
-              (int)((dimensions[1]/2 * scale[1]/tickDist[1] - 
-               ogs[1]) /
+              (int)((dimensions[1]/2 * scale[1]/tickDist[1] - ogs[1]) /
                (numUnscaledTicksY * scale[1] / dividers)) +
-              (int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
-               ogs[1]) /
-               (numUnscaledTicksY * scale[1] / dividers)) 
-               +1;
+              (int)((dimensions[1]/2 * scale[1]/tickDist[1] + ogs[1]) /
+               (numUnscaledTicksY * scale[1] / dividers))  +1;
            
      for(int i = totalTicksShown;i>0;i--){
        int newIterator = i-
