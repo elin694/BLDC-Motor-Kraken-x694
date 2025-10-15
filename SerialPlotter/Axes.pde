@@ -10,25 +10,23 @@ public class Axes{
    //======USER EDITABLE VARIABLES=========================
    //Aesthetic Variables
    private int labelSize =13; //Size of Label text
+   private int[] tickSize={2,16}; //in vertical orientation
    private color labelColor = color(100,100,255); //color of the numbers
    private color axisColor = color(255,0,0); //color of the axes, in rgb
    private int thickness = 3; //how thick you want the axes to be
-   private int[] tickSize={2,16}; //in vertical orientation
-   
    private int dividers =1; //number of horizontal lines each y tick space is divided into
    //======================================================
    public boolean pause=false; 
    //public static int maxVal =;
    public float[] dilation = {1.5,1.5};
-   public boolean[] dilationDir = {true,true};
-   //Stores which Axes are allowed to scale and Dilate
+   public boolean[] dilationDir = {true,true}; //Stores which Axes are allowed to Dilate
    
    private float[] c_tickDist =new float[2]; //tick distance
    private float[] tickDist=new float[2];
-   private float[] scale; // Numerical initial value of the scale
-   private int[] dimensions = new int[2];
-   private int[] origin = {0,0};
-   private int[] ogs = {0,0};   //Stores where the origin is shifted
+   private float[] scale; // Numerical initial value of the scale, default
+   private int[] dimensions = new int[2];  //graph dimension
+   private int[] origin = {0,0}; // in pixel dist (ref to PWORLD)
+   private float[] ogs = {.1,0};   //Stores where the origin is shifted
    
    public Axes(int[] a, int[] inputTickDist,int[] dimen,float[] s){
      scale =s;
@@ -39,8 +37,6 @@ public class Axes{
      tickDist[0] = inputTickDist[0];
      tickDist[1] = inputTickDist[1];
      dimensions = dimen;
-     fill(0);
-     ellipse(origin[0],origin[1],10,10);
    }
    
    public void render(){ //begisn by drawing axis, call during setup
@@ -163,6 +159,10 @@ public class Axes{
            + i * numUnscaledTicksY *tickDist[1]/dividers
            ,
            tickSize[1],tickSize[0]);
+           
+           
+           
+           
        //Y - Axis Labels|
        int[] cset = {#FF00EF,#CFFF04,#39FF14, #4166F5, #9D00FF, #FFFFFF};
        //int marker= 0;
@@ -180,7 +180,6 @@ public class Axes{
   //END OF TICK POSITION CODE
          ,2*tickSize[1],2*tickSize[0]);
        }
-       
        //MAKING THE LABELS (NUMBER SCALE)
        fill(labelColor);
        text(String.valueOf((i/dividers - 1
