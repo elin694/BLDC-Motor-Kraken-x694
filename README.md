@@ -24,6 +24,7 @@ As per the Dunning-Kruger effect, I originally thought this was going to be an e
 I initially started out with an out-runner rotor design because I wanted to maximize the number of magnets I can put inside, thinking that it will increase my motor torque. That clearly wasn't right.
 
 <img src="readMeImages/2026%20bldc%20v3.png" alt="bldc v3" height="300"><img src="readMeImages/2026%20bldc%20v4.png" alt="bldc v4" height="300">
+
 ^^(version 3 and version 4)
 - You can see that after I printed this version and tested it, I realized that a measly 300mA and few strands of wire wasn't going to provide enough magnetic force to attract the rotor. I decided to make slots in the next version so I could put in steel or iron to increase core strength.
 
@@ -32,7 +33,10 @@ I initially started out with an out-runner rotor design because I wanted to maxi
 ^^(version 7_1 and version 7_3)
 - I was going to fill the gaps with ferromagnetic metal, but I didn't have any solid piece on hand. Somehow I thought the mandrels of steel rivets that the STEM center provided would do magic, but after more testing, it didn't work. I realized that and redesigned to maximized the amount of wires that I loop around. 
 <img src="readMeImages/2026%20bldc%20v18.png" alt="bldc v18" height="300">
--After I while, I settled on using the AS5600 magnetic sensor for FOC feedback. However, I hadn't design my motor with concealing this piece in mind, and I realized I had to do another redesign. The bigger problem was that packaging was going to get challenging on another level, and I was already pushing the thinness of the PETG stator to the limits. Ultimately I switched to an in runner rotor design. Ironically, later on through accidental research, I would discover that the Kraken x60 itself is an out runner motor. However, since only external appearance and functionality mattered to me, I continued my project.
+
+- After I while, I settled on using the AS5600 magnetic sensor for FOC feedback. However, I hadn't design my motor with concealing this piece in mind, and I realized I had to do another redesign. The bigger problem was that packaging was going to get challenging on another level, and I was already pushing the thinness of the PETG stator to the limits. Ultimately I switched to an in runner rotor design. Ironically, later on through accidental research, I would discover that the Kraken x60 itself is an out runner motor. However, since only external appearance and functionality mattered to me, I continued my project.
+
 <img src="readMeImages/2026%20bldc%20v26.png" alt="bldc v26" height="300">
 <img src="readMeImages/2026%20bldc%20v26%20exploded.png" alt="bldc v26 exploded view" height="300">
+
 After printing many case designs, this is my current one.
