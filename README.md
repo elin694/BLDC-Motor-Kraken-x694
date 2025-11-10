@@ -48,4 +48,4 @@ Because I chose a very small wire diameter, I had to compensate with larger leng
 Making scratches to the enamel was inevitable, despite my errors to be careful. To prevent phases from shorting with itself, I wrapped electrical tape over exposed copper. I even tested for bare copper
 
 left to right: V1, v3, v4, v7_3, v18, v26, current one
-<img src="readMeImages/2026%20bldc%20parts.HEIC" alt="grid of 3d printed prototype parts " height="500">
+<img src="readMeImages/2026%20bldc%20parts.jpg" alt="grid of 3d printed motor prototype parts " height="500">
