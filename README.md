@@ -20,6 +20,9 @@ While I tried my best to make my part as close as possible to real motor (in siz
 
 Designing the part:
 As per the Dunning-Kruger effect, I originally thought this was going to be an easy project-as seen in the images below (I underestimate wire space and how much I needed, tolerance, wiring, and magnet size).
+
+<img src="readMeImages/2026%20bldc%20v4.png" alt="Girl in a jacket" width="500" height="600">
+
 ![whatdoesthisdo](readMeImages/2026%20bldc%20v3.png)
 ![](readMeImages/2026%20bldc%20v4.png)
 ![](readMeImages/2026%20bldc%20v7_1.png)
