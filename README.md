@@ -17,7 +17,7 @@ The Goal of this project is to use as many parts that I have scavenged and lying
 While I tried my best to make my part as close as possible to real motor (in size and shape), there were certain limitations that forced me to bend the rules a little- I didn't have a spline  XS shaft, nor could I have manufactured one (I couldn't find any scrap Kraken X60's either), so I replaced it with a 1/2" hex shaft.
 >Ultimately, the goal is to make a really cheap version of the actual motor that is as accurate as possible so I can confuse my friends, but also as a gift/homage to team 694.
 
-Designing the part:
+#Step 1: Designing the part:
 As per the Dunning-Kruger effect, I originally thought this was going to be an easy project-as seen in the images below (I underestimate wire space and how much I needed, tolerance, wiring, and magnet size).
 
 I initially started out with an out-runner rotor design because I wanted to maximize the number of magnets I can put inside, thinking that it will increase my motor torque. That clearly wasn't right.
@@ -39,6 +39,8 @@ I initially started out with an out-runner rotor design because I wanted to maxi
 <img src="readMeImages/2026%20bldc%20v26%20exploded.png" alt="bldc v26 exploded view" height="300">
 
 After printing many case designs, v27 is my current one.
-left to right: V1, v3, v4, v7_3, v18, v26, current one
-<img src="readMeImages/2026%20bldc%20parts.jpg" alt="grid of 3d printed prototype parts " height="500">
 
+#Step 2: Assembly
+U
+left to right: V1, v3, v4, v7_3, v18, v26, current one
+<img src="readMeImages/2026%20bldc%20parts.HEIC" alt="grid of 3d printed prototype parts " height="500">
