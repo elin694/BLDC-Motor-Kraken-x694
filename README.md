@@ -9,7 +9,7 @@ https://docs.google.com/document/d/19WLVvq-dfDWW1GdS-zNIwnykFYo5D6YfktGFYB5Ziv4/
 >
 >Video from testing: https://drive.google.com/drive/folders/19Vp0OEzmQrTeg8EhbQTLMmb9ZPl5efjz?usp=sharing
 
-#Goal
+# Goal
 The Goal of this project is to use as many parts that I have scavenged and lying around to make a mock-Kraken X60, a popular FIRST Robotics Competition (FRC) motor. That involves:
 - A 28 gauge enameled copper wire from BingoTech
 - 10mmx5mmx40mm neodymium 52 magnets
@@ -19,7 +19,7 @@ The Goal of this project is to use as many parts that I have scavenged and lying
 While I tried my best to make my part as close as possible to real motor (in size and shape), there were certain limitations that forced me to bend the rules a little- I didn't have a spline  XS shaft, nor could I have manufactured one (I couldn't find any scrap Kraken X60's either), so I replaced it with a 1/2" hex shaft.
 >Ultimately, the goal is to make a really cheap version of the actual motor that is as accurate as possible so I can confuse my friends, but also as a gift/homage to team 694.
 
-#Step 1: Designing the part:
+# Step 1: Designing the part:
 As per the Dunning-Kruger effect, I originally thought this was going to be an easy project-as seen in the images below (I underestimate wire space and how much I needed, tolerance, wiring, and magnet size).
 
 I initially started out with an out-runner rotor design because I wanted to maximize the number of magnets I can put inside, thinking that it will increase my motor torque. That clearly wasn't right.
@@ -42,7 +42,7 @@ I initially started out with an out-runner rotor design because I wanted to maxi
 
 After printing many case designs, v27 is my current one.
 
-#Step 2: Assembly
+# Step 2: Assembly
 Because I chose a very small wire diameter, I had to compensate with larger length, and so I needed around 170 feet for each phase. This meant wiring would be more tedious, error prone, and time consuming. I 3d printed a jig to measure 1 feet, and simply wrapped along it.
 
 Making scratches to the enamel was inevitable, despite my errors to be careful. To prevent phases from shorting with itself, I wrapped electrical tape over exposed copper. I even tested for bare copper
