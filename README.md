@@ -9,6 +9,18 @@ https://docs.google.com/document/d/19WLVvq-dfDWW1GdS-zNIwnykFYo5D6YfktGFYB5Ziv4/
 >
 >Video from testing: https://drive.google.com/drive/folders/19Vp0OEzmQrTeg8EhbQTLMmb9ZPl5efjz?usp=sharing
 
+# File Explanation
+SerialPlotter Folder: java code that I am working simultaneously to create a mimic- oscilloscope with another ESP32. I want to see what is happening to my electrical components and the really cool sinusoidal graphs that a motor can generate. It will run on Processing.
+
+bldc-falstad.txt: up-to-date text file containing the main circuit design and exported from falstad. I am using falstad.com to simulate my pcb designs. bldc-falstad-v2.txt and bldc-falstad-v1.txt are older versions of my current design.
+
+boostConv.txt: up-to-date text file containing the subcircuit design for my boost converter, which will supply the high DC bus voltage for my motor. It is also exported from falstad.com
+
+inductanceTest: text file containing the schematic I used to test my motor phases (since my multimeter can't measure inductance, I will be calculating it). I used a 2N2222 transistor to create a constant DC current source, and used ESP32's DAC pins to generate a pseudo-AC signal source, which was reflected on the emitter side by creating a AC- Current source. I compared the measured the AC voltages and current with and without each phase in series to find the impedance, which I then used to calculate the inductances (I also used kelvin connections to test my phase DC resistance).
+
+# Acknoledgements
+I used a lot of resources, including but not limited to: Aaron Damer's Transistor playlist (to learn AC signal analysis and Transistor configurations), MIT's OpenCourseWare, specifically 6.002 taught by Anant Agarwal (to learn basic electronics) and 6.622 taught by David Perrault (I learned the theory behind Power electronics and buck, boost, and buck boost converters), as will as my BWSI teaching Assistants (specifically Srikrishna for teaching MOSFET and Semiconductor theory), and ChatGPT, which I used as a search engine and consultant to critique my schematic and electronic designs.
+
 # Goal
 The Goal of this project is to use as many parts that I have scavenged and lying around to make a mock-Kraken X60, a popular FIRST Robotics Competition (FRC) motor. That involves:
 - A 28 gauge enameled copper wire from BingoTech
