@@ -40,5 +40,5 @@ I initially started out with an out-runner rotor design because I wanted to maxi
 
 After printing many case designs, v27 is my current one.
 left to right: V1, v3, v4, v7_3, v18, v26, current one
-<img src="readMeImages/2026%20bldc%20parts.HEIC" alt="grid of 3d printed prototype parts " height="500">
+<img src="readMeImages/2026%20bldc%20parts.jpg" alt="grid of 3d printed prototype parts " height="500">
 
