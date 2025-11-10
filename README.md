@@ -38,4 +38,7 @@ I initially started out with an out-runner rotor design because I wanted to maxi
 <img src="readMeImages/2026%20bldc%20v26.png" alt="bldc v26" height="300">
 <img src="readMeImages/2026%20bldc%20v26%20exploded.png" alt="bldc v26 exploded view" height="300">
 
-After printing many case designs, this is my current one.
+After printing many case designs, v27 is my current one.
+left to right: V1, v3, v4, v7_3, v18, v26, current one
+<img src="readMeImages/2026%20bldc%20parts.HEIC" alt="grid of 3d printed prototype parts " height="500">
+
