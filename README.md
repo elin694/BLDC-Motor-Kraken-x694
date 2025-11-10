@@ -1,8 +1,7 @@
 # In Progress :)
-Hello! In this repository, I have saved my in progress work of my BLDC Motor project!
->Other links below:  
->Google Doc where I document most of my progress and plan out my design:
->https://docs.google.com/document/d/19WLVvq-dfDWW1GdS-zNIwnykFYo5D6YfktGFYB5Ziv4/edit?usp=sharing.  
+Hello! In this repository, I have saved my in progress work of my BLDC Motor project! Other relevant links below:  
+Google Doc where I document most of my progress and plan out my design:
+https://docs.google.com/document/d/19WLVvq-dfDWW1GdS-zNIwnykFYo5D6YfktGFYB5Ziv4/edit?usp=sharing.  
 
 >Google Sheets (which I use to do most of the electronic calculations): https://docs.google.com/spreadsheets/d/1zoV-iSvWJgggNpqaQPVjK8pLd_YnIrjemZmvVzTJ-E0/edit?usp=sharing.  
 
