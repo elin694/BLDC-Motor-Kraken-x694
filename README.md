@@ -24,4 +24,4 @@ As per the Dunning-Kruger effect, I originally thought this was going to be an e
 <img src="readMeImages/2026%20bldc%20v3.png" alt="bldc v3" height="300"><img src="readMeImages/2026%20bldc%20v4.png" alt="bldc v4" height="300">
 <img src="readMeImages/2026%20bldc%20v7_1.png" alt="bldc v7_1" height="300"><img src="readMeImages/2026%20bldc%20v7_3.png" alt="bldc v7_3" height="300">
 <img src="readMeImages/2026%20bldc%20v18.png" alt="bldc v18" height="300"><img src="readMeImages/2026%20bldc%20v26.png" alt="bldc v26" height="500">
-<img src="readMeImages/2026%20bldc%20v26%20exploded.png" alt="bldc v26 exploded view" height="500">
+<img src="readMeImages/2026%20bldc%20v26%20exploded.png" alt="bldc v26 exploded view" height="300">
