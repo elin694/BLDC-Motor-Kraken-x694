@@ -26,7 +26,9 @@ I initially started out with an out-runner rotor design because I wanted to maxi
 <img src="readMeImages/2026%20bldc%20v3.png" alt="bldc v3" height="300"><img src="readMeImages/2026%20bldc%20v4.png" alt="bldc v4" height="300">
 ^^(version 3 and version 4)
 - You can see that after I printed this version and tested it, I realized that a measly 300mA and few strands of wire wasn't going to provide enough magnetic force to attract the rotor. I decided to make slots in the next version so I could put in steel or iron to increase core strength.
+
 <img src="readMeImages/2026%20bldc%20v7_1.png" alt="bldc v7_1" height="300"><img src="readMeImages/2026%20bldc%20v7_3.png" alt="bloc v7_3" height="300">
+
 ^^(version 7_1 and version 7_3)
 - I was going to fill the gaps with ferromagnetic metal, but I didn't have any solid piece on hand. Somehow I thought the mandrels of steel rivets that the STEM center provided would do magic, but after more testing, it didn't work. I realized that and redesigned to maximized the amount of wires that I loop around. 
 <img src="readMeImages/2026%20bldc%20v18.png" alt="bldc v18" height="300">
