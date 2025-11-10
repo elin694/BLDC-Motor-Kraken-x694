@@ -19,4 +19,5 @@ While I tried my best to make my part as close as possible to real motor (in siz
 >Ultimately, the goal is to make a really cheap version of the actual motor that is as accurate as possible so I can confuse my friends, but also as a gift/homage to team 694.
 
 Designing the part:
-As per the Dunning-Kruger effect, I originally thought this was going to be an easy project.
+As per the Dunning-Kruger effect, I originally thought this was going to be an easy project-as seen in the images below (I underestimate wire space and how much I needed, tolerance, wiring, and magnet size).
+![](readmeImages/2026%20bldc%20v18.png)
