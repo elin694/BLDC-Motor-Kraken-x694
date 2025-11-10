@@ -41,6 +41,9 @@ I initially started out with an out-runner rotor design because I wanted to maxi
 After printing many case designs, v27 is my current one.
 
 #Step 2: Assembly
-U
+Because I chose a very small wire diameter, I had to compensate with larger length, and so I needed around 170 feet for each phase. This meant wiring would be more tedious, error prone, and time consuming. I 3d printed a jig to measure 1 feet, and simply wrapped along it.
+
+Making scratches to the enamel was inevitable, despite my errors to be careful. To prevent phases from shorting with itself, I wrapped electrical tape over exposed copper. I even tested for bare copper
+
 left to right: V1, v3, v4, v7_3, v18, v26, current one
 <img src="readMeImages/2026%20bldc%20parts.HEIC" alt="grid of 3d printed prototype parts " height="500">
