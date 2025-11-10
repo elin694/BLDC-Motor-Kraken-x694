@@ -20,4 +20,10 @@ While I tried my best to make my part as close as possible to real motor (in siz
 
 Designing the part:
 As per the Dunning-Kruger effect, I originally thought this was going to be an easy project-as seen in the images below (I underestimate wire space and how much I needed, tolerance, wiring, and magnet size).
+![whatdoesthisdo](readMeImages/2026%20bldc%20v3.png)
+![](readMeImages/2026%20bldc%20v4.png)
+![](readMeImages/2026%20bldc%20v7_1.png)
+![](readMeImages/2026%20bldc%20v7_3.png)
 ![](readMeImages/2026%20bldc%20v18.png)
+![](readMeImages/2026%20bldc%20v26.png)
+![](readMeImages/2026%20bldc%20v26%exploded.png)
