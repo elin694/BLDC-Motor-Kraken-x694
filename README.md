@@ -5,7 +5,8 @@ https://docs.google.com/document/d/19WLVvq-dfDWW1GdS-zNIwnykFYo5D6YfktGFYB5Ziv4/
 >
 >Google Sheets (which I use to do most of the electronic calculations): https://docs.google.com/spreadsheets/d/1zoV-iSvWJgggNpqaQPVjK8pLd_YnIrjemZmvVzTJ-E0/edit?usp=sharing.  
 >
->Onshape CAD model (public): https://cad.onshape.com/documents/441ee0228635d6e7f63cc692/w/1e3ba592a198b8a0d94a5698/e/7b7b7b2b2a7df3ccfb7c86bf?renderMode=0&uiState=69111e453288d4b486afb941
+>Onshape CAD model (public): https://cad.onshape.com/documents/441ee0228635d6e7f63cc692/w/1e3ba592a198b8a0d94a5698/e/7b7b7b2b2a7df3ccfb7c86bf. 
+>
 >Video from testing: https://drive.google.com/drive/folders/19Vp0OEzmQrTeg8EhbQTLMmb9ZPl5efjz?usp=sharing
 
 #Goal
