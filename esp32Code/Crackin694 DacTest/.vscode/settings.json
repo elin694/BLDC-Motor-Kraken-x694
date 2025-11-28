@@ -1,0 +1,6 @@
+{
+    "idf.pythonInstallPath": "/Users/bingqiling/.pyenv/shims/python",
+    "files.associations": {
+        "cstdint": "cpp"
+    }
+}
