@@ -2,7 +2,9 @@
 #include <Arduino.h>
 
 /* Using a potentiometer hooked up to 5V to control
- a 3 phase DC motor with Arduino Uno and 6 step commuatation
+ a 3 phase DC motor with Arduino Uno and 3 step commuatation
+ - Meant to be done with a basic circuit- one phase active at a time by connecting phase wire to Vcc, 
+  and star point to ground
 */
 
 //======Initializing values ======
@@ -16,7 +18,7 @@ const int eletricalCycles =3;
 const long printPeriod = 2e5;
 uint64_t lastTime = 0;
 uint32_t val =0; 
-//how long to delay every phase per block of 6 step commuation, in microseconds
+//how long to delay every phase per block of 3 step commuation, in microseconds
 
 //======Pin definition ======
 #define phaseA 4
@@ -115,7 +117,7 @@ void loop() {
     printf("analogRead rawValueNormalized: %6.4f, ",rawValueNormalized);
     val = 1000000.0/(fMin+
       (fMax-fMin)*rawValueNormalized // linear scaling frequency with respect to potentiometer reading
-      *eletricalCycles*3);
+      *eletricalCycles*3); //3 is for the pole pair count per rotation
    printf("ms pause time/phase: %7.3f, RPM: %i, ",val/1000.0,  static_cast<int>(60.0*1e6/val/3.0/eletricalCycles));
   //  printf("mu s pause time/phase: %7.3f, ", val);
    lastTime = micros();
