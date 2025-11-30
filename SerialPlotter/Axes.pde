@@ -23,15 +23,21 @@ public class Axes{
    
    private float[] c_tickDist =new float[2]; //tick distance
    private float[] tickDist=new float[2];
-   private float[] scale; // Numerical initial value of the scale, default
-   private int[] dimensions = new int[2];  //graph dimension
-   private int[] origin = {0,0}; // in pixel dist (ref to PWORLD)
+   private float[] scale; // Numerical starting value of the scale, default
+   
+   private int chartWidth;  //graph dimension
+   private int chartHeight;  //graph dimension
+   private int x0; // in pixel dist (ref to PWORLD)
    private float[] ogs = {.1,0};   //Stores where the origin is shifted
    
-   public Axes(int[] a, int[] inputTickDist,int[] dimen,float[] s){
+   public Axes(int origin_X, int originY,
+               int chart_width, int chart_height,
+               int[] inputTickDist,float[] s){
      scale =s;
-     origin[0] = a[0];
-     origin[1]= a[1];
+     x0 = origin_X;
+     y0= origin_Y;
+     chartWidth= chart_width;
+     chartHeight= chart_height;
      c_tickDist[0] = inputTickDist[0];
      c_tickDist[1] = inputTickDist[1];
      tickDist[0] = inputTickDist[0];
@@ -53,10 +59,10 @@ public class Axes{
      drawTicksY(multipely);
      
      textSize(labelSize+5);
-     text(axesName[0],origin[0]+dimensions[0]/2,origin[1]+60);
+     text(axesName[0],x0+chartWidth/2,y0+60);
      fill(labelColor);
      textSize(10);
-     text("Axes Scroll Enabled? x,y: ("+dilationDir[0]+"," + dilationDir[1]+")", origin[0]+20,origin[1]-dimensions[1]-10);
+     text("Axes Scroll Enabled? x,y: ("+dilationDir[0]+"," + dilationDir[1]+")", x0+20,y0-chartHeight-10);
 
   }
   
@@ -101,33 +107,33 @@ public class Axes{
      fill(axisColor);
      
      //DRAW AXES AND INTERSECTION
-     line(origin[0],origin[1],origin[0]+dimensions[0], origin[1]); //x-axis
-     line(origin[0],origin[1],origin[0], origin[1]-dimensions[1]); //y-axis
-     line(origin[0],origin[1],origin[0], origin[1]+dimensions[1]); //-y-axis
+     line(x0,y0,x0+chartWidth, y0); //x-axis
+     line(x0,y0,x0, y0-chartHeight); //y-axis
+     line(x0,y0,x0, y0+chartHeight); //-y-axis
      
   }
   
   public void drawTicksY(float numUnscaledTicksY){
        /*
-     unit_distance from height midpoint to bottom bound: dimensions[1]/2 * scale[1]/3tickDist[1]
+     unit_distance from height midpoint to bottom bound: chartHeight/2 * scale[1]/3tickDist[1]
      unit_distance from true origin to height midpoint: originShift[1]
            difference = number unit from bottom bound to true origin
             number of shown (aka multipley) ticks before true origin: take % (multipely * tickDistance)
             Final val: For loop instance count: (include minor gridlines): 
             
-           (dimensions[1]/2 * scale[1]/tickDist[1] - ogs[1]) /
+           (chartHeight/2 * scale[1]/tickDist[1] - ogs[1]) /
            (multipely * tickDist[1] / dividers) +
            
-          (dimensions[1]/2 * scale[1]/tickDist[1] + ogs[1]) /
+          (chartHeight/2 * scale[1]/tickDist[1] + ogs[1]) /
            (multipely * tickDist[1] / dividers)            +1;
             
             2: when making tickines check (i % <minor gridline count> == #inor_gridliens before tick), 
             assume instance count starts at 1 and not 0
       */
     int totalTicksShown = 
-              (int)((dimensions[1]/2 * scale[1]/tickDist[1] - ogs[1]) /
+              (int)((chartHeight/2 * scale[1]/tickDist[1] - ogs[1]) /
                (numUnscaledTicksY * scale[1] / dividers)) +
-              (int)((dimensions[1]/2 * scale[1]/tickDist[1] + ogs[1]) /
+              (int)((chartHeight/2 * scale[1]/tickDist[1] + ogs[1]) /
                (numUnscaledTicksY * scale[1] / dividers))  +1;
            
      for(int i = totalTicksShown;i>0;i--){
@@ -137,22 +143,22 @@ public class Axes{
                            (numUnscaledTicksY * scale[1] / dividers))
                            + 1); 
        /*
-       (int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
+       (int)((chartHeight/2 * scale[1]/tickDist[1] + 
                ogs[1]) /
                (numUnscaledTicksY * tickDist[1] / dividers))
        check (i % <minor gridline count> == #inor_gridliens before tick)
        
        TICK PLACEMENT
-       origin[1]- ogs1[]*conversion_to_pixel +  
-       [(int)((dimensions[1]/2 + ogs[1]*tickDist[1]/scale[1]) /
+       y0- ogs1[]*conversion_to_pixel +  
+       [(int)((chartHeight/2 + ogs[1]*tickDist[1]/scale[1]) /
            (numUnscaledTicksY* tickDist[1] / dividers))*(numUnscaledTicksY* tickDist[1] / dividers]  
        */
        fill(axisColor);
        println(numUnscaledTicksY);
-       rect(origin[0],
-           origin[1]- ogs[1]*tickDist[1]/scale[1] +  
+       rect(x0,
+           y0- ogs[1]*tickDist[1]/scale[1] +  
            (
-             (int)((dimensions[1]/2 + ogs[1]*tickDist[1]/scale[1]) /
+             (int)((chartHeight/2 + ogs[1]*tickDist[1]/scale[1]) /
              (numUnscaledTicksY* tickDist[1] / dividers))
              * (numUnscaledTicksY* tickDist[1] / dividers)
            )
@@ -168,9 +174,9 @@ public class Axes{
        //int marker= 0;
        for(int marker = 0; marker <6; marker++){
          fill(cset[marker]);
-         rect(origin[0], 
+         rect(x0, 
  //START OF TICK POSITION CODE 
-           origin[1] - marker*tickDist[1]/scale[1] +
+           y0 - marker*tickDist[1]/scale[1] +
              (
                (int)((200 + ogs[1]*tickDist[1]/scale[1]) / //difference in space btwn orgin
                (numUnscaledTicksY* tickDist[1] / dividers))
@@ -183,15 +189,15 @@ public class Axes{
        //MAKING THE LABELS (NUMBER SCALE)
        fill(labelColor);
        text(String.valueOf((i/dividers - 1
-                             -(int)((dimensions[1]/2 * scale[1]/tickDist[1] + 
+                             -(int)((chartHeight/2 * scale[1]/tickDist[1] + 
                               ogs[1]) /
                               (numUnscaledTicksY * scale[1]))
                             )
                           *scale[1] *numUnscaledTicksY
                           ),
-            origin[0]-15,
+            x0-15,
             ((i/dividers - 1)*tickDist[1]/scale[1] //<- divide by num divders cuz tick
-               +(int)((dimensions[1]/2 + 
+               +(int)((chartHeight/2 + 
                       tickDist[1]/scale[1] * ogs[1]) /
                 (numUnscaledTicksY * tickDist[1]))
              )
@@ -200,9 +206,9 @@ public class Axes{
      }
      
         strokeWeight(1);  //y axis alignment lines
-     for(int i=(int)(dimensions[1]*dividers/tickDist[1]/numUnscaledTicksY);i>=0;i--){
-       line(origin[0],origin[1]-i*tickDist[1]*numUnscaledTicksY/dividers,origin[0]+dimensions[0],origin[1]-i*tickDist[1]*numUnscaledTicksY/dividers);
-       line(origin[0],origin[1]+i*tickDist[1]*numUnscaledTicksY/dividers,origin[0]+dimensions[0],origin[1]+i*tickDist[1]*numUnscaledTicksY/dividers);
+     for(int i=(int)(chartHeight*dividers/tickDist[1]/numUnscaledTicksY);i>=0;i--){
+       line(x0,y0-i*tickDist[1]*numUnscaledTicksY/dividers,x0+chartWidth,y0-i*tickDist[1]*numUnscaledTicksY/dividers);
+       line(x0,y0+i*tickDist[1]*numUnscaledTicksY/dividers,x0+chartWidth,y0+i*tickDist[1]*numUnscaledTicksY/dividers);
      }
   }
   
@@ -215,22 +221,22 @@ public class Axes{
       //X AXIS TICKS + LABELS
      strokeWeight(0);
      textSize(labelSize);
-     for(int i=(int)(dimensions[0]/tickDist[0]/numUnscaledTicksX);i>=0;i--){ //x axis ticks + label
-      if(debug&& i==0) println((int)(dimensions[0]/tickDist[0]/numUnscaledTicksX));
+     for(int i=(int)(chartWidth/tickDist[0]/numUnscaledTicksX);i>=0;i--){ //x axis ticks + label
+      if(debug&& i==0) println((int)(chartWidth/tickDist[0]/numUnscaledTicksX));
        rectMode(CORNER);  
        fill(labelColor);
        if(i%2==0){
          text(String.valueOf(scale[0]*i*numUnscaledTicksX), 
-                             origin[0]+i*tickDist[0]*numUnscaledTicksX-(labelSize/2.5)*tickSize[0],
-                             origin[1]+3*tickSize[1]);
+                             x0+i*tickDist[0]*numUnscaledTicksX-(labelSize/2.5)*tickSize[0],
+                             y0+3*tickSize[1]);
        } else {
          text(String.valueOf(scale[0]*i*numUnscaledTicksX), 
-                             origin[0]+i*tickDist[0]*numUnscaledTicksX-(labelSize/2.5)*tickSize[0],
-                             origin[1]+4.6*tickSize[1]);
+                             x0+i*tickDist[0]*numUnscaledTicksX-(labelSize/2.5)*tickSize[0],
+                             y0+4.6*tickSize[1]);
        }
        fill(axisColor);
        rectMode(CENTER);
-       rect(origin[0]+i*tickDist[0]*numUnscaledTicksX,origin[1],tickSize[0],tickSize[1]);
+       rect(x0+i*tickDist[0]*numUnscaledTicksX,y0,tickSize[0],tickSize[1]);
      }
   }
 }

@@ -13,14 +13,17 @@ int worldy = 400;
 
 int baudRate = 460800; //speed at which serial sends data (ex Serial.begin(115200) has baud rate 115200)
 
-//all var used in GRAPH CONSTRUCTOR, in order
-int[] origin = new int[] {100,400}; // where the origin is placed on t
-int[] user_defTickDistbyPixel =new int[] {50,50}; // no idea what this is
+//all variables used in GRAPH CONSTRUCTOR, in order
+int originX = 100; ///origin x position relative to processing world
+int originY = 400; //origin y position relative to processing world
+int[] user_defTickDistbyPixel =new int[] {50,50}; //   no idea what this is
 float[] scale =  {2f,2f}; //scale of the xy axis labels, here it is 2.5 and 1.5
-final int PORT_NUMBER= 3; 
+final int graph1Port= 3; 
 float dotSize = 3; // data point size(radius i believe)
-int[] dimension = new int[] {worldx-4*frame,200};    // rectangle size that bounds graph lines
-char[] splitChar = {'\n',','}; //single characters only 
+
+int sizeX = 500;
+int sizeY = 300;
+char[] splitChar = {'\n',','}; //character used to distinguish new data value
 color[] colorArr = {#7ff4ff};
 //===========================================
 // Keys: 1
@@ -45,8 +48,9 @@ void setup() {
   }
   background(bkgd);
   printArray(Serial.list());
-  serial1 = new Serial(this, Serial.list()[PORT_NUMBER], baudRate);
-  g1 = new Graph(origin, 
+  serial1 = new Serial(this, Serial.list()[graph1Port], baudRate);
+  g1 = new Graph(originX, originY,
+                 sizeX, sizeY,
                  user_defTickDistbyPixel,
                  scale,
                  serial1,
@@ -79,7 +83,7 @@ void draw() {
 }
 void keyPressed(){
   if (key == 49){
-    g1.paws();
+    g1.paws(); // pauses graphing
   }
   if(key == x_axis){
    g1.dilationState(0); 

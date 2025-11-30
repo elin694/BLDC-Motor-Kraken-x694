@@ -1,4 +1,4 @@
-import java.util.Arrays;
+ import java.util.Arrays;
 import processing.serial.*;
 //import java.util.PVector;
 public class Graph extends Axes {
@@ -24,7 +24,14 @@ public class Graph extends Axes {
 
   private boolean debug= false;
   private boolean debug2 = false; //see serial
-  public Graph(int[] og, int[] inputTickDist, float[] scale, Serial serial, float size, int[] d, char[] end, color[] keys) {
+  public Graph(int[] og,
+               int[] inputTickDist,
+               float[] scale,
+               Serial serial,
+               float size,
+               int[] d,
+               char[] end,
+               color[] keys) {
     super(og, inputTickDist, d, scale);
     s=serial;
     radius = size;
