@@ -9,15 +9,16 @@
 
 //======Initializing values ======
 //millisecond, per rotation
-#define byTime
+// /#define byTime
+// #define onTimeRatio 90
 #ifdef byTime
 const int periodMin =50;
 const int periodMax = 1000;
 #else
 //rot per second
-//#define onTimeRatio 22
-const float fMin = .01;
-const float fMax = 7;
+
+const float fMin = 2.5;
+const float fMax = 25.5;
 #endif
 const int eletricalCycles =3;
 const long printPeriod = 2e5;
@@ -28,7 +29,7 @@ uint32_t deadTime =0;
 //how long to delay every phase per block of 3 step commuation, in microseconds
 
 //======Pin definition ======
-#define phaseA 4 //inverted
+#define phaseA 7 //inverted
 #define phaseB 6
 #define phaseC 5
 #define pot A0
@@ -107,13 +108,15 @@ phaseAPort &= ~(1 << shiftA);  //set LOW
   #endif  
 
 //  Serial.print("Phase B on, ");
-   phaseBPort |= 1 << shiftB;
- if(onTime>=16383){
-    delay(onTime/1000); 
-  }else{
-    delayMicroseconds(onTime);
-  }
-  phaseBPort &= ~(1 << shiftB);
+// phaseBPort |= 1 << shiftB;
+phaseBPort &= ~(1 << shiftB);
+if(onTime>=16383){
+  delay(onTime/1000); 
+}else{
+  delayMicroseconds(onTime);
+}
+// phaseBPort &= ~(1 << shiftB);
+phaseBPort |= 1 << shiftB;
 #ifdef onTimeRatio
       if(deadTime>=16383){
       delay(deadTime/1000); 
@@ -123,13 +126,15 @@ phaseAPort &= ~(1 << shiftA);  //set LOW
   #endif  
 
   // Serial.println("Phase C on, Electric Cycle Done!");
-   phaseCPort |= 1 << shiftC;
-  if(onTime>=16383){
-      delay(onTime/1000); 
+  //  phaseCPort |= 1 << shiftC;
+   phaseCPort &= ~(1 << shiftC);
+   if(onTime>=16383){
+     delay(onTime/1000); 
     }else{
       delayMicroseconds(onTime);
-  }
-  phaseCPort &= ~(1 << shiftC);
+    }
+    // phaseCPort &= ~(1 << shiftC);
+    phaseCPort |= 1 << shiftC;
   #ifdef onTimeRatio
     if(deadTime>=16383){
       delay(deadTime/1000); 
@@ -147,7 +152,7 @@ phaseAPort &= ~(1 << shiftA);  //set LOW
       (fMax-fMin)*rawValueNormalized) 
       // linear scaling frequency with respect to potentiometer reading
       *eletricalCycles*3); //3 is for the pole pair count per rotation
-    printf("diff*nomral : %f, ",(fMax-fMin)*rawValueNormalized);
+    // printf("diff*nomral : %f, ",(fMax-fMin)*rawValueNormalized);
     #else
       val=(rawValueNormalized*1000.0*(periodMax-periodMin)+1000.0*periodMin)/
       // linear scaling frequency with respect to potentiometer reading
@@ -159,9 +164,11 @@ phaseAPort &= ~(1 << shiftA);  //set LOW
       #else
       onTime = val;
       #endif
-      printf("time delay/phase: %7.3f ms, RPM: %i, ",
-        onTime/1000.0,  
-        static_cast<int>(60.0*1e6/onTime/3.0/eletricalCycles));
+      // printf("time delay/phase: %7.3f ms, RPM: %i, ",
+      printf("RPM: %i, ",
+                static_cast<int>(60.0*1e6/onTime/3.0/eletricalCycles));
+      //   onTime/1000.0,  
+      //   static_cast<int>(60.0*1e6/onTime/3.0/eletricalCycles));
       //  printf("mu s pause time/phase: %7.3f, ", val);
         lastTime = micros();
         double f_pwm;
@@ -170,8 +177,14 @@ phaseAPort &= ~(1 << shiftA);  //set LOW
         #else
          f_pwm = 1.0/(3*val)*1000000;
         #endif
-         printf("f_pwm: %5.2f Hz, 2*f_pwm= %5.2f Hz, ",f_pwm, 2*f_pwm);
-        printf("µs : %lld, val: %lu \n", lastTime,val);
+         printf("f_pwm: %5.2f Hz,"
+          
+          //  2*f_pwm= %5.2f Hz, "
+           ,f_pwm
+          //  , 2*f_pwm
+          );
+       // printf("µs : %lld, val: %lu \n", lastTime,val);
+       Serial.println();
     //val = map(analogRead(pot), 0, 1023, periodMin, periodMax);
   }
 }
