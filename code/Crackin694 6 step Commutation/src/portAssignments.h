@@ -16,7 +16,7 @@
 #define phaseALow 7//pin 16 on "oscilloscope"
 #define phaseBLow 6//pin 15 on "oscilloscope"
 #define phaseCLow 5//pin 14 on "oscilloscope"
-#define pot A0
+#define pot (A0-14)
 
 #if (phaseAHigh >= 8 && phaseAHigh <= 13)
   #define phaseAHighPort PORTB

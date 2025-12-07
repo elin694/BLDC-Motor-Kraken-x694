@@ -22,7 +22,7 @@
   const int periodMax = 380;
 #else
   //rot per second
-  const float fMin = 1;
+  const float fMin = 1.3;
   const float fMax = 14;
 #endif
 const int electricalCycles =3;
