@@ -1,4 +1,22 @@
-
+#pragma once
+#ifndef ARDUINO_H
+#define ARDUINO_H
+#include "Arduino.h"
+#endif 
+#ifndef LIBPRINTF_H
+#define LIBPRINTF_H
+#include <LibPrintf.h>
+#endif 
+//automatic port assignments for direct PORT and DDR control
+//sinusoidal control    
+//============================Pin definition============================
+#define phaseAHigh 10 //pin 19 on "oscilloscope"
+#define phaseBHigh 9//pin 18 on "oscilloscope"
+#define phaseCHigh 8//pin 17 on "oscilloscope"
+#define phaseALow 7//pin 16 on "oscilloscope"
+#define phaseBLow 6//pin 15 on "oscilloscope"
+#define phaseCLow 5//pin 14 on "oscilloscope"
+#define pot A0
 
 #if (phaseAHigh >= 8 && phaseAHigh <= 13)
   #define phaseAHighPort PORTB
