@@ -69,7 +69,7 @@ Because I chose a very small wire diameter, I had to compensate with a larger le
 
 Making scratches to the enamel was inevitable, despite my caution. To prevent phases from shorting with itself, I wrapped electrical tape over exposed copper (the windings won't reach the point of melting the tape). I also used a saltwater pinhole test to find less visible scratches for some phases   
 
-<img src="readMeImages/saltwater_pinhole_test.png" alt="My saltwater pinhole testing setup" height="500">
+<img src="readMeImages/saltwater_pinhole_test.png" alt="My saltwater pinhole testing setup" height="400">
 
 I faced smaller issues with tolerance and fitting, as I attempted to squeeze every millimeter of space between the rotor magnets and stator so I could magnify the magnetic force when coils were activated. I had sanded down both the rotor and stator until the rolling friction of the bearing and drag were the only sources of friction.
 
@@ -91,13 +91,11 @@ Luckily, my electronics journey had already started (around November of 2024). I
 I started by finding values to represent each motor coil in a circuit.  
 First, I measured the linear resistance of each inductor using the ohm-meter on my MM450.  
 
-<img src="readMeImages/gsheets_phaseResistances.png" alt="Phase resistance calculations " height="500">
+<img src="readMeImages/gsheets_phaseResistances.png" alt="Phase resistance calculations " height="300">
 
 Next, I wanted a good estimate of my motor phase inductances. Despite not having access to an inductance-measuring tool, I eventually figured out a viable formula, using the AC-signal analysis tools I learned from Aaron’s Damer transistors playlist, as well as the node methods from 6.002 lectures by Anant Agarwhal.  
 
-<img src="readMeImages/LR_circuit_derivation.png" alt="Solving for inductances in LR circuit " height="500">
-
-<img src="readMeImages/bjt_voltage_amplifier_calculations.png" alt="Solving for DC biasing resistors for a darlington voltage amplification circuit" height="500">
+<img src="readMeImages/LR_circuit_derivation.png" alt="Solving for inductances in LR circuit " height="400"><img src="readMeImages/bjt_voltage_amplifier_calculations.png" alt="Solving for DC biasing resistors for a darlington voltage amplification circuit" height="400">
 
 This was the circuit schematic for my voltage AC-source, shown on falstad.com.  
 
@@ -105,12 +103,11 @@ This was the circuit schematic for my voltage AC-source, shown on falstad.com.
 
 In the DC Darlington model above,  I used ESP32's DAC pins to generate a pseudo-sine wave to mimic an AC signal, which I fed into a Darlington amplifier to create an AC- voltage source. Using definitions and formulas for impedance, I determined an estimate of the phase inductances.  
  
-<img src="readMeImages/gsheets_phaseInductances.png" alt="Phase inductance calculations done on google sheets" height="500">
+<img src="readMeImages/gsheets_phaseInductances.png" alt="Phase inductance calculations done on google sheets" height="200">
 
 These phases and 20mΩ current sense shunt resistors comprised of my “Motor phases” subcircuit in Falstad.com
 
-<img src="readMeImages/	.png" alt="how I modeled my motor phases in falstad" height="500">  
-<img src="readMeImages/falstad_subcircuit_motor_symbol.png" alt="how I represented my motor phases in falstad" height="500">
+<img src="readMeImages/falstad_subcircuit_motor_phases.png" alt="how I modeled my motor phases in falstad" height="200"> <img src="readMeImages/falstad_subcircuit_motor_symbol.png" alt="how I represented my motor phases in falstad" height="200">
 
 ## Motor circuit:
 
@@ -120,26 +117,27 @@ My motor controller uses a 3 half-bridge configuration, one half-bridge for each
 
 I wanted to design my own boost and buck converter module as well, after being inspired from watching MIT’s Open Courseware 6.022 Power electronics series; however, I struggled to implement a feedback system for a stable output voltage.  
 Show below is my basic 555 astable implementation for a boost converter:  
-<img src="readMeImages/falstad_subcircuit_boostConverterNoFeedback.png" alt="basic model of my boost coverter in falstad" height="500">
+<img src="readMeImages/falstad_subcircuit_boostConverterNoFeedback.png" alt="basic model of my boost coverter in falstad" height="400">
 
 My thought process was this: a logic or feedback system could be made either by programming a microcontroller to take input and give output, or it could automatically be regulated by hardware. I didn’t want to use multiple microcontrollers, and I thought creating feedback systems with hardware was more elegant than programming, so I attempted to manipulate the voltage of the CTRL pin on the 555 timer (used in an astable output configuration). the core Integrated chip(IC) that provided the necessary switching logic. I first attempted to look for a mathematical relationship between the duty cycle and the CTRL pin voltage.  
 
-<img src="readMeImages/notebook_boostConverter_page1.png" alt="Page 1 of my notebook on boost converters with 555 timer” height="500">  
-<img src="readMeImages/notebook_boostConverter_page2.png" alt="Page 2 of my notebook on boost converters with 555 timer” height="500">  
-<img src="readMeImages/notebook_boostConverter_page3.png" alt="Page 3 of my notebook on boost converters with 555 timer” height="500">
+<img src="readMeImages/notebook_boostConverter_page1.png" alt="Page 1 of my notebook on boost converters with 555 timer" height="500">
+<img src="readMeImages/notebook_boostConverter_page2.png" alt="Page 2 of my notebook on boost converters with 555 timer" height="500">
+<img src="readMeImages/notebook_boostConverter_page3.png" alt="Page 3 of my notebook on boost converters with 555 timer" height="500">
 
 Graphing showed me a direct (almost linear) relationship between the duty cycle and , which I hoped I could utilize through some feedback network.   
-<img src="readMeImages/notebook_desmos_V_ctrl_vs_Duty.png" alt="Desmos graph of the equation I derived in the notebook” height="500">
+<img src="readMeImages/notebook_desmos_V_ctrl_vs_Duty.png" alt="Desmos graph of the equation I derived in the notebook" height="300">
 
 So, I tried a 2 stage-implementation of my solution. The vertical switch would be closed, and the horizontal one would be open. Stage one has an Op-Amp with unity gain to act as a buffer (switch open in the circuit) so I drew negligible current from the voltage divider (which brought down the voltage to a ratio I hoped to keep constant). Stage 2 compared the output of the buffer to a potentiometer, which I would use to adjust the setpoint voltage.
 
-<img src="readMeImages/falstad_subcircuit_boostConverterBadFeedbackLoop.png" alt="model of my boost converter with my 2 stage op-amp for feedback idea in falstad” height="500">
+<img src="readMeImages/falstad_subcircuit_boostConverterBadFeedbackLoop.png" alt="model of my boost converter with my 2 stage op-amp for feedback idea in falstad" height="500">
 
 However, it had many problems. Falstad showed that the circuit didn’t work as I predicted: adjustments would often change the 555 switching duty cycle and switching frequency. I spent multiple days attempting to solve this problem, but I realized if I continued, my project’s pacing would be slow. The time I spent on designing motor cases reminded me that I needed to get a prototype soon, and fail fast. So I decided to buy the converters online, and book this sub-project for a future investigation.
 
 This was my final breadboard prototype circuit schematic. The main difference between this and my intended PCB design was that I made bootstrap circuits for my high-side MOSFET to use instead of the gate drivers that I lacked. I built this circuit, ran it, and was able to reach motor speeds up to 800rpm using 6-step commutation (see video).  
 
-<img src="readMeImages/falstad_breadboard_motor_controller.png" alt="My full breadboard motor controller circuit in falstad” height="500">  
+<img src="readMeImages/falstad_breadboard_motor_controller.png" alt="My full breadboard motor controller circuit in falstad" height="500">  
+
 [caption: op-amps to represent Current Sense Amplifiers temporarily removed]
 
 Testing video: [https://drive.google.com/file/d/1aiDmqKBAf_SJHJi-CjGYLPHVinIo39mS/view?usp=sharing](https://drive.google.com/file/d/1aiDmqKBAf_SJHJi-CjGYLPHVinIo39mS/view?usp=sharing) 
@@ -151,7 +149,7 @@ From my tests, my motor coils always struggled with generating a magnetic field.
 
 After consideration, I decided to use a motor bus voltage of 23-24V maximum, as that would put my phase current at around 1A (if 2 phases were enabled); However, that would only occur when the motor stalls. In normal operation, I would put the motor current to .8A, as I was worried about motor temperature, and that was a safe limit that online sources and ChatGPT had suggested. 57 degrees was the temperature the PLA casing would start degrading or soften.  
 
-<img src="readMeImages/GPT_on_Thermal_Characteristics.png" alt="Image of Chat GPT’s response to the amount of current I should run to sustain temperatures below 57 degrees F” height="500">
+<img src="readMeImages/GPT_on_Thermal_Characteristics.png" alt="Image of Chat GPT’s response to the amount of current I should run to sustain temperatures below 57 degrees F" height="400">
 
 ## Designing around ESP32
 
@@ -161,5 +159,5 @@ While most modern BLDC motors run with 20kHz PWM frequency, I chose to use 16kHz
 
 After my circuit was finished, I recreated the schematic on EasyEDA and added more suitable components. While I haven’t wired the traces on the PCB, I have settled on a preferred component placement to minimize inductance and cross-talk across signals on my PCB. Below are the footprints as well as a 3D-model rendition of my current part placement.  
 While it is still a work-in progress, I’m excited for its completion!  
-<img src="readMeImages/easyeda_plannedComponentLayoutAndFootprints" alt="Image of my component layout in easyeda” height="500">  
-<img src="readMeImages/easyeda_plannedComponentLayout_3D" alt="Image of the 3D view of my component layout in easyeda” height="500">  
+<img src="readMeImages/easyeda_plannedComponentLayoutAndFootprints.png" alt="Image of my component layout in easyeda" height="500">  
+<img src="readMeImages/easyeda_plannedComponentLayout_3D.png" alt="Image of the 3D view of my component layout in easyeda" height="500">  
