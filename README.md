@@ -67,7 +67,7 @@ Making scratches to the enamel was inevitable, despite my caution. To prevent ph
 I faced smaller issues with tolerance and fitting, as I attempted to squeeze every millimeter of space between the rotor magnets and stator so I could magnify the magnetic force when coils were activated. I had sanded down both the rotor and stator until the rolling friction of the bearing and drag were the only sources of friction.
 
 This was the interior of the final product after months of design and 3D printing. The red PETG stator, chosen for its higher temperature resistance than PLA, held the windings, and the magnets were attached onto the rotor by pressfitting and with the double sided tape that came with the magnets I bought.  
-![][image9]
+<img src="readMeImages/motor_uncovered.png" alt="final motor with cap removed" height="300">
 
 left to right: V1, v3, v4, v7_3, v18, v26, current motor  
 <img src="readMeImages/2026%20bldc%20parts.jpg" alt="grid of 3d printed motor prototype parts " height="500">
