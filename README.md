@@ -7,15 +7,12 @@ Hello! In this repository, I show my process and progress on my BLDC Motor proje
 >  
 >Videos from testing: https://drive.google.com/drive/folders/19Vp0OEzmQrTeg8EhbQTLMmb9ZPl5efjz?usp=sharing
 
-# File Explanation
+## File Explanation
 
-SerialPlotter Folder: java code that I am working simultaneously to create a mimic- oscilloscope with another ESP32. I want to see what is happening to my electrical components and the really cool sinusoidal graphs that a motor can generate. It will run on Processing.
-
-bldc-falstad.txt: up-to-date text file containing the main circuit design and exported from falstad.com. bldc-falstad-v2.txt and bldc-falstad-v1.txt are out-dated versions.
-
-boostConv.txt: up-to-date text file containing the subcircuit design for my boost converter.
-
-inductanceTest.txt: text file containing the schematic I used to test my motor phases.
+>SerialPlotter Folder: java code that I am working simultaneously to create a mimic- oscilloscope with another ESP32. I want to see what is happening to my electrical components and the really cool sinusoidal graphs that a motor can generate. It will run on Processing.  
+>bldc-falstad.txt: up-to-date text file containing the main circuit design and exported from falstad.com. bldc-falstad-v2.txt and bldc-falstad-v1.txt are out-dated versions.  
+>boostConv.txt: up-to-date text file containing the subcircuit design for my boost converter.  
+>inductanceTest.txt: text file containing the schematic I used to test my motor phases.
 
 # Acknowledgements
 
@@ -39,13 +36,11 @@ As per the Dunning-Kruger effect, I originally thought this was going to be an e
 I initially started out with an out-runner rotor design because I wanted to maximize the number of magnets I can put inside, thinking that it will increase my motor torque. That clearly wasn't right.  
 <img src="readMeImages/2026%20bldc%20v3.png" alt="bldc v3" height="300"><img src="readMeImages/2026%20bldc%20v4.png" alt="bldc v4" height="300">
 
-
 ^^(version 3 and version 4)
 
 * You can see that after I printed this version and tested it, I realized that a measly 300mA and few strands of wire wasn't going to provide enough magnetic force to attract the rotor. I decided to make slots in the next version so I could put in steel or iron to increase core strength.
 
 <img src="readMeImages/2026%20bldc%20v7_1.png" alt="bldc v7_1" height="300"><img src="readMeImages/2026%20bldc%20v7_3.png" alt="bloc v7_3" height="300">
-
 
 ^^(version 7_1 and version 7_3)
 
@@ -54,10 +49,9 @@ I initially started out with an out-runner rotor design because I wanted to maxi
 <img src="readMeImages/2026%20bldc%20v18.png" alt="bldc v18" height="300">
 
 * After a while, I settled on using the AS5600 magnetic sensor for FOC feedback. However, I hadn't designed my motor with this piece in mind, and I realized I had to do another redesign. The bigger problem was that packaging was going to get challenging on another level, and I was already pushing the thinness of the PETG stator to the limits. Ultimately I switched to an in runner rotor design. Ironically, later on through accidental research, I would discover that the Kraken x60 itself is an out runner motor. However, since only external appearance and functionality mattered to me, I continued my project.
-
-<img src="readMeImages/2026%20bldc%20v26.png" alt="bldc v26" height="300">
+ 
+<img src="readMeImages/2026%20bldc%20v26.png" alt="bldc v26" height="300">  
 <img src="readMeImages/2026%20bldc%20v26%20exploded.png" alt="bldc v26 exploded view" height="300">
-
 
 After printing many case designs, v27 is my current one.
 
@@ -78,40 +72,45 @@ This was the interior of the final product after months of design and 3D printin
 left to right: V1, v3, v4, v7_3, v18, v26, current motor  
 <img src="readMeImages/2026%20bldc%20parts.jpg" alt="grid of 3d printed motor prototype parts " height="500">
 
-
 # Electronics:
 
-Up to this point, I was focused only on learning the internals of BLDC motors by making one myself, and I had made one! I knew I needed a motor controller, but spared looking for one until it was finished. However, as I looked online, their prices were rocket high— reliable electric speed Controller ones came at around $30, $40, even $70 dollars for 1! It cost as much as my 3D printed motor I made, and it was even double that of my arduino starter kit! With these price tags, I wanted to get more than a simple motor controller; I should learn something long, lasting, and meaningful that’ll be of service to me in future. It was then I knew I’d make one, one that had much more value than a simple controller.  
+Up to this point, I was focused only on learning the internals of BLDC motors by making one myself, and I had made one! I knew I needed a motor controller, but spared looking for one until it was finished. However, as I looked online, their prices were rocket high— reliable electric speed Controller ones came at around $30, $40, even $70 dollars for 1! It cost as much as my 3D printed motor I made, and it was even double that of my arduino starter kit! With these price tags, I wanted to get more than a simple motor controller; I should learn something long, lasting, and meaningful that’ll be of service to me in future. It was then I knew I’d make one, one that had much more value than a simple controller.
+
 Luckily, my electronics journey had already started (around November of 2024). I’d always wanted to learn something new with the starter kit my parents purchased for me. I watched lessons and the playlist series of ELEC 110 and 220, taught by Joe Gryniuk at Lake Washington Technical College, and followed along with the corresponding textbook “Introduction to Electronics“ on train rides and spare time. 
 
 ## Breadboard Prototypes
 
 I started by finding values to represent each motor coil in a circuit.  
 First, I measured the linear resistance of each inductor using the ohm-meter on my MM450.  
-![][image11]  
+![][image11]
+
 Next, I wanted a good estimate of my motor phase inductances. Despite not having access to an inductance-measuring tool, I eventually figured out a viable formula, using the AC-signal analysis tools I learned  from Aaron’s Damer transistors playlist, as well as the node methods from 6.002 lectures by Anant Agarwhal.  
 ![][image12]![][image13]  
 This was the circuit schematic for my voltage AC-source, shown on falstad.com.  
 ![][image14]
 
 In the DC Darlington model above,  I used ESP32's DAC pins to generate a pseudo-sine wave to mimic an AC signal, which I fed into a Darlington amplifier to create an AC- voltage source. Using definitions and formulas for impedance, I determined an estimate of the phase inductances.  
-![][image15]These phases and 20mΩ current sense shunt resistors comprised of my “Motor phases” subcircuit in Falstad.com  
+![][image15]
+
+These phases and 20mΩ current sense shunt resistors comprised of my “Motor phases” subcircuit in Falstad.com  
 ![][image16]
 
 ## Motor circuit:
 
 ![][image17]
 
-My motor controller will use a 3 half-bridge configuration, one half-bridge for each phase. The power bus will be connected to a boost converter, taking the 12V battery input and producing 24V for the gates. Shunt current sense resistors in-line with motor phases are paired with current sense amplifiers to measure the current. Another buck-converter supplied the logic voltage of 5V, which will be used to power the ESP-33. The AS5600 magnetic encoder communicates with the ESP-32 using I2C. To reduce costs, I had asked my robotics coach for permission to bring broken FRC motor controllers home, which I disassembled to salvage PSMN1R0-30YLD enhancement-mode mosfets for my half bridges.   
+My motor controller will use a 3 half-bridge configuration, one half-bridge for each phase. The power bus will be connected to a boost converter, taking the 12V battery input and producing 24V for the gates. Shunt current sense resistors in-line with motor phases are paired with current sense amplifiers to measure the current. Another buck-converter supplied the logic voltage of 5V, which will be used to power the ESP-33. The AS5600 magnetic encoder communicates with the ESP-32 using I2C. To reduce costs, I had asked my robotics coach for permission to bring broken FRC motor controllers home, which I disassembled to salvage PSMN1R0-30YLD enhancement-mode mosfets for my half bridges. 
+
 I wanted to design my own boost and buck converter module as well, after being inspired from watching MIT’s Open Courseware 6.022 Power electronics series; however, I struggled to implement a feedback system for a stable output voltage.  
 [basic 555 astable implementation for a boost converter]  
-![][image18]  
+![][image18]
+
 My thought process was this: a logic or feedback system could be made either by programming a microcontroller to take input and give output, or it could automatically be regulated by hardware. I didn’t want to use multiple microcontrollers, and I thought creating feedback systems with hardware was more elegant than programming, so I attempted to manipulate the voltage of the CTRL pin on the 555 timer (used in an astable output configuration). the core Integrated chip(IC) that provided the necessary switching logic. I first attempted to look for a mathematical relationship between the duty cycle and the CTRL pin voltage.  
  ![][image19]  
 ![][image20]  
 ![][image21]
 
-Graphing showed me a direct (almost linear) relationship between the duty cycle and , which I hoped I could utilize through some feedback network. However, it had many problems. Falstad showed that the circuit didn’t work as I predicted: adjustments would often change the 555 switching duty cycle and switching frequency. I spent multiple days attempting to solve this problem, but I realized if I continued, my project’s pacing would be slow, and so I decided to buy the converters online- I had learned my lesson of getting too stuck on the details before, from the long time I spent on designing motor cases, and the boost converter wasn’t my biggest priority.
+Graphing showed me a direct (almost linear) relationship between the duty cycle and switching frequency, which I hoped I could utilize through some feedback network. However, it had many problems. Falstad showed that the circuit didn’t work as I predicted: adjustments would often change the 555 switching duty cycle and switching frequency. I spent multiple days attempting to solve this problem, but I realized if I continued, my project’s pacing would be slow, and so I decided to buy the converters online- I had learned my lesson of getting too stuck on the details before, from the long time I spent on designing motor cases, and the boost converter wasn’t my biggest priority.
 
 ![][image22]  
 ![][image23]
@@ -122,17 +121,19 @@ This was my final breadboard prototype circuit schematic. The main difference be
 
 # Motor Characteristics
 
-From my tests, my motor coils always struggled with generating a magnetic field. I did my share of research, both from my physics regents classes and online searching, and I learned about B = µ₀(N/ℓ)I. I had an air core for my solenoid, and my number of turns and wire length was already determined by my 4oz supply of wire. So, I had to increase my voltage.  
+From my tests, my motor coils always struggled with generating a magnetic field. I did my share of research, both from my physics regents classes and online searching, and I learned about B = µ₀(N/ℓ)I. I had an air core for my solenoid, and my number of turns and wire length was already determined by my 4oz supply of wire. So, I had to increase my voltage.
+
 After consideration, I decided to use a motor bus voltage of 23-24V maximum, as that would put my phase current at around 1A (if 2 phases were enabled); However, that would only occur when the motor stalls. In normal operation, I would put the motor current to .8A, as I was worried about motor temperature, and that was a safe limit that online sources and ChatGPT had suggested. 57 degrees was the temperature the PLA casing would start degrading or soften.  
 ![][image25]
 
 ## Designing around ESP32
 
-From watching motor control algorithms, such as Field-Oriented Control (FOC) by Texas Instruments and also Janteen Lee’s series on FOC, I learned I needed shunts for phase current sensing. I will use 2 shunts to determine the current of 2 phases, and use Kirchoff's Current Law to determine the third phase current.  
+From watching motor control algorithms, such as Field-Oriented Control (FOC) by Texas Instruments and also Janteen Lee’s series on FOC, I learned I needed shunts for phase current sensing. I will use 2 shunts to determine the current of 2 phases, and use Kirchoff's Current Law to determine the third phase current.
+
 While most modern BLDC motors run with 20kHz PWM frequency, I chose to use 16kHz because 1) it was barely within my audio hearing range, and 2) I wanted to use ESP32’s ADC to read the measurements. For my first PCb, I’ve decided to sample with the ADC at 16kHz as well, so that I my measurements are always timed with the gate switching Using 16kHz allows me to attempt higher sampling frequencies in the future, such as 64kHz across 2 channels, totaling to 128kHz, which was about the limit of Espressif’s recommended ESP32 ADC reading speed.
 
-After my circuit was finished, I recreated the schematic on EasyEDA and added more suitable components. While I haven’t wired the traces on the PCB, I have settled on a preferred component placement to minimize inductance and cross-talk across signals on my PCB. Below are the footprints as well as a 3D-model rendition of my current part placement.  
+After my circuit was finished, I recreated the schematic on EasyEDA and added more suitable components. While I haven’t wired the traces on the PCB, I have settled on a preferred component placement to minimize inductance and cross-talk across signals on my PCB. Below are the footprints as well as a 3D-model rendition of my current part placement.
+
 While it is still a work-in progress, I’m excited for its completion!  
 ![][image26]  
 ![][image27]
-
