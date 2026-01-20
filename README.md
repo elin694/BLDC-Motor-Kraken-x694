@@ -95,11 +95,11 @@ First, I measured the linear resistance of each inductor using the ohm-meter on 
 
 Next, I wanted a good estimate of my motor phase inductances. Despite not having access to an inductance-measuring tool, I eventually figured out a viable formula, using the AC-signal analysis tools I learned from Aaron’s Damer transistors playlist, as well as the node methods from 6.002 lectures by Anant Agarwhal.  
 
-<img src="readMeImages/LR_circuit_derivation.png" alt="Solving for inductances in LR circuit " height="400"><img src="readMeImages/bjt_voltage_amplifier_calculations.png" alt="Solving for DC biasing resistors for a darlington voltage amplification circuit" height="400">
+<img src="readMeImages/LR_circuit_derivation.png" alt="Solving for inductances in LR circuit " height="300"><img src="readMeImages/bjt_voltage_amplifier_calculations.png" alt="Solving for DC biasing resistors for a darlington voltage amplification circuit" height="300">
 
 This was the circuit schematic for my voltage AC-source, shown on falstad.com.  
 
-<img src="readMeImages/falstad_darlington_amplifier.png” alt="my darlington amplifier circuit on Falstad.com " height="500">
+<img src="readMeImages/falstad_darlington_amplifier.png" alt="my darlington amplifier circuit on Falstad.com" height="400">
 
 In the DC Darlington model above,  I used ESP32's DAC pins to generate a pseudo-sine wave to mimic an AC signal, which I fed into a Darlington amplifier to create an AC- voltage source. Using definitions and formulas for impedance, I determined an estimate of the phase inductances.  
  
@@ -149,7 +149,7 @@ From my tests, my motor coils always struggled with generating a magnetic field.
 
 After consideration, I decided to use a motor bus voltage of 23-24V maximum, as that would put my phase current at around 1A (if 2 phases were enabled); However, that would only occur when the motor stalls. In normal operation, I would put the motor current to .8A, as I was worried about motor temperature, and that was a safe limit that online sources and ChatGPT had suggested. 57 degrees was the temperature the PLA casing would start degrading or soften.  
 
-<img src="readMeImages/GPT_on_Thermal_Characteristics.png" alt="Image of Chat GPT’s response to the amount of current I should run to sustain temperatures below 57 degrees F" height="400">
+<img src="readMeImages/GPT_on_Thermal_Characteristics.png" alt="Image of Chat GPT’s response to the amount of current I should run to sustain temperatures below 57 degrees F" height="300">
 
 ## Designing around ESP32
 
