@@ -32,7 +32,7 @@ void setup() {
 void loop() {
   // 5 if(probeEnable) conditions takes up 11 samples/.1s
   if(phaseVTimeFlag){
-    for (int i=4; i>=0;i-=2){
+    for (int i=0; i>=0;i-=2){
       Serial.print(probeLabel[i]);
       // Serial.print(myAnalogRead(probePinA[i]) * multiplier[i], 3);
       Serial.print((analogRead(probePinA[i])-analogRead(probePinA[i+1])) * multiplier[i], 3); //a0-a5 --> AH,AL,BH,BL,CH,CL 
@@ -56,7 +56,7 @@ void loop() {
   }
   // Serial.print("SharedGnd:0,"); //takes up 17samples/.1s
   // timeDiff = (millis() % 100) > 197 || (millis() % 100) < 3;  //in ms
-  if ((millis() % 100) > 97) {
+  if ((millis() % 100) > 96) {
     Serial.println("10Hz_5.3V:"+ lowerRail);
   } else {
     Serial.println("10Hz_5.3V:5.33");
@@ -86,4 +86,7 @@ void initiateReadingPins() {
 
 // Contents/Resources/app/lib/backend/resources/arduino-serial-plotter-webapp/static/js.
 // main.xxxxxx.chunk.js.
-// useState(50)
+
+
+// /Applications/Arduino IDE.app/Contents/Resources/app/lib/backend/resources/arduino-serial-plotter-webapp/static/js
+// useState)(50)
