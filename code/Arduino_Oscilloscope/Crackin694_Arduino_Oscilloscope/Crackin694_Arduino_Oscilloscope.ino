@@ -1,3 +1,4 @@
+#include "Wire.h"
 // #include "myAnalogRead.h"
 String lowerRail = "0";
 const int enableProbe[6] = {7,6,5,4,3,2};
