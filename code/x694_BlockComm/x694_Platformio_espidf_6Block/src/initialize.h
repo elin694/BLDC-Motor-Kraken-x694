@@ -1,5 +1,5 @@
 #ifndef GLOBALS_H
-#include "globals.h"
+#include "Globals.h"
 #endif
 
 void initialize();      
@@ -8,6 +8,9 @@ void switchBlock(int phase);
 void initAnalogReadOnce(void * parameter);
 uint8_t getSectorNumber();
 
+
+
+//======================================================
   //Direction A
   // Phase:       A---B---C
   // block 1 =    L---H---N

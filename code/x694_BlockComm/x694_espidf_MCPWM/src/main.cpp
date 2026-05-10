@@ -1,9 +1,9 @@
 #include "headers.h"
-#define generatorGPIO GPIO_NUM_33
- //b HIGH SIDE tx2
+#define generatorGPIO phaseCHighPort
+//b HIGH SIDE tx2
+#define phaseLowGate phaseALowPort
 // #define generatorGPIO GPIO_NUM_2 //b HIGH SIDE tx2
 #define captureGPIO GPIO_NUM_19 //miso
-#define phaseLowGate GPIO_NUM_16
 
 
 //in
@@ -14,6 +14,27 @@
 
 uint32_t compareValue = dutyCycle*.01*timerPeriod;
 int id =  SOC_MCPWM_GROUPS-1;
+
+extern void groundSetup(){
+    gpio_num_t gateArray[6]= {
+      phaseAHighPort,
+      phaseALowPort,
+      phaseBHighPort,
+      phaseBLowPort,
+      phaseCHighPort,
+      phaseCLowPort,
+   };
+   for(gpio_num_t gate : gateArray){
+      gpio_reset_pin(gate);
+      gpio_set_direction(gate,GPIO_MODE_OUTPUT);
+      ets_delay_us(1000);
+      gpio_set_pull_mode(gate, GPIO_PULLUP_ONLY);
+      gpio_set_level(gate, 0);
+   }
+    gpio_reset_pin(phaseLowGate);
+    gpio_set_direction(static_cast<gpio_num_t>(phaseLowGate),GPIO_MODE_OUTPUT);
+    gpio_set_level(phaseLowGate, 1);
+}
 
 mcpwm_timer_config_t timerSetup = {
     .group_id = id,
@@ -88,29 +109,6 @@ mcpwm_capture_channel_config_t triggerChannelSetup = {
     }
 };
 mcpwm_cap_channel_handle_t triggerChannelHandle;
-
-extern void groundSetup(){
-    gpio_num_t gateArray[6]= {
-    //   phaseAHighPort,
-      phaseALowPort,
-      
-    //   phaseBHighPort,
-      phaseBLowPort,
-
-    //   phaseCHighPort,
-      phaseCLowPort,
-   };
-   for(gpio_num_t gate : gateArray){
-      gpio_reset_pin(gate);
-      gpio_set_direction(gate,GPIO_MODE_OUTPUT);
-      ets_delay_us(1000);
-      gpio_set_pull_mode(gate, GPIO_PULLUP_ONLY);
-      gpio_set_level(gate, 0);
-   }
-    gpio_reset_pin(phaseLowGate);
-    gpio_set_direction(static_cast<gpio_num_t>(phaseLowGate),GPIO_MODE_OUTPUT);
-    gpio_set_level(phaseLowGate, 1);
-}
 
 extern void setupMCPWM(){
     ets_delay_us(10000);

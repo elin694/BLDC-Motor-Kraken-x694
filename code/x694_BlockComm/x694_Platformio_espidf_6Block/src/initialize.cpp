@@ -1,4 +1,4 @@
-#include "globals.h"
+#include "Globals.h"
 #define as5600Address 0x36
 
 void initializeGPIO(){
@@ -84,21 +84,8 @@ i2c_master_dev_handle_t as5600Handle;
     }
 
     switch(steps[blockNumber][phase]){
-          case -1: //set both off
-            if (pinConnectToPower < 32){
-               GPIO.out_w1tc |= (1<<pinConnectToPower);
-            } else {
-               GPIO.out1_w1tc.val |= (1<<(pinConnectToPower-32));
-            }
-            ets_delay_us(deadTime);
-            if (pinConnectToGND < 32){
-               GPIO.out_w1tc |= (1<<pinConnectToGND);
-            } else {
-               GPIO.out1_w1tc.val |= (1<<(pinConnectToGND-32));
-            }
-            break;
-          case 0: //set low on, high off
-
+          case -1: //set low on, high off
+            //NET EFFECT = SINK
             if (pinConnectToPower < 32){
                GPIO.out_w1tc |= (1<<pinConnectToPower);
             } else {
@@ -110,9 +97,25 @@ i2c_master_dev_handle_t as5600Handle;
             } else {
                GPIO.out1_w1ts.val |= (1<<(pinConnectToGND-32));
             }
+         break;
+         
+         case 0: //set both off
+          //NET EFFECT = FLOAT
+            if (pinConnectToPower < 32){
+               GPIO.out_w1tc |= (1<<pinConnectToPower);
+            } else {
+               GPIO.out1_w1tc.val |= (1<<(pinConnectToPower-32));
+            }
+            ets_delay_us(deadTime);
+            if (pinConnectToGND < 32){
+               GPIO.out_w1tc |= (1<<pinConnectToGND);
+            } else {
+               GPIO.out1_w1tc.val |= (1<<(pinConnectToGND-32));
+            }
+         break;
 
-            break;
           case 1: //set low off, high on
+          //NET EFFECT = SOURCE
             // gpio_set_level( pinConnectToPower,1);
             // gpio_set_level( pinConnectToGND,0);
             if (pinConnectToGND < 32){
@@ -126,7 +129,7 @@ i2c_master_dev_handle_t as5600Handle;
             } else {
                GPIO.out1_w1ts.val |= (1<<(pinConnectToPower-32));
             }
-            break;
+         break;
     }
 }//run pwm at f ~40-50kHz for adjustable torque control
 
