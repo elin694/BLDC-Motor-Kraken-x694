@@ -1,7 +1,7 @@
 #include "headers.h"
-#define generatorGPIO phaseCHighPort
+#define generatorGPIO phaseBHighPort
 //b HIGH SIDE tx2
-#define phaseLowGate phaseALowPort
+#define phaseLowGate phaseCLowPort
 // #define generatorGPIO GPIO_NUM_2 //b HIGH SIDE tx2
 #define captureGPIO GPIO_NUM_19 //miso
 

@@ -34,18 +34,29 @@
 #define inlineShuntC 36 //Vp 
 #define inlineShuntA 39 //Vn
 
-extern const int electricalCycles;
+inline int steps[6][3] ={  {1,0,-1},  {0,1,-1},  {-1,1,0},  {-1,0,1},  {0,-1,1},  {1,-1,0}  }; 
+constexpr int electricalCycles= 3; //constexpr is defineable compile time costant 
 extern const long printPeriod;
+
+//changing during runtime
 extern uint64_t lastTime;
-extern uint32_t val; //how long to delay every phase
-extern uint32_t onTime; 
-extern uint32_t deadTime; 
-extern int blockNumber;
-extern int steps[6][3];
+extern uint32_t onTime;  
+inline int blockNumber =0; //VARIABLE AND CHANGES
 extern adc_oneshot_unit_handle_t adcHandle;
+inline float duty = .5;
+inline int dir = 1; //or 5 to go in reverse
+inline int currentSector = 0;
+
 //i2c
 extern i2c_master_bus_config_t busSetup;
 extern i2c_master_bus_handle_t busHandle;
 extern i2c_device_config_t as5600Setup;
 extern i2c_master_dev_handle_t as5600Handle;
+//as5600
+constexpr uint8_t as5600Register = 0x36;
+constexpr uint8_t as5600TargetRegister = 0x0e;
+constexpr size_t as5600WriteSize = 1;
+inline uint8_t as5600RawDataBuf[2];
+constexpr size_t as5600ReadSize = 2;
+// #define as5600DirPinHigh
 

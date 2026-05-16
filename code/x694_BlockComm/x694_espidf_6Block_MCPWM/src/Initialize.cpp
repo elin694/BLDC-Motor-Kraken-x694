@@ -1,6 +1,8 @@
 #include "Globals.h"
 #define as5600Address 0x36
 
+int deadTime = 10;
+
 void initializeGPIO(){
    gpio_reset_pin(clockPin);
    gpio_reset_pin(dataPin);
@@ -24,7 +26,6 @@ void initializeGPIO(){
 void initialize(){
    // use ledc to set potentionmeter to input analog read
    // Reset all GPIO directions
-   deadTime = 10;
    onTime = 111;
    printf("Setup Begun \n ");
    initializeGPIO( );
@@ -51,7 +52,7 @@ i2c_master_bus_handle_t busHandle;
 i2c_device_config_t as5600Setup = {
    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
    .device_address = as5600Address,
-   .scl_speed_hz= 300000, //need fast enough  to avoid invaldi state
+   .scl_speed_hz= 300000, //need fast enough  to avoid invalid state
    .scl_wait_us = 30,
    .flags = {.disable_ack_check = false}
 };

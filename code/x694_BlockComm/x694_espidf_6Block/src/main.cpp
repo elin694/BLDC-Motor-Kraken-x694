@@ -18,7 +18,6 @@ uint8_t potBuffer[128];
 
 //==================== as5600 ====================
 uint8_t as5600Register = 0x36;
-#define data_register_length 2
 const uint8_t as5600TargetRegister = 0x0e;
 size_t as5600WriteSize = 1;
 uint8_t as5600RawDataBuf[2];
@@ -31,9 +30,17 @@ size_t as5600ReadSize = 2;
 //3 : π/6
 //4 : 3π/6
 //5 : 5π/6
+
+// #define as5600DirPinHigh
+#ifdef as5600DirPinHigh
 const uint16_t as5600CalibratedOffset = static_cast<uint16_t>(
   -(2107-(4095.0/3)) + 30.0 *(4095/3)/360
 ); //2107 bit at c high a low (block #3 )with DIR  @5V
+#else
+const uint16_t as5600CalibratedOffset = static_cast<uint16_t>(
+  -((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360
+); 
+#endif
 //format {A,B,C}, {-0-1,1} = {float,sink,source} = {float, low, high}
 // int steps[6][3] = {  {1,-1,0},  {-1,1,0},  {0,1,-1},  {0,-1,1},  {-1,0,1},  {1,0,-1}  };  og 0=sink
 int steps[6][3] = {  {1,0,-1},  {0,1,-1},  {-1,1,0},  {-1,0,1},  {0,-1,1},  {1,-1,0}  }; 
@@ -75,9 +82,14 @@ uint8_t getSectorNumber() {
     as5600RawDataBuf, 
     as5600ReadSize, //ensure 2 bytes is read
     3));
-  uint16_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-  + as5600CalibratedOffset
-  ;
+#ifdef as5600DirPinHigh
+    uint16_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
+  + as5600CalibratedOffset;
+  #else
+    uint16_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+  + as5600CalibratedOffset;
+#endif
+
   #define bitsPerSector (4096.0 / (electricalCycles*6))
   return (static_cast<uint8_t>(rotorAngle/bitsPerSector) % 6); //0- bitsPerSector --> smaller sector
 }

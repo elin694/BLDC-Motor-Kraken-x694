@@ -1,12 +1,8 @@
-#ifndef GLOBALS_H
-#include "Globals.h"
-#endif
-
 void initialize();      
 void initializeGPIO();
 void switchBlock(int phase);
 void initAnalogReadOnce(void * parameter);
-uint8_t getSectorNumber();
+int getSectorNumber();
 
 
 
