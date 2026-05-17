@@ -1,7 +1,9 @@
+#pragma once
+#include "Globals.h"
 void initialize();      
 void initializeGPIO();
 void switchBlock(int phase);
-void initAnalogReadOnce(void * parameter);
+void initAnalogReadOnce();
 int getSectorNumber();
 
 

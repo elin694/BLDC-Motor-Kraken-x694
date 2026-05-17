@@ -1,21 +1,3 @@
-/*
-every 100ms, Pot will send new updated value to analog read pin
-After reading the pin, Esp32 will adjust timers by calling updatePwms(int phase, int duty )
-
-@param *** frequency will be cosntnant adn defined by RC time cosntant
-each MCPWM module has 3 operators, each operator can make 2 PWM waves
-Low gate pwm will be adjusted with 
-
-*/
-/*
-3 timers  --> 3 operators, each generator a high and low gate signal for their corresponding 3 phases
-+1 timer with block frequency
-at every blockTimer tick, (the 4th timer)
-- if High gate needs to be set high, the corresponding timer frequency is increase to PWM frequency until
-- If high gate switching i sfinished
-- set low gate deadtime on operators's 2nd pwm wave
-
-*/
 #pragma once 
 #include "Globals.h"
 
@@ -62,13 +44,50 @@ typedef struct {
     mcpwm_gen_handle_t pwmLowGate = NULL;
 
     mcpwm_dead_time_config_t deadTime = lowGateDeadTimeSetup;
+    mcpwm_timer_sync_phase_config_t syncConfig = {
+        //config to use sync to sync timers
+        // .sync_src = , //assign to a syn src
+        .count_value = 0, //assign phase
+        .direction = MCPWM_TIMER_DIRECTION_UP,
+    };
+    float phaseShift= 0.0f; //tack on with an add later
+    //shoutout gemini for suggest changing countval
 } phaseMcpwm;
 
 
+
+extern void mcpwmSetup();
 extern void phaseSwitching();
 extern void executeGate(phaseMcpwm phase, int state, int previousState);
 extern void preloadNextBlock(phaseMcpwm phase, int previousState, int nextState);
 
+/* DESCRIPTION
+every 100ms, Pot will send new updated value to analog read pin
+After reading the pin, Esp32 will adjust timers by calling updatePwms(int phase, int duty )
+
+@param *** frequency will be cosntnant adn defined by RC time cosntant
+each MCPWM module has 3 operators, each operator can make 2 PWM waves
+Low gate pwm will be adjusted with 
+
+3 timers  --> 3 operators, each generator a high and low gate signal for their corresponding 3 phases
++1 timer with block frequency
+at every blockTimer tick, (the 4th timer)
+- if High gate needs to be set high, the corresponding timer frequency is increase to PWM frequency until
+- If high gate switching is finished
+- set low gate deadtime on operators's 2nd pwm wave
+
+*/
+/// UNUSED CODE
+/*
+    // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event(genHandle,
+    //     MCPWM_GEN_TIMER_EVENT_ACTION(
+    //         MCPWM_TIMER_DIRECTION_UP, //up or down
+    //         MCPWM_TIMER_EVENT_EMPTY, // timer to 0, peak, or timer invalid event
+    //         MCPWM_GEN_ACTION_LOW // set to same level, low/high level, or toggle
+    //     ),
+    //     MCPWM_GEN_TIMER_EVENT_ACTION_END()
+    // ));
+*/
 /*
 mcpwm_capture_channel_config_t triggerChannelSetup = {
     .gpio_num = captureGPIO,

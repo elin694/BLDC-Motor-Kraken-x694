@@ -18,10 +18,8 @@
 #define GLOBALS_H
 #define phaseAHighPort GPIO_NUM_33
 #define phaseALowPort GPIO_NUM_14
-
 #define phaseBHighPort GPIO_NUM_17
 #define phaseBLowPort GPIO_NUM_16
-
 #define phaseCHighPort GPIO_NUM_26
 #define phaseCLowPort GPIO_NUM_32
 
@@ -34,18 +32,30 @@
 #define inlineShuntC 36 //Vp 
 #define inlineShuntA 39 //Vn
 
-inline int steps[6][3] ={  {1,0,-1},  {0,1,-1},  {-1,1,0},  {-1,0,1},  {0,-1,1},  {1,-1,0}  }; 
-constexpr int electricalCycles= 3; //constexpr is defineable compile time costant 
-extern const long printPeriod;
+#ifdef as5600DirPinHigh
+#define as5600CalibratedOffset static_cast<uint16_t>(-(2107-(4095.0/3)) + 30.0 *(4095/3)/360);
+ //2107 bit at c high a low (block #3 )with DIR  @5V
+#else
+ #define as5600CalibratedOffset static_cast<uint16_t>(-((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360); 
+#endif
+
+constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
+constexpr int steps[6][3] ={  {1,0,-1},  {0,1,-1},  {-1,1,0},  {-1,0,1},  {0,-1,1},  {1,-1,0}  }; 
+constexpr int electricalCycles = 3; //constexpr is defineable compile time costant 
+
+#define timerResolution  static_cast<uint32_t>(8e6) //125ns
 
 //changing during runtime
-extern uint64_t lastTime;
-extern uint32_t onTime;  
-inline int blockNumber =0; //VARIABLE AND CHANGES
 extern adc_oneshot_unit_handle_t adcHandle;
+extern uint64_t lastTime;
+inline int blockNumber =0; //VARIABLE AND CHANGES
 inline float duty = .5;
 inline int dir = 1; //or 5 to go in reverse
 inline int currentSector = 0;
+// extern uint32_t onTime;  //in microseconds
+inline uint32_t blockPeriod =  static_cast<uint32_t>(timerResolution/1000); //TBD
+// 8 million ticks per second = 8000 ticks per period * 100 period
+// timer rez = ticks per period * periods/second 
 
 //i2c
 extern i2c_master_bus_config_t busSetup;
