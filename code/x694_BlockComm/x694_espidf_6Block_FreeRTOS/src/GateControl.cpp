@@ -89,9 +89,7 @@ mcpwm_timer_sync_phase_config_t syncState = { //config to use sync to sync timer
     .direction = MCPWM_TIMER_DIRECTION_UP,
 };
 //========================================================================================================
-
 extern void mcpwmSetup(int startingTargetSector){
-    esp_intr_alloc();
     groundSetup();
     int i = 0;
     phaseSignals[0].index = 0;
@@ -189,7 +187,7 @@ extern void mcpwmSetup(int startingTargetSector){
         ESP_ERROR_CHECK(mcpwm_timer_start_stop(phase.timer, MCPWM_TIMER_START_NO_STOP));
      }
 }
-void phaseSwitching(int currentBlockTarget, int blockNumber){
+void phaseSwitching(int currentBlockTarget, int blockNumber, uint32_t blockFrequency){
     //REMOVE USELESS VAR PASS
 // [1][2][3] = arr[2][3]
 // [4][5][6]
@@ -206,7 +204,7 @@ void phaseSwitching(int currentBlockTarget, int blockNumber){
     preloadGates(phaseSignals, currentBlockTarget, nextBlock);
     //for swithcing: ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(phase[1].timer, syncState1));
 }
-void executeGates(phaseMcpwm* phase, int state, int previousState){
+void executeGate(phaseMcpwm* phase, int state, int previousState){
     for(int i =0; i <3; i++){
         /*
             only pulldowns highGate when lowGatePWm is High
@@ -218,13 +216,13 @@ void executeGates(phaseMcpwm* phase, int state, int previousState){
                     ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmHighGate, 0, true)); //150-300ns
                     ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmLowGate, -1, false));
                     //set level after to avoid conflicting force
-                    *(PORT_SET[2*i+1]) |= (1<<(portShift[2*i+1])); //set low gate  HLHLHL -> 012345
+                    *(PORT_SET[2*i]) |= (1<<(portShift[2*i+1])); //set low gate  HLHLHL -> 012345
                 }
                 break;
             case 0: //float 
                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmHighGate, -1, false));
                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmLowGate, -1, false));
-                *(PORT_CLEAR[2*i]) |= (1<<(portShift[2*i]));
+                *(PORT_CLEAR[2*i+1]) |= (1<<(portShift[2*i]));
                 *(PORT_CLEAR[2*i+1]) |= (1<<(portShift[2*i+1]));
                 break;
             case 1: //source current
@@ -232,7 +230,7 @@ void executeGates(phaseMcpwm* phase, int state, int previousState){
                     ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmHighGate, -1, false));
                     ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmLowGate, 0, true));
                     //get force set level sets other to 0
-                    *(PORT_SET[2*i]) |= (1<<(portShift[2*i]));
+                    *(PORT_SET[2*i + 1]) |= (1<<(portShift[2*i]));
                 }
                 break;
             default:
@@ -241,7 +239,7 @@ void executeGates(phaseMcpwm* phase, int state, int previousState){
     //sync here
     }
 }   
-void preloadGates(phaseMcpwm* phase, int previousState, int nextState){
+void preloadNextBlock(phaseMcpwm* phase, int previousState, int nextState){
     for(int i =0; i <3; i++){
         switch (nextState) {
             //loads next timer periods and the sync timer values
@@ -268,9 +266,11 @@ void preloadGates(phaseMcpwm* phase, int previousState, int nextState){
     }
 }
 /*;
-    **** mcpwm_timer_register_event_callbacks() : call befor timer enable
-    **** mcpwm_comparator_register_event_callbacks()-  
+    **** mcpwm_timer_register_event_callbacks() : timer can generate different events at runtime.
+            - call befor timer enable
+    **** mcpwm_comparator_register_event_callbacks()-  comparator can be used to trigger event when comparator reaches threshold
     **** mcpwm_generator_set_action_on_sync_event()- sync base trigger event,  MCPWM_GEN_SYNC_EVENT_ACTION
+        - doesn't have variadic function 
 */
 
 extern int mod6 (int value){ //for single add

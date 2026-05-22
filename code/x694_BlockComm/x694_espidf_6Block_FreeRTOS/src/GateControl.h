@@ -1,6 +1,5 @@
 #pragma once 
 #include "Globals.h"
-#include "esp_intr_alloc.h"
 
 /*
 Hardware prioriy:
@@ -29,7 +28,7 @@ inline constexpr mcpwm_operator_config_t phaseOperatorSetup = {
         .update_dead_time_on_sync = 1,
     },
 };
-// ESP_INTR_FLAG_IRAM
+
 typedef struct {
     int index; //a,b,c
     mcpwm_timer_config_t timerConfig;
@@ -56,10 +55,10 @@ typedef struct {
     //shoutout gemini for suggest changing countval
 } phaseMcpwm;
 
-//  mcpwm_carrier_config_t
+
 
 extern void mcpwmSetup(int targetSectorNumber);
-extern void phaseSwitching(int currentBlockTarget, int blockNumber);
+extern void phaseSwitching();
 extern void executeGates(phaseMcpwm *phase, int state, int previousState);
 extern void preloadGates(phaseMcpwm *phase, int previousState, int nextState);
 extern int mod6(int value);

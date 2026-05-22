@@ -35,11 +35,11 @@ void run6Block(void * parameter) {
     for (int phase = 0; phase <3; phase++){ //aplies state to each block
       switchBlock(phase); 
     }
+    xTaskDelayUntil(&xLastWakeTime,(pdMS_TO_TICKS(((blockPeriod/µsToTicksInt)/1000.0))+1)); 
+    blockNumber = (getSectorNumber() + 2*dir) % 6; //optimize ot remove modulo***********************
     
-    blockNumber = getSectorNumber(); //optimize ot remove modulo***********************
+    RPS = (fMin+(fMax-fMin)*sqrtf((float)rawData/4096.0f));
     blockPeriod= 1000000.0f/(float)(RPS *electricalCycles*6) * µsToTicks;
-    phaseSwitching(blockNumber, (blockNumber + 2*dir) % 6);
-    // RPS = (fMin+(fMax-fMin)*sqrtf((float)rawData/4096.0f));
     //3 is for the pole pair count per rotation
     //turning towards negative--> longer delay for value --> slower spins
 

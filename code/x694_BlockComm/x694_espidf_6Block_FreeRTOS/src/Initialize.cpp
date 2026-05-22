@@ -70,7 +70,6 @@ int getSectorNumber() {
   int newBlockNumber =(static_cast<uint8_t>((float)rotorAngle/bitsPerSector) % 6); //0- bitsPerSector --> smaller sector
   if((std::abs(newBlockNumber - blockNumber))>1 || (std::abs(newBlockNumber - blockNumber))<5){
     ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous blockNumber: %2d. New blockNumber: %2d", blockNumber, newBlockNumber);
-    vTaskDelay(pdMS_TO_TICKS(2000)); 
     abort();
   }
   return  newBlockNumber;
