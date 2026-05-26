@@ -1,31 +1,32 @@
 #pragma once
-#include "Globals.h"
+#define as5600Address 0x36
+#include "driver/i2c_master.h"
+
+void pinSetup();
 void initialize();      
 void initializeGPIO();
-void switchBlock(int phase);
-void initAnalogReadOnce();
-int getSectorNumber();
 
+void as5600initialize();
+void initAnalogReadOnce();
+
+void getSectorNumber(void *returnValue);
+
+
+//+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++
+extern i2c_master_bus_config_t busSetup;
+extern i2c_master_bus_handle_t busHandle;
+extern i2c_device_config_t as5600Setup;
+extern i2c_master_dev_handle_t as5600Handle;
+
+constexpr uint8_t as5600Set = 0x36;
+constexpr uint8_t as5600TargetRegister = 0x0e;
+constexpr size_t as5600WriteSize = 1;
+inline uint8_t as5600RawDataBuf[2];
+constexpr size_t as5600ReadSize = 2;
+// #define as5600DirPinHigh
 
 
 //======================================================
-  //Direction A
-  // Phase:       A---B---C
-  // block 1 =    L---H---N
-  // block 2 =   N---H---L
-  // block 3 =   H---N---L
-  // block 4 =   H---L---N
-  // block 5 =   N---L---H
-  // block 6 =   L---N---H
-// int steps[6][3] = {
-//   {0,1,-1},
-//   {-1,1,0},
-//   {1,-1,0},
-//   {1,0,-1},
-//   {-1,0,1},
-//   {0,-1,1},
-// };// abc clockwise
-
 // static void initAnalogReadContinuous(void *parameter){
 //   // Initialize the ADC Continuous Mode Driver
 //   adc_continuous_handle_cfg_t dmaHandleSetup = {

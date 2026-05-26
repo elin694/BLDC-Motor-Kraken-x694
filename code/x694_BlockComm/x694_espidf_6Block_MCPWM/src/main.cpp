@@ -1,72 +1,72 @@
 //============================ 6 step commutation! with ESPIDF ============================
 #include "Initialize.h"
 #include "GateControl.h"
-#include "driver/i2c_master.h"
-#define ticksToµs static_cast<float>((1e6)/timerResolution)
-#define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick
-#define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
+#include "Globals.h"
 //Ti sinusoidal : https://www.youtube.com/watch?v=-By_vt27Xhs&t=21s
-//============================Initializing values ============================zxq`
 const double fMin = 1; //in hertz
-const double fMax = 15;
-
-uint64_t lastTime = 0;
+const double fMax = 17;
 
 adc_oneshot_unit_handle_t adcHandle;
-uint8_t potBuffer[128];
+uint32_t potBuffer[128];
 
-// Offset exists so that block 3 is calibrate and maps to 30° on the electrical axes
-//block, radians
-//0 : 7π/6 
-//1 :  9π/6
-//2 : 11π/6
-//3 : π/6
-//4 : 3π/6
-//5 : 5π/6
-double RPS= 0 ;
+float RPS= 0 ;
 int rawData = 0;
-//format {A,B,C}, {-0-1,1} = {float,sink,source} = {float, low, high}
-// int steps[6][3] = {  {1,-1,0},  {-1,1,0},  {0,1,-1},  {0,-1,1},  {-1,0,1},  {1,0,-1}  };  og 0=sink
-//==================================LOOP=====================================
-void run6Block(void * parameter) { 
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  int rawData = 0;
-  for(;;){
-    for (int phase = 0; phase <3; phase++){ //aplies state to each block
-      switchBlock(phase); 
-    }
-    
-    blockNumber = getSectorNumber(); //optimize ot remove modulo***********************
-    blockPeriod= 1000000.0f/(float)(RPS *electricalCycles*6) * µsToTicks;
-    phaseSwitching(blockNumber, (blockNumber + 2*dir) % 6);
-    // RPS = (fMin+(fMax-fMin)*sqrtf((float)rawData/4096.0f));
-    //3 is for the pole pair count per rotation
-    //turning towards negative--> longer delay for value --> slower spins
+portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
 
-    lastTime = esp_timer_get_time();
-    taskYIELD();
-    
-    }
-}
-void readPot1(void * parameter){
+// void run6Block(void * parameter) { 
+//   TickType_t xLastWakeTime = xTaskGetTickCount();
+//   for(;;){
+//     getSectorNumber((void *)&global); //optimize ot remove modulo***********************
+//     // phaseSwitching(blockNumber, (blockNumber + 2*dir) % 6);
+//     taskYIELD();
+//     }
+// }
+
+void readPotRepeat(void * parameter){
   for(;;){
-    ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
-    vTaskDelay(pdMS_TO_TICKS(50)); 
+    readPotOnce(parameter);
+    vTaskDelay(pdMS_TO_TICKS(70)); 
   }
+}
+void readPotOnce(void * parameter){
+    ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
+    RPS = (fMin+(fMax-fMin)*sqrtf((float)rawData/4096.0f));
+    //3 is for the pole pair count per rotation
+    //turning towards negative--> longer delay for value --> slower spin
+
+    //This bottom part needs to be instantaneous assignment
+    uint32_t bPeriod_temp= (uint32_t)((float)timerResolution/(float)(RPS *electricalCycles*6));
+    // * µsToTicks; //mcpwm timer icks per block when spinnig
+    float cmr_dividers_3_1 = (float)global.blockPeriod/3.0f;
+    float cmr_dividers_3_2 = 2 * cmr_dividers_3_1;
+    
+    taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
+    if(global.blockPeriod != bPeriod_temp){
+      newFrequency =true;
+      //ISR checks this constatnly. If true, it runs code to update the CMRA trheshold.
+      // might be useless
+      ESP_ERROR_CHECK(mcpwm_timer_set_period(blockTimer, bPeriod_temp));
+      ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, bPeriod_temp));
+    }
+    global.blockPeriod = bPeriod_temp;
+    global.CMR_value_3[1] = cmr_dividers_3_1;
+    global.CMR_value_3[2] = cmr_dividers_3_2;
+    taskEXIT_CRITICAL(&stepPeriodMux);
+    //isr loop needs to keep checking
 }
 
 void debugLog(void * parameter){
   for(;;){
     ESP_LOGI("REPORT STATUS",":pot%: %6.4f, RPS: %5.2f \n ",(float)rawData/4096.0f, RPS);
-    vTaskDelay(pdMS_TO_TICKS(100)); 
+    vTaskDelay(pdMS_TO_TICKS(143)); 
   }
 }
       
 extern "C"{
   void app_main(){
     initialize(); //setup
-    xTaskCreatePinnedToCore(run6Block, "run6Block", 16384, NULL, 4, NULL, 1);
-    xTaskCreatePinnedToCore(readPot1, "readPot1", 10000, NULL, 3, NULL, 1);
+    // xTaskCreatePinnedToCore(run6Block, "run6Block", 16384, NULL, 4, NULL, 1);
+    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 3, NULL, 1);
     xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 1);
     //pull Low high to prime Bootstrap cap?
   }

@@ -1,20 +1,26 @@
 #pragma once
+#include <stdio.h>
+#include <cmath> 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-#include "esp_log.h"
-#include "esp_timer.h"
-#include <iostream>
-#include <cmath> 
-#include <stdio.h>
-#include <stdarg.h>
-#include "rom/ets_sys.h"
-#include "esp_adc/adc_oneshot.h"
 #include "soc/gpio_struct.h"
-#include "driver/i2c_master.h"
+#include "esp_log.h"
 #include "esp_err.h"
+#include "driver/i2c_master.h"
+#include "esp_timer.h"
 #include "driver/mcpwm_prelude.h"
+#include "soc/mcpwm_struct.h"
+#include "esp_intr_alloc.h"
+#include "esp_adc/adc_oneshot.h"
 
+#define ticksToµs static_cast<float>((1e6)/timerResolution)
+#define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
+#define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
+
+//====================FUNCTION DECLARATION =======================
+void readPotRepeat(void * parameter);
+void readPotOnce(void * parameter);
 
 //CHANGE ASSOCIATED PORT SET AND CLEAR
 #define phaseAHighPort GPIO_NUM_33
@@ -31,11 +37,10 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
 #define dataPin GPIO_NUM_21
 #define clockPin GPIO_NUM_22
 #define pot GPIO_NUM_35 // or 35
-// #define adcChannel 34
-#define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
-
 #define inlineShuntC 36 //Vp 
 #define inlineShuntA 39 //Vn
+// #define adcChannel 34
+#define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
 
 #ifdef as5600DirPinHigh
 #define as5600CalibratedOffset static_cast<uint16_t>(-(2107-(4095.0/3)) + 30.0 *(4095/3)/360);
@@ -44,51 +49,71 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
  #define as5600CalibratedOffset static_cast<uint16_t>(-((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360); 
 #endif
 
-constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
-constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
-// constexpr int gateLevel[6][3][2] = { //ah al bh bl ch cl
-//     {{0,1}, {1,0}, {0,0}},
-//     {{0,1}, {0,0}, {1,0}},
-//     {{0,0}, {0,1}, {1,0}},
-//     {{1,0}, {0,1}, {0,0}},
-//     {{1,0}, {0,0}, {0,1}},
-//     {{0,0}, {1,0}, {0,1}},
-// };
+//++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
+   /*You can Probably Change*/
+   #define estimatedI2CReadTimeInMicros 170
+   #define timerResolution  static_cast<uint32_t>(8e6) //125ns , must not simple ratio
+   #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
 
-constexpr int gateLevel[6][6] = { //ah al bh bl ch cl
-    {0, 1, 1, 0, 0, 0},
-    {0, 1, 0, 0, 1, 0},
-    {0, 0, 0, 1, 1, 0},
-    {1, 0, 0, 1, 0, 0},
-    {1, 0, 0, 0, 0, 1},
-    {0, 0, 1, 0, 0, 1},
-};
-constexpr int electricalCycles = 3; //constexpr is defineable compile time costant 
+    #define maxDutyHigh .95
+    #define startingDutyHigh .2
+    #define minDutyHigh .05
 
-#define timerResolution  static_cast<uint32_t>(8e6) //125ns
+    #define startingGateCmpValue static_cast<uint32_t>(startingDutyHigh*activePwmPeriod) //comparatorValue when ON
+    #define offGateCmpValue static_cast<uint32_t>(minDutyHigh*activePwmPeriod) //comparatorValue when OFF
+    
+    #define highDefaultPWMPeriod (.049 * activePwmPeriod)
+    //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
 
-//changing during runtime
+    /*DO NOT CHANGE VALUE*/
+    constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
+    constexpr int electricalCycles = 3; //constexpr is defineable compile time costant 
+    inline mcpwm_timer_handle_t blockTimer=NULL;
+    inline mcpwm_timer_handle_t globalLowTimer =NULL;
+    #define highSideGroup 1 //used in isr intr_source
+    #define lowSideGroup 0
+    constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
+    constexpr float lowGateLevelCycle[6] = {
+        (float)(2/3), 1.0f, (float)(2/3), (float)(1/3), 0.0f, (float)(1/3) 
+    };
+    //given index of current sector, tells which phase is high
+    constexpr int activeHighGate[6]= {1,2,2,0,0,1};
+    // constexpr int activeLowGate[6]= {1,2,2,0,0,1};
+
+    //in gateControl.cpp
+    constexpr int gateLevelCycle[6][6] = { //ah al bh bl ch cl
+        {0, 1, 1, 0, 0, 0}, //block 0,  HLHLHL
+        {0, 1, 0, 0, 1, 0},
+        {0, 0, 0, 1, 1, 0},
+        {1, 0, 0, 1, 0, 0},
+        {1, 0, 0, 0, 0, 1},
+        {0, 0, 1, 0, 0, 1},
+    };
+    constexpr mcpwm_timer_direction_t LTimerDir[6] ={
+        MCPWM_TIMER_DIRECTION_UP,
+        MCPWM_TIMER_DIRECTION_UP, //NULL
+        MCPWM_TIMER_DIRECTION_DOWN,
+        MCPWM_TIMER_DIRECTION_DOWN,
+        MCPWM_TIMER_DIRECTION_DOWN, //null
+        MCPWM_TIMER_DIRECTION_UP,
+    };
+//+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
 extern adc_oneshot_unit_handle_t adcHandle;
-extern uint64_t lastTime;
-inline int blockNumber =0; //VARIABLE AND CHANGES
 inline float duty = .5;
-inline int dir = 1; //or 5 to go in reverse
-inline int currentSector = 0;
-// extern uint32_t onTime;  //in microseconds
-inline uint32_t blockPeriod =  static_cast<uint32_t>(timerResolution/1000); //TBD
-// 8 million ticks per second = 8000 ticks per period * 100 period
+inline int dir = 1; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
+inline bool newFrequency = false;
 // timer rez = ticks per period * periods/second 
 
-//i2c
-extern i2c_master_bus_config_t busSetup;
-extern i2c_master_bus_handle_t busHandle;
-extern i2c_device_config_t as5600Setup;
-extern i2c_master_dev_handle_t as5600Handle;
-//as5600
-constexpr uint8_t as5600Set = 0x36;
-constexpr uint8_t as5600TargetRegister = 0x0e;
-constexpr size_t as5600WriteSize = 1;
-inline uint8_t as5600RawDataBuf[2];
-constexpr size_t as5600ReadSize = 2;
-// #define as5600DirPinHigh
+//Global Glabal Variables
+typedef struct{
+    float CMR_value_3[4];//impleemnt
+    // ^^^^^^^^^^^^^^^^^^^^^
+    volatile uint32_t oldSectorTarget =- 1010;
+    volatile int sectorTarget = -1000; //for stator current vector
+    volatile uint32_t blockPeriod= 900; //TBD
+    uint32_t BTimerPhaseShift;
+} gVar_t;
+
+inline gVar_t global;
 
