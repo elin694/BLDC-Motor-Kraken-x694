@@ -3,12 +3,11 @@
 #include "GateControl.h"
 #include "Globals.h"
 //Ti sinusoidal : https://www.youtube.com/watch?v=-By_vt27Xhs&t=21s
-const double fMin = 1; //in hertz
+const double fMin = 15; //in hertz
 const double fMax = 17;
 
 adc_oneshot_unit_handle_t adcHandle;
 uint32_t potBuffer[128];
-
 float RPS= 0 ;
 int rawData = 0;
 portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
@@ -40,6 +39,7 @@ void readPotOnce(void * parameter){
     float cmr_dividers_3_1 = (float)global.blockPeriod/3.0f;
     float cmr_dividers_3_2 = 2 * cmr_dividers_3_1;
     
+    ESP_LOGW("redPotonce", "bPeriod_temp :%" PRIu32 ", RPS: %f, rawData: %d", bPeriod_temp, RPS, rawData);
     taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
     if(global.blockPeriod != bPeriod_temp){
       newFrequency =true;
@@ -58,7 +58,7 @@ void readPotOnce(void * parameter){
 void debugLog(void * parameter){
   for(;;){
     ESP_LOGI("REPORT STATUS",":pot%: %6.4f, RPS: %5.2f \n ",(float)rawData/4096.0f, RPS);
-    vTaskDelay(pdMS_TO_TICKS(143)); 
+    vTaskDelay(pdMS_TO_TICKS(3*143)); 
   }
 }
       
@@ -66,7 +66,7 @@ extern "C"{
   void app_main(){
     initialize(); //setup
     // xTaskCreatePinnedToCore(run6Block, "run6Block", 16384, NULL, 4, NULL, 1);
-    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 3, NULL, 0);
     xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 1);
     //pull Low high to prime Bootstrap cap?
   }

@@ -14,6 +14,8 @@
 #include "esp_intr_alloc.h"
 #include "esp_adc/adc_oneshot.h"
 
+#include <cinttypes>
+
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
@@ -60,10 +62,10 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
     #define startingDutyHigh .2
     #define minDutyHigh .05
 
-    #define startingGateCmpValue static_cast<uint32_t>(startingDutyHigh*activePwmPeriod) //comparatorValue when ON
-    #define offGateCmpValue static_cast<uint32_t>(minDutyHigh*activePwmPeriod) //comparatorValue when OFF
+    #define startingGateCmpValue static_cast<uint32_t>(startingDutyHigh*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
+    #define offGateCmpValue static_cast<uint32_t>(minDutyHigh*activePwmPeriod) //comparatorValue when OFF, modify this when switching
     
-    #define highDefaultPWMPeriod (.049 * activePwmPeriod)
+    #define highDefaultPWMPeriod static_cast<uint32_t>(.05 * activePwmPeriod)
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
 
     /*DO NOT CHANGE VALUE*/
@@ -111,7 +113,7 @@ typedef struct{
     // ^^^^^^^^^^^^^^^^^^^^^
     volatile uint32_t oldSectorTarget =- 1010;
     volatile int sectorTarget = -1000; //for stator current vector
-    volatile uint32_t blockPeriod= 900; //TBD
+    volatile uint32_t blockPeriod= 8*900; //TBD
     uint32_t BTimerPhaseShift;
 } gVar_t;
 

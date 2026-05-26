@@ -16,6 +16,7 @@ void initialize(){
    getSectorNumber((void *)(&global));
    global.oldSectorTarget = global.sectorTarget;
    mcpwmSetup((global.sectorTarget + 2*dir) % 6, &global.blockPeriod);
+    //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    //no bidirection compatability yet
 }
 
@@ -89,10 +90,12 @@ void initAnalogReadOnce(){
 }
 //run pwm at f ~40-50kHz for adjustable torque control
 
-#define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
-void IRAM_ATTR getSectorNumber(void * returnValue) { //120µs at 400kHz
-   //as5600 is default increasing on clockwise.
-   //set DIR high to invert 
+
+
+void IRAM_ATTR getSectorNumber(void * returnValue) { 
+   #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
+   //120-170 gpt µs at 400kHz
+   //as5600 is default increasing on clockwise. set DIR high to invert 
    #if (lowSideGroup == 1)
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
    #elif (lowSideGroup == 0)
@@ -132,6 +135,18 @@ void IRAM_ATTR getSectorNumber(void * returnValue) { //120µs at 400kHz
       mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
       tempClearReg.timer0_tez_int_clr = 1;
       (MCPWMx)->int_clr.val == tempClearReg.val;
+   } else if(
+      tempStatusReg.timer0_tez_int_st ||
+      tempStatusReg.timer0_tep_int_st ||
+      tempStatusReg.op0_tea_int_st ||
+      tempStatusReg.op0_teb_int_st)
+   { //L TIMER = id1, SO WE USE TIMER 0
+      mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
+      tempClearReg.op0_tea_int_clr = 1;
+      tempClearReg.op0_teb_int_clr = 1;
+      tempClearReg.timer1_tez_int_clr = 1;
+      tempClearReg.timer1_tep_int_clr = 1;
+      phaseSwitching(&tempClearReg, MCPWMx);
    }
 }
 
