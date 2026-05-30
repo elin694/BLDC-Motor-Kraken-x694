@@ -93,6 +93,9 @@ void initAnalogReadOnce(){
 
 
 void IRAM_ATTR getSectorNumber(void * returnValue) { 
+    uint32_t az= isrGroupCounter;
+      az= az +1;
+      counter = az;
    #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
    //120-170 gpt µs at 400kHz
    //as5600 is default increasing on clockwise. set DIR high to invert 
@@ -104,12 +107,15 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
    mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
 
    if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
+      uint32_t a= counter;
+      a= a +1;
+      counter = a;
       ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
          &as5600TargetRegister, 
          as5600WriteSize,
          as5600RawDataBuf, 
          as5600ReadSize, //ensure 2 bytes is read
-         3));
+         -1));
       #ifdef as5600DirPinHigh
          uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
          + as5600CalibratedOffset;
@@ -141,6 +147,9 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       tempStatusReg.op0_tea_int_st ||
       tempStatusReg.op0_teb_int_st)
    { //L TIMER = id1, SO WE USE TIMER 0
+       uint32_t azz= isrCounter2;
+      azz= azz +1;
+      counter = azz;
       mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
       tempClearReg.op0_tea_int_clr = 1;
       tempClearReg.op0_teb_int_clr = 1;

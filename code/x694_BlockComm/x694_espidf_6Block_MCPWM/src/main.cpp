@@ -11,6 +11,7 @@ uint32_t potBuffer[128];
 float RPS= 0 ;
 int rawData = 0;
 portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
 // void run6Block(void * parameter) { 
 //   TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -39,7 +40,7 @@ void readPotOnce(void * parameter){
     float cmr_dividers_3_1 = (float)global.blockPeriod/3.0f;
     float cmr_dividers_3_2 = 2 * cmr_dividers_3_1;
     
-    ESP_LOGW("redPotonce", "bPeriod_temp :%" PRIu32 ", RPS: %f, rawData: %d", bPeriod_temp, RPS, rawData);
+    // ESP_LOGW("redPotonce", "bPeriod_temp :%" PRIu32 ", RPS: %f, rawData: %d", bPeriod_temp, RPS, rawData);
     taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
     if(global.blockPeriod != bPeriod_temp){
       newFrequency =true;
@@ -55,9 +56,18 @@ void readPotOnce(void * parameter){
     //isr loop needs to keep checking
 }
 
+    uint32_t c1 =0;
+    uint32_t c2 =0;
+    uint32_t c3 =0;
 void debugLog(void * parameter){
   for(;;){
-    ESP_LOGI("REPORT STATUS",":pot%: %6.4f, RPS: %5.2f \n ",(float)rawData/4096.0f, RPS);
+    ESP_LOGI("REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
+    taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
+    c1 =counter;
+    c2 = isrCounter2;
+    c1 =isrGroupCounter;
+    taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
+    ESP_LOGI("Checkpoint","Is the counter Moving? counter:%" PRIu32 ", isrCouner2: %" PRIu32 ", isrGCouner: %" PRIu32 "\n", c1,c2,c3);
     vTaskDelay(pdMS_TO_TICKS(3*143)); 
   }
 }

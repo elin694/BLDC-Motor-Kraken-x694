@@ -19,21 +19,25 @@ void mcpwmSetup(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_fu
     // adding tolerance so we definitely won't trigger ETS_PWM0_INTR_SOURCE and then the phaseSwotch/gitpush ISR
     tripleHighOnSync.count_value = 1; //Practically never Changes
     BTimerOnSync.count_value = static_cast<uint32_t>(*bPeriod_pass_by_function-(estimatedI2CReadTimeInMicros*µsToTicksInt)); //is the starting phaseOffset
-    ESP_LOGW("mcpwmSetup", "RRRRRRRR countval: %" PRIu32 ", GlobalLowTiemr Period %u  \n", static_cast<uint32_t>(BTimerOnSync.count_value), blockTimerSetup.period_ticks);
+    // ESP_LOGW("mcpwmSetup", "RRRRRRRR countval: %" PRIu32 ", GlobalLowTiemr Period %u  \n", static_cast<uint32_t>(BTimerOnSync.count_value), blockTimerSetup.period_ticks);
     LTimerOnSync.count_value = static_cast<uint32_t>(lowGateLevelCycle[startingTargetSector] *(*bPeriod_pass_by_function)/2)+2; 
 
     //SET TIMER PERIODS
     CMRA0Threshold = static_cast<uint32_t>((*bPeriod_pass_by_function)*startingDutyHigh);
-    ESP_LOGW("mcpwmSetup", "highGate Timer Period (in Ticks): %" PRIu32 ", activePwmPeriod: %d, timerResolution: %d"  ,highDefaultPWMPeriod, (int)activePwmPeriod, (int)timerResolution);
+    // ESP_LOGW("mcpwmSetup", "highGate Timer Period (in Ticks): %" PRIu32 ", activePwmPeriod: %d, timerResolution: %d"  ,highDefaultPWMPeriod, (int)activePwmPeriod, (int)timerResolution);
     phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(highDefaultPWMPeriod);
     blockTimerSetup.period_ticks =static_cast<uint32_t>(*bPeriod_pass_by_function); //1 phase every change int
     globalTimerSetupLow.period_ticks =static_cast<uint32_t>(*bPeriod_pass_by_function);
     
     //Setting everything up, but not activating or executing any planned actions
     initializeHighGate(startingTargetSector, CMRA0Threshold); //suppress Hgate to OFF
+    ESP_LOGI("======all high waves have tocgd. Operator Connected to timer. C0 and T_low set action onto G0==============", "\n");
     initializeLowGate(startingTargetSector, global.CMR_value_3); // suppress Lgate to OFF
+    ESP_LOGI("======block and low gate timer started. all LOW waves have tocgd. Operator Connected to timer. C0's set to 2/3 Block period, o0c1 to 1/3.==============", "\n");
     configureLowGateEvents();
+    ESP_LOGI("======All low gate actions have been set.==============", "\n");
     initializeISRsAndSyncs();
+    ESP_LOGI("======esp_alloc_intr used. |||||||| mcpwm_new_soft_sync_src and  mcpwm_timer_set_phase_on_sync on each sync trigger (5).==============", "\n");
     
     //Start and wait out first block to trigger ISR1
     initializeTimer(startingTargetSector, *bPeriod_pass_by_function); //actualy starts all 5 timers
@@ -133,7 +137,7 @@ void initializeISRsAndSyncs(){
     // );
 
     ESP_ERROR_CHECK(esp_intr_alloc(
-            ETS_PWM0_INTR_SOURCE,
+            ETS_PWM1_INTR_SOURCE,
             ESP_INTR_FLAG_LEVEL3 
             | ESP_INTR_FLAG_IRAM
             ,
@@ -156,7 +160,7 @@ void initializeISRsAndSyncs(){
         ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(motorH[i].timer, &tripleHighOnSync));
     }
     ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(globalLowTimer, &LTimerOnSync));
-    ESP_LOGW("initializeISRS", "RRRRRRRR countval: %" PRIu32 ", GlobalLowTiemr Period %u  \n", static_cast<uint32_t>(BTimerOnSync.count_value), blockTimerSetup.period_ticks);
+    // ESP_LOGW("initializeISRS", "RRRRRRRR countval: %" PRIu32 ", GlobalLowTiemr Period %u  \n", static_cast<uint32_t>(BTimerOnSync.count_value), blockTimerSetup.period_ticks);
     ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(blockTimer, &BTimerOnSync));
 }
 
@@ -218,7 +222,7 @@ void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTar
             ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0, startingGateCmpValue)); 
         } else{
             // ESP_LOGW("firstPreload", " offGateCmpValue" PRIu32 ", offGateCmpValue" PRIu32 "\n", offGateCmpValue, offGateCmpValue); //i didn't know lol
-            ESP_LOGW("firstPreload", " offGateCmpValue: %" PRIu32 "\n", offGateCmpValue);
+            // ESP_LOGW("firstPreload", " offGateCmpValue: %" PRIu32 "\n", offGateCmpValue);
             ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0, offGateCmpValue)); 
         }
     }

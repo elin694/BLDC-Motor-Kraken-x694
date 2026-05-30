@@ -118,4 +118,6 @@ typedef struct{
 } gVar_t;
 
 inline gVar_t global;
-
+inline volatile uint32_t counter =0;
+inline volatile uint32_t isrCounter2 =0;
+inline volatile uint32_t isrGroupCounter =0;
