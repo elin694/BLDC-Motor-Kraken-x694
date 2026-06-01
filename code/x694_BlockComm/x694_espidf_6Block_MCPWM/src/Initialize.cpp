@@ -18,7 +18,7 @@ void initialize(void * parameter){
    mcpwmSetup((global.sectorTarget + 2*dir) % 6, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    /*no bidirection compatability yet
-    pull Low high to prime Bootstrap cap? */
+    pull Low high to prime Bootstrap cap?  */
    // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 1, NULL, 0);
    //  xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 0);
    vTaskDelete(NULL);
