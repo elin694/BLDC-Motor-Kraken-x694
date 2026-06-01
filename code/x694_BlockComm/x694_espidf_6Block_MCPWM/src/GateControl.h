@@ -51,6 +51,11 @@ void phaseSwitching(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm);
 void executeGates(mcpwm_sync_handle_t * triggers, size_t arraySize);
 int mod6(int value);
 
+#if (lowSideGroup == 1)
+   #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
+   #elif (lowSideGroup == 0)
+   #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
+   #endif
 /*
 Hardware prioriy:
 - Fault/Brake

@@ -1,5 +1,5 @@
 #include "headers.h"
-#define generatorGPIO phaseBHighPort
+#define generatorGPIO phaseAHighPort
 //b HIGH SIDE tx2
 #define phaseLowGate phaseCLowPort
 // #define generatorGPIO GPIO_NUM_2 //b HIGH SIDE tx2
@@ -9,13 +9,14 @@
 //in
 #define timerPeriod 65535 //2e16
 // #define timerPeriod (65535+1)/16 //2e16
-#define countingFrequency (1048576*64)
+// #define countingFrequency (1048576*64)
+#define countingFrequency (104876)
 #define dutyCycle 50
 
 uint32_t compareValue = dutyCycle*.01*timerPeriod;
-int id =  SOC_MCPWM_GROUPS-1;
+int id =  1;
 
-extern void groundSetup(){
+void groundSetup(){
     gpio_num_t gateArray[6]= {
       phaseAHighPort,
       phaseALowPort,
@@ -40,7 +41,7 @@ mcpwm_timer_config_t timerSetup = {
     .group_id = id,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = static_cast<uint32_t>(countingFrequency),
-    .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
+    .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     .period_ticks =static_cast<uint32_t>(timerPeriod),//
     // .intr_priority = 1,
     // .flags = {
@@ -119,7 +120,6 @@ extern void setupMCPWM(){
     ESP_ERROR_CHECK(mcpwm_new_generator(operatorHandle, &genSetup, &genHandle));
     ESP_ERROR_CHECK(mcpwm_new_capture_timer(&triggerSetup, &triggerHandle));
     ESP_ERROR_CHECK(mcpwm_new_capture_channel(triggerHandle, &triggerChannelSetup, &triggerChannelHandle));
-    ets_delay_us(100000);
 }
 
 extern "C" {
@@ -131,22 +131,27 @@ extern "C" {
         ESP_ERROR_CHECK(mcpwm_operator_connect_timer(operatorHandle, timerHandle)); //--
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparatorHandle,compareValue)); 
         
-        ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(genHandle,
-            MCPWM_GEN_COMPARE_EVENT_ACTION(
-                MCPWM_TIMER_DIRECTION_UP,
-                comparatorHandle,
-                MCPWM_GEN_ACTION_HIGH
-            ),
-            MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-        ));
-        ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event(genHandle,
-            MCPWM_GEN_TIMER_EVENT_ACTION(
-                MCPWM_TIMER_DIRECTION_UP,
-                MCPWM_TIMER_EVENT_EMPTY,
-                MCPWM_GEN_ACTION_LOW
-            ),
-            MCPWM_GEN_TIMER_EVENT_ACTION_END()
-        ));
+        // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(genHandle,
+        //     MCPWM_GEN_COMPARE_EVENT_ACTION(
+        //         MCPWM_TIMER_DIRECTION_UP,
+        //         comparatorHandle,
+        //         MCPWM_GEN_ACTION_HIGH
+        //     ),
+        //     MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+        // ));
+        // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event(genHandle,
+        //     MCPWM_GEN_TIMER_EVENT_ACTION(
+        //         MCPWM_TIMER_DIRECTION_UP,
+        //         MCPWM_TIMER_EVENT_EMPTY,
+        //         MCPWM_GEN_ACTION_LOW
+        //     ),
+        //     MCPWM_GEN_TIMER_EVENT_ACTION_END()
+        // ));
+          ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event(genHandle,
+        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_EVENT_FULL, MCPWM_GEN_ACTION_HIGH),
+        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_LOW),
+        MCPWM_GEN_TIMER_EVENT_ACTION_END()
+    ));
 
         
         ESP_ERROR_CHECK(mcpwm_timer_enable(timerHandle));

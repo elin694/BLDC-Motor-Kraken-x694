@@ -6,7 +6,7 @@
 const double fMin = 15; //in hertz
 const double fMax = 17;
 
-adc_oneshot_unit_handle_t adcHandle;
+adc_oneshot_unit_handle_t adcHandle = NULL;
 uint32_t potBuffer[128];
 float RPS= 0 ;
 int rawData = 0;
@@ -29,6 +29,7 @@ void readPotRepeat(void * parameter){
   }
 }
 void readPotOnce(void * parameter){
+   rawData = 0;
     ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
     RPS = (fMin+(fMax-fMin)*sqrtf((float)rawData/4096.0f));
     //3 is for the pole pair count per rotation
@@ -68,17 +69,17 @@ void debugLog(void * parameter){
     c1 =isrGroupCounter;
     taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
     ESP_LOGI("Checkpoint","Is the counter Moving? counter:%" PRIu32 ", isrCouner2: %" PRIu32 ", isrGCouner: %" PRIu32 "\n", c1,c2,c3);
+    
     vTaskDelay(pdMS_TO_TICKS(3*143)); 
   }
 }
       
 extern "C"{
   void app_main(){
-    initialize(); //setup
+    xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 3, NULL, 1);
+    ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
     // xTaskCreatePinnedToCore(run6Block, "run6Block", 16384, NULL, 4, NULL, 1);
-    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 3, NULL, 0);
-    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 1);
-    //pull Low high to prime Bootstrap cap?
+    
   }
 }
 //attach block timer frequency to potentionmeter

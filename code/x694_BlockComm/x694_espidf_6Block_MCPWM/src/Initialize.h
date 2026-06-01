@@ -3,14 +3,14 @@
 #include "driver/i2c_master.h"
 
 void pinSetup();
-void initialize();      
+void initialize(void *parameter);      
 void initializeGPIO();
 
 void as5600initialize();
 void initAnalogReadOnce();
 
 void getSectorNumber(void *returnValue);
-
+void debugLog(void * parameter);
 
 //+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++
 extern i2c_master_bus_config_t busSetup;

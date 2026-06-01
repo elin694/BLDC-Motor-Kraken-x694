@@ -2,7 +2,7 @@
 #include "GateControl.h"
 #include <bitset> 
 
-void initialize(){
+void initialize(void * parameter){
    for(int i = 0; i<4; i++){
       global.CMR_value_3[i] = global.blockPeriod*(float)i/6.0f;
    }
@@ -12,12 +12,16 @@ void initialize(){
    // readPotOnce(NULL);
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
-   void as5600initialize();
-   getSectorNumber((void *)(&global));
+   // as5600initialize();
+   global.sectorTarget=2;
    global.oldSectorTarget = global.sectorTarget;
    mcpwmSetup((global.sectorTarget + 2*dir) % 6, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
-   //no bidirection compatability yet
+   /*no bidirection compatability yet
+    pull Low high to prime Bootstrap cap? */
+   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 1, NULL, 0);
+   //  xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 0);
+   vTaskDelete(NULL);
 }
 
 i2c_master_bus_config_t busSetup = { 
@@ -52,6 +56,7 @@ void pinSetup(){
    }
 }
 
+#define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
 void as5600initialize() {
    #define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
    //sets fth and sf , also reduces
@@ -74,6 +79,32 @@ void as5600initialize() {
       std::bitset<3>((fthRegisterData[0] & 0b00011100) >> 2).to_string().c_str(),
       std::bitset<2>(fthRegisterData[0] & 0b00000011).to_string().c_str()
    );
+   //===================================GET A STARTING SECTOR VALUE ===================================
+   //===================================GET A STARTING SECTOR VALUE ===================================
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+         &as5600TargetRegister, 
+         as5600WriteSize,
+         as5600RawDataBuf, 
+         as5600ReadSize, //ensure 2 bytes is read
+         -1));
+      #ifdef as5600DirPinHigh
+         uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
+         + as5600CalibratedOffset;
+      #else
+         uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+         + as5600CalibratedOffset;
+      #endif
+
+      int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
+      if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
+         ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
+         vTaskDelay(pdMS_TO_TICKS(2000)); 
+         abort();
+      }
+      //transfer old position
+      global.oldSectorTarget = global.sectorTarget; 
+      //put in new vlaue
+      global.sectorTarget = newBNumber;
 }
 
 void initAnalogReadOnce(){
@@ -96,7 +127,6 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
     uint32_t az= isrGroupCounter;
       az= az +1;
       counter = az;
-   #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
    //120-170 gpt µs at 400kHz
    //as5600 is default increasing on clockwise. set DIR high to invert 
    #if (lowSideGroup == 1)
@@ -140,13 +170,13 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       
       mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
       tempClearReg.timer0_tez_int_clr = 1;
-      (MCPWMx)->int_clr.val == tempClearReg.val;
+      (MCPWMx)->int_clr.val = tempClearReg.val;
    } else if(
-      tempStatusReg.timer0_tez_int_st ||
+      tempStatusReg.timer0_tez_int_st || //since phaseA_gen_one_third =0
       tempStatusReg.timer0_tep_int_st ||
       tempStatusReg.op0_tea_int_st ||
       tempStatusReg.op0_teb_int_st)
-   { //L TIMER = id1, SO WE USE TIMER 0
+   { //L TIMER = id1, SO WE USE TIMER 1
        uint32_t azz= isrCounter2;
       azz= azz +1;
       counter = azz;

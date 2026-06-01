@@ -12,7 +12,7 @@ mcpwm_timer_config_t blockTimerSetup = { //onces per step/block
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
     // .intr_priority = 1,
     .flags = {
-        // .update_period_on_empty = 1,
+        .update_period_on_empty = 0,
         .update_period_on_sync = 1
     }
 };
@@ -23,7 +23,7 @@ mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     // .intr_priority = 1,
     .flags = {
-    //     .update_period_on_empty = 1,
+        .update_period_on_empty = 0,
         .update_period_on_sync = 1 
     }
 };
@@ -34,7 +34,7 @@ mcpwm_timer_config_t globalTimerSetupLow = { //Grass with peaks
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     // .intr_priority = 1,
     .flags = {
-    //     .update_period_on_empty = 1,
+        .update_period_on_empty = 0,
         .update_period_on_sync = 1 
     }
 };
