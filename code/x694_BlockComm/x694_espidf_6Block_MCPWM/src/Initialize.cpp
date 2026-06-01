@@ -20,6 +20,7 @@ void initialize(){
    //no bidirection compatability yet
 }
 
+
 i2c_master_bus_config_t busSetup = { 
    .i2c_port = -1,
    .sda_io_num= dataPin,
