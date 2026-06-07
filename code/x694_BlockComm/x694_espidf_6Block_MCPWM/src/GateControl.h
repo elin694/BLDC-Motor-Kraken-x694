@@ -43,7 +43,7 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]);
 void configureLowGateEvents();
 void initializeTimer(int startingTargetSector, uint32_t blockPeriod_f);
 void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTargetSector, uint32_t blockPeriod_f);
-void initializeISRsAndSyncs();
+void initializeISR();
 
 //Loop
 void preloadGates(phaseMcpwm * highSide, phaseMcpwm * lowSide,  int previousState, int nextState, uint32_t blockPeriod_f);

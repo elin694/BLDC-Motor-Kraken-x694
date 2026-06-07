@@ -13,7 +13,7 @@
 #include "soc/mcpwm_struct.h"
 #include "esp_intr_alloc.h"
 #include "esp_adc/adc_oneshot.h"
-
+#include <string>
 #include <cinttypes>
 
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
@@ -21,14 +21,28 @@
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
 
 //====================FUNCTION DECLARATION =======================
+ 
+#define black "\033[30m"
+#define red "\033[31m"
+#define green "\033[32m"
+#define yellow "\033[33m"
+#define blue "\033[34m"
+#define magenta "\033[35m"
+#define cyan "\033[36m"
+#define white "\033[37m"
+#define esc "\033[0m"
+
 void readPotRepeat(void * parameter);
 void readPotOnce(void * parameter);
+const char* color(std::string str, std::string clr); 
 
+inline int ledD =0;
 //CHANGE ASSOCIATED PORT SET AND CLEAR
 #define phaseAHighPort GPIO_NUM_33
 #define phaseALowPort GPIO_NUM_14
+// #define phaseBHighPort GPIO_NUM_2
 #define phaseBHighPort GPIO_NUM_17
-#define phaseBLowPort GPIO_NUM_16
+#define phaseBLowPort GPIO_NUM_2
 #define phaseCHighPort GPIO_NUM_26
 #define phaseCLowPort GPIO_NUM_32
 
@@ -55,14 +69,14 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
    /*You can Probably Change*/
    #define estimatedI2CReadTimeInMicros 170
-   #define timerResolution  static_cast<uint32_t>(8e6) //125ns , must not simple ratio
-   #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
+   #define timerResolution  static_cast<uint32_t>(1e5) //125ns , must not simple ratio
+   #define activePwmPeriod static_cast<uint32_t>(timerResolution/10000)  //change to 20khz when high
 
-    #define maxDutyHigh .95
-    #define startingDutyHigh .2
+
+    #define startingDuty .2
     #define minDutyHigh .05
 
-    #define startingGateCmpValue static_cast<uint32_t>(startingDutyHigh*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
+    #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
     #define offGateCmpValue static_cast<uint32_t>(minDutyHigh*activePwmPeriod) //comparatorValue when OFF, modify this when switching
     
     #define highDefaultPWMPeriod static_cast<uint32_t>(.05 * activePwmPeriod)
@@ -77,7 +91,7 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
     #define lowSideGroup 0
     constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
     constexpr float lowGateLevelCycle[6] = {
-        (float)(2/3), 1.0f, (float)(2/3), (float)(1/3), 0.0f, (float)(1/3) 
+        (float)(2/3.0), 1.0f, (float)(2/3.0), (float)(1/3.0), 0.0f, (float)(1/3.0) 
     };
     //given index of current sector, tells which phase is high
     constexpr int activeHighGate[6]= {1,2,2,0,0,1};
@@ -113,11 +127,12 @@ typedef struct{
     // ^^^^^^^^^^^^^^^^^^^^^
     volatile uint32_t oldSectorTarget =- 1010;
     volatile int sectorTarget = -1000; //for stator current vector
-    volatile uint32_t blockPeriod= 8*900; //TBD
+    volatile uint32_t blockPeriod= static_cast<uint32_t>((131072/2)/6); 
+    //21845 is the maximum since 131073 is probably the maximum
     uint32_t BTimerPhaseShift;
 } gVar_t;
 
 inline gVar_t global;
-inline volatile uint32_t counter =0;
-inline volatile uint32_t isrCounter2 =0;
-inline volatile uint32_t isrGroupCounter =0;
+inline volatile uint32_t counter =10;
+inline volatile uint32_t isrCounter2 =10;
+inline volatile uint32_t isrGroupCounter =10;

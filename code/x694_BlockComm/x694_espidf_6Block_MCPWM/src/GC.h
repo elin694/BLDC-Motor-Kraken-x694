@@ -4,7 +4,30 @@
 #define relativeDeadTime 5
 
 #define idleHighGateCmpVal 2
+#define syncTickBeforeCMPRThreshold -2
 
+// gpio 19- miso, b High side is tx2
+
+uint32_t CMRA0Threshold;
+intr_handle_t sixBlockISR = NULL;
+intr_handle_t oneBlockISR = NULL;
+inline phaseMcpwm motorH[3];
+inline phaseMcpwm motorL[3];
+
+void initializeSyncs();
+void initializeInterruptEnablePin();
+void activateAllSyncs();
+void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1);
+
+
+inline void blinkDebugLed(int delay){
+    for(int i= 1000; i>0 && (ledD !=0); i--){
+        GPIO.out_w1ts |= 1<<2;
+        vTaskDelay(delay);
+        GPIO.out_w1tc |= 1<<2;
+        vTaskDelay(delay);
+    }
+}
 mcpwm_timer_config_t blockTimerSetup = { //onces per step/block
     .group_id = lowSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
@@ -56,7 +79,7 @@ const mcpwm_operator_config_t operatorSetupHigh = {
         .update_gen_action_on_tez = 0,
         .update_gen_action_on_tep = 0,
         .update_gen_action_on_sync= 1,
-        .update_dead_time_on_tez = 0,
+        .update_dead_time_on_tez = 1,
         .update_dead_time_on_tep = 0,
         .update_dead_time_on_sync = 1,
     },

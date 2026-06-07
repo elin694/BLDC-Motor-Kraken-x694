@@ -15,12 +15,12 @@ void initialize(void * parameter){
    // as5600initialize();
    global.sectorTarget=2;
    global.oldSectorTarget = global.sectorTarget;
-   mcpwmSetup((global.sectorTarget + 2*dir) % 6, &global.blockPeriod);
+   mcpwmSetup(global.sectorTarget, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
-   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 1, NULL, 0);
-   //  xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 0);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 0);
    vTaskDelete(NULL);
 }
 
@@ -80,7 +80,7 @@ void as5600initialize() {
       std::bitset<2>(fthRegisterData[0] & 0b00000011).to_string().c_str()
    );
    //===================================GET A STARTING SECTOR VALUE ===================================
-   //===================================GET A STARTING SECTOR VALUE ===================================
+
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
          &as5600TargetRegister, 
          as5600WriteSize,
@@ -101,8 +101,8 @@ void as5600initialize() {
          vTaskDelay(pdMS_TO_TICKS(2000)); 
          abort();
       }
-      //transfer old position
-      global.oldSectorTarget = global.sectorTarget; 
+      //transfer old target
+      global.oldSectorTarget = newBNumber; 
       //put in new vlaue
       global.sectorTarget = newBNumber;
 }
@@ -126,7 +126,7 @@ void initAnalogReadOnce(){
 void IRAM_ATTR getSectorNumber(void * returnValue) { 
     uint32_t az= isrGroupCounter;
       az= az +1;
-      counter = az;
+      isrGroupCounter = az;
    //120-170 gpt µs at 400kHz
    //as5600 is default increasing on clockwise. set DIR high to invert 
    #if (lowSideGroup == 1)
@@ -140,26 +140,26 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       uint32_t a= counter;
       a= a +1;
       counter = a;
-      ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
-         &as5600TargetRegister, 
-         as5600WriteSize,
-         as5600RawDataBuf, 
-         as5600ReadSize, //ensure 2 bytes is read
-         -1));
-      #ifdef as5600DirPinHigh
-         uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-         + as5600CalibratedOffset;
-      #else
-         uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-         + as5600CalibratedOffset;
-      #endif
+      // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+      //    &as5600TargetRegister, 
+      //    as5600WriteSize,
+      //    as5600RawDataBuf, 
+      //    as5600ReadSize, //ensure 2 bytes is read
+      //    -1));
+      // #ifdef as5600DirPinHigh
+      //    uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
+      //    + as5600CalibratedOffset;
+      // #else
+      //    uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+      //    + as5600CalibratedOffset;
+      // #endif
 
-      int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
-      if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
-         ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
-         vTaskDelay(pdMS_TO_TICKS(2000)); 
-         abort();
-      }
+      // int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
+      // if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
+      //    ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
+      //    abort();
+      // }
+      int newBNumber = (global.sectorTarget+1)%6;
       //transfer old position
       global.oldSectorTarget = global.sectorTarget; 
       //put in new vlaue
@@ -177,9 +177,18 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       tempStatusReg.op0_tea_int_st ||
       tempStatusReg.op0_teb_int_st)
    { //L TIMER = id1, SO WE USE TIMER 1
-       uint32_t azz= isrCounter2;
+      uint32_t azz= isrCounter2;
       azz= azz +1;
-      counter = azz;
+      isrCounter2 = azz;   
+      esp_rom_printf( red "Low timer On: ");
+      const char* counter_str = (cyan +std::to_string(
+         tempStatusReg.timer0_tez_int_st << 4 | //16
+         tempStatusReg.timer0_tep_int_st << 3 |
+         tempStatusReg.op0_tea_int_st << 2|
+         tempStatusReg.op0_teb_int_st << 1
+         ) + "\n").c_str();
+      esp_rom_printf(counter_str);
+
       mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
       tempClearReg.op0_tea_int_clr = 1;
       tempClearReg.op0_teb_int_clr = 1;

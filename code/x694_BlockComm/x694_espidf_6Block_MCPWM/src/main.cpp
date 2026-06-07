@@ -3,7 +3,7 @@
 #include "GateControl.h"
 #include "Globals.h"
 //Ti sinusoidal : https://www.youtube.com/watch?v=-By_vt27Xhs&t=21s
-const double fMin = 15; //in hertz
+const double fMin = 15; //119/in hertz
 const double fMax = 17;
 
 adc_oneshot_unit_handle_t adcHandle = NULL;
@@ -48,13 +48,14 @@ void readPotOnce(void * parameter){
       //ISR checks this constatnly. If true, it runs code to update the CMRA trheshold.
       // might be useless
       ESP_ERROR_CHECK(mcpwm_timer_set_period(blockTimer, bPeriod_temp));
-      ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, bPeriod_temp));
+      ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, 6*bPeriod_temp));
     }
     global.blockPeriod = bPeriod_temp;
     global.CMR_value_3[1] = cmr_dividers_3_1;
     global.CMR_value_3[2] = cmr_dividers_3_2;
     taskEXIT_CRITICAL(&stepPeriodMux);
     //isr loop needs to keep checking
+    ESP_LOGI("readPotOnce", magenta "read pot once");
 }
 
     uint32_t c1 =0;
@@ -63,12 +64,12 @@ void readPotOnce(void * parameter){
 void debugLog(void * parameter){
   for(;;){
     ESP_LOGI("REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
-    taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
+    // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
     c1 =counter;
     c2 = isrCounter2;
-    c1 =isrGroupCounter;
-    taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
-    ESP_LOGI("Checkpoint","Is the counter Moving? counter:%" PRIu32 ", isrCouner2: %" PRIu32 ", isrGCouner: %" PRIu32 "\n", c1,c2,c3);
+    c3 =isrGroupCounter;
+    // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
+    ESP_LOGI("Number of","BTimer intr:%d, LTimer intr: %d, #intr trigger: %d \n",(int) c1, (int)c2, (int)c3);
     
     vTaskDelay(pdMS_TO_TICKS(3*143)); 
   }
