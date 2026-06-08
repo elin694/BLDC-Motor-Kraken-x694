@@ -3,7 +3,6 @@
 #define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.9) //isr 700ns responds time
 #define relativeDeadTime 5
 
-#define idleHighGateCmpVal 2
 #define syncTickBeforeCMPRThreshold -2
 
 // gpio 19- miso, b High side is tx2
@@ -19,6 +18,7 @@ void initializeInterruptEnablePin();
 void activateAllSyncs();
 void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1);
 void synchr(mcpwm_sync_handle_t handle, std::string name);
+void synchrISR(mcpwm_sync_handle_t handle, const char* name);
 
 inline void blinkDebugLed(int delay){
     for(int i= 1000; i>0 && (ledD !=0); i--){

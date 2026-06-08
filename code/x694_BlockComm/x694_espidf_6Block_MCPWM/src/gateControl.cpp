@@ -28,10 +28,14 @@ void mcpwmSetup(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_fu
 }
 
 void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1){
-      // adding tolerance so we definitely won't trigger ETS_PWM0_INTR_SOURCE and then the phaseSwotch/gitpush ISR
-    CMRA0Threshold = static_cast<uint32_t>((*bPeriod_pass_by_function1)*startingDuty);
-    // ESP_LOGW("highTimer", "Period (in ticks): %" PRIu32 ", Period_when_on: %d, timerResolution: %d"  ,highDefaultPWMPeriod, (int)activePwmPeriod, (int)timerResolution);
-    phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(highDefaultPWMPeriod);
+    // adding tolerance so we definitely won't trigger ETS_PWM0_INTR_SOURCE and then the phaseSwotch/gitpush ISR
+    /* old version
+        CMRA0Threshold = static_cast<uint32_t>((*bPeriod_pass_by_function1)*startingDuty);
+        phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(offGatePWMPeriod);
+    */
+   phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(activePwmPeriod);
+    CMRA0Threshold = static_cast<uint32_t>((phaseTimerSetupHigh.period_ticks)*startingDuty /2.0 );
+
     blockTimerSetup.period_ticks =static_cast<uint32_t>(*bPeriod_pass_by_function1); //1 phase every change int
     globalTimerSetupLow.period_ticks =static_cast<uint32_t>(6*(*bPeriod_pass_by_function1));
     ESP_LOGW(blue "GC1  Periods (in ticks)", blue "Btimer Period: %d , ltimer Period: %d ", blockTimerSetup.period_ticks, (int) globalTimerSetupLow.period_ticks);
@@ -119,19 +123,17 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
 
 void initializeISR(){
     /*
-    /////Solution2 : using callback evt
-    // mcpwm_comparator_register_event_callbacks(comparator, );
-    // // mcpwm_timer_event_callbacks_t timer_isr = {
-
-    // // };
-    // mcpwm_comparator_event_callbacks_t = {
-    //     .onreach
-    // }
-    // mcpwm_compare_event_cb_t
-    // mcpwm_compare_event_data_t = {
-    //     .compare_ticks = int,
-    //     .direction =
-    // }
+        ///Solution2 : using callback evt
+        mcpwm_comparator_register_event_callbacks(comparator, );
+        // mcpwm_timer_event_callbacks_t timer_isr = {};
+        mcpwm_comparator_event_callbacks_t = {
+            .onreach
+        }
+        mcpwm_compare_event_cb_t
+        mcpwm_compare_event_data_t = {
+            .compare_ticks = int,
+            .direction =
+        }
     */
     MCPWMx->int_ena.val = 0x00000000;
     MCPWMx->int_st.val = 0x00000000;
@@ -163,6 +165,7 @@ void initializeInterruptEnablePin(){
     MCPWMx->int_ena.timer1_tep_int_ena = 1; //timer 1= LTimer
     MCPWMx->int_ena.op0_tea_int_ena = 1; // op0 = phase A lowside
     MCPWMx->int_ena.op0_teb_int_ena = 1; // timer
+    ESP_LOGW(cyan "binary int_ena", " %" PRIu32, MCPWMx->int_ena.val);
     ESP_LOGI("======CLEARing INTR REGISTER AND PUSHing INTR_ENABLE BITS", " ");
 }
 
@@ -262,7 +265,7 @@ void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTar
 }
 
 void activateAllSyncs(){
-      for(int i =2; i>=0; i--){
+      for(int i =0; i < 3; i++){
         // synchr(tripleHighTrigger[i], "triple high triggers");
     }
     ////////////// synchr(BTimerTrigger, "BTimerSync");
@@ -272,7 +275,8 @@ void activateAllSyncs(){
 
 //for isr1
 void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_pass_by_function, mcpwm_dev_t * mcpwm, uint32_t clearMask){
-    if (global.sectorTarget == global.oldSectorTarget) { //no change in which Highside Gate is high
+    if (global.sectorTarget == global.oldSectorTarget) { //Motor stalling case
+        //The phase that is high doesn't change
         // Low Gates- Precalcuate values to Resync timers to previous Block
         BTimerOnSync.count_value = global.blockPeriod-estimatedI2CReadTimeInTicks; //Test if needed
         ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(blockTimer, &BTimerOnSync)); //Test if needed
@@ -284,102 +288,64 @@ void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_p
         // Gpio level remains set by dt_config
         // Set w/ gpio.out1_w1ts for safety (test/calibr) 
     } 
-    else if (global.sectorTarget % 2){ //0->1, 2->3, 4->5, otherwise high gate is the same and nothing needs to be done
+    // else if (global.sectorTarget % 2){ //the case where High Phase switches(ex. 0->1, 2->3, 4->5) 
         //don't modify low gate timers (they'll always be the same when high gates swap)
-        //Comaprator 0 is that one tha actually can produce rising edges
-        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.oldSectorTarget]].comparator0, idleHighGateCmpVal));
-        ESP_ERROR_CHECK(mcpwm_timer_set_period(motorH[activeHighGate[global.oldSectorTarget]].timer, highDefaultPWMPeriod));
-        ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorH[activeHighGate[global.oldSectorTarget]].pwmGate0, //turn off old one by setting to 0!
-            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
-                motorH[global.oldSectorTarget].comparator0,
-                MCPWM_GEN_ACTION_LOW
-            ),
-            MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-        ));
+        // ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.sectorTarget]].comparator0, startingGateCmpValue));
+        // ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.oldSectorTarget]].comparator0, idleHighGateCmpVal));
+
+        /*
+            ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.oldSectorTarget]].comparator0, idleHighGateCmpVal));
+            ESP_ERROR_CHECK(mcpwm_timer_set_period(motorH[activeHighGate[global.oldSectorTarget]].timer, offGatePWMPeriod)); //change period to dodge cmp
+            ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorH[activeHighGate[global.oldSectorTarget]].pwmGate0, //turn off old one by setting to 0!
+                MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
+                    motorH[global.oldSectorTarget].comparator0,
+                    MCPWM_GEN_ACTION_LOW
+                ),
+                MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+            ));
+            
+            ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.sectorTarget]].comparator0, startingGateCmpValue));
+            ESP_ERROR_CHECK(mcpwm_timer_set_period(motorH[activeHighGate[global.sectorTarget]].timer, activePwmPeriod)); //turn on
+            ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorH[activeHighGate[global.sectorTarget]].pwmGate0, //turn off old one by setting to 0!
+                MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
+                    motorH[global.sectorTarget].comparator0,
+                    MCPWM_GEN_ACTION_HIGH
+                ),
+                MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, 
+                    motorH[global.sectorTarget].comparator0,
+                    MCPWM_GEN_ACTION_LOW
+                ),
+                MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+            ));
+        */
         
-        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.sectorTarget]].comparator0, startingGateCmpValue));
-        ESP_ERROR_CHECK(mcpwm_timer_set_period(motorH[activeHighGate[global.sectorTarget]].timer, activePwmPeriod)); //turn on
-        ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorH[activeHighGate[global.sectorTarget]].pwmGate0, //turn off old one by setting to 0!
-            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
-                motorH[global.sectorTarget].comparator0,
-                MCPWM_GEN_ACTION_HIGH
-            ),
-            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, 
-                motorH[global.sectorTarget].comparator0,
-                MCPWM_GEN_ACTION_LOW
-            ),
-            MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-        ));
-        //try force level int he future
-    }
+    // } //extra case of 1->2, 3->4, 5->0, but high gate is the same and comparatorActions wills set LGates low --> no code needed
     mcpwm-> int_clr.val = clearMask;
 }
 
-
-
-void IRAM_ATTR phaseSwitching(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm){
-
-    /*
-   mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
-   //checks to see if any of ther flags are triggered
-    #if (phaseA_gen_one_third == 0) //index that has the 1/3 BP comparatorB
-        if(tempStatusReg.timer0_tez_int_st ||
-            tempStatusReg.timer0_tep_int_st ||
-            tempStatusReg.op0_tea_int_st ||
-            tempStatusReg.op0_teb_int_st){ //L TIMER = id1, SO WE USE TIMER 0
-            mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
-            tempClearReg.op0_tea_int_clr = 1;
-            tempClearReg.op0_teb_int_clr = 1;
-    // #elif (phaseA_gen_one_third == 1)
-    //     if(tempStatusReg.timer0_tez_int_st ||
-    //         tempStatusReg.timer0_tep_int_st ||
-    //         tempStatusReg.op1_tea_int_st ||
-    //         tempStatusReg.op1_teb_st){ 
-    //         mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
-    //         tempClearReg.op1_tea_int_clr = 1;
-    //         tempClearReg.op1_teb_int_clr = 1;
-    
-    */
-// #endif 
-        // executeGates(tripleHighTrigger, (size_t)3);
-        (mcpwm)->int_clr.val = clearRegister->val;
-//    }
-}
-
-
-void IRAM_ATTR executeGates(mcpwm_sync_handle_t * triggers, size_t arraySize){
-    for(size_t i =0; i<arraySize; i++){
-        esp_rom_printf(yellow "itarting at indexi");
-        ESP_ERROR_CHECK(mcpwm_soft_sync_activate((triggers[0])));
+void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm){
+    for(int i =0; i<3; i++){
+        // synchrISR(tripleHighTrigger[i], "a"); //v3.14 - updates cmp value only
     }
-    // for(int i =0; i <3; i++){
-    //     switch (state) {
-    //         case -1: //sink current
-    //             if ( -1 != previousState){
-    //                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmLowGate, -1, false));//150-300ns
-    //                 //set level after to avoid conflicting force
-    //                 *(PORT_SET[2*i+1]) |= (1<<(portShift[2*i+1])); //set low gate  HLHLHL -> 012345
-    //             }
-    //             break;
-    //         case 0: //float 
-    //             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmHighGate, -1, false));
-    //             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmLowGate, -1, false));
-    //             *(PORT_CLEAR[2*i]) |= (1<<(portShift[2*i]));
-    //             *(PORT_CLEAR[2*i+1]) |= (1<<(portShift[2*i+1]));
-    //             break;
-    //         case 1: //source current
-    //             if (1 != previousState){
-    //                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(phase[i].pwmHighGate, -1, false));
-    //                 //get force set level sets other to 0
-    //                 *(PORT_SET[2*i]) |= (1<<(portShift[2*i]));
-    //             }
-    //             break;
-    //         default:
-    //         ESP_LOGE("GATE Execution",":THIS STATE DEOSN'T EXIST %d", state);
-    //     }
-    // //sync here
+
+    // ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.oldSectorTarget]].comparator0, idleHighGateCmpVal)); //can be done in a normal fucntion
+    // if(global.oldSectorTarget != global.sectorTarget){//order with its own sync doesn't matter
+    //     ESP_ERROR_CHECK(mcpwm_generator_set_force_level (motorH[activeHighGate[global.oldSectorTarget]].pwmGate0, 0 , true)); //turn off old one by setting to 0!
+    //     ESP_ERROR_CHECK(mcpwm_generator_set_force_level (motorH[activeHighGate[global.sectorTarget]].pwmGate0, -1, true)); //turn off old one by setting to 0!
     // }
-}  
+
+    // synchrISR(LTimerTrigger, "Ltimer On!"); //can'ts wap for some reason
+    // synchrISR(BTimerTrigger, "Btimer");
+    esp_rom_printf(white);
+    LT_time= esp_timer_get_time();
+
+    //tea, tep, tea,teb,tez,teb
+    //log_2 : 15, 7, 15,  18, 4, 18 [0-5]
+    // 32768, 128, 32768, 262144, 16, 262144
+    //3,1,3,2,1,2
+    
+    mcpwm->int_clr.val = clearRegister->val;
+}
 
 int mod6 (int value){ //for single add
     if(value > 5){
@@ -391,7 +357,17 @@ int mod6 (int value){ //for single add
 }
 
 void synchr(mcpwm_sync_handle_t handle, std::string name){
-    ESP_LOGI( red "                           ", "actively syncing %s", name.c_str());
+    ESP_LOGI( red "                           ", "syncing %s", name.c_str());
+    ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle));
+}
+
+// void synchrISR(mcpwm_sync_handle_t handle, std::string name){
+//     esp_rom_printf( red "                           ", "actively syncing %s", name.c_str());
+//     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle));
+// }
+
+void IRAM_ATTR synchrISR(mcpwm_sync_handle_t handle, const char* name){
+    esp_rom_printf( red "                      syncing %s \n", name);
     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle));
 }
 

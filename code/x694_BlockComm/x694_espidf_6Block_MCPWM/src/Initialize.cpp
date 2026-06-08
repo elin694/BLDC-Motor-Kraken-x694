@@ -122,80 +122,89 @@ void initAnalogReadOnce(){
 
 
 
+   mcpwm_int_clr_reg_t tempClearR1 = { 
+      .timer0_tez_int_clr =1,
+   };
+   mcpwm_int_clr_reg_t tempClearR2 = { 
+      .timer1_tez_int_clr =1,
+      .timer1_tep_int_clr =1,
+      .op0_tea_int_clr = 1,
+      .op0_teb_int_clr = 1
+   };
+#if (lowSideGroup == 1)
+   #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
+#elif (lowSideGroup == 0)
+   #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
+#endif
+
 void IRAM_ATTR getSectorNumber(void * returnValue) { 
-    uint32_t az= isrGroupCounter;
+   mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
+   if(tempStatusReg.val){ //in case of ghost interrupts
+      uint32_t az= isrGroupCounter;
       az= az +1;
       isrGroupCounter = az;
-   //120-170 gpt µs at 400kHz
-   //as5600 is default increasing on clockwise. set DIR high to invert 
-   #if (lowSideGroup == 1)
-   #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
-   #elif (lowSideGroup == 0)
-   #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
-   #endif
 
-   mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
-   esp_rom_printf( blue "\n main isr called, ");
+      esp_rom_printf( blue "\n m, ");
+      esp_rom_printf(cyan "int_st: %s, ", (std::to_string(tempStatusReg.val)).c_str());
 
-   if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
-      uint32_t a= counter;
-      a= a +1;
-      counter = a;
-      esp_rom_printf( yellow "BLOCK isr! \n");
-      // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
-      //    &as5600TargetRegister, 
-      //    as5600WriteSize,
-      //    as5600RawDataBuf, 
-      //    as5600ReadSize, //ensure 2 bytes is read
-      //    -1));
-      // #ifdef as5600DirPinHigh
-      //    uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-      //    + as5600CalibratedOffset;
-      // #else
-      //    uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-      //    + as5600CalibratedOffset;
-      // #endif
+      if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
+      //120-170 gpt µs at 400kHz
+      //as5600 is default increasing on clockwise. set DIR high to invert 
+         uint32_t a= counter;
+         a= a +1;
+         counter = a;
+         esp_rom_printf( yellow "B: µs");
+         // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+         //    &as5600TargetRegister, 
+         //    as5600WriteSize,
+         //    as5600RawDataBuf, 
+         //    as5600ReadSize, //ensure 2 bytes is read
+         //    -1));
+         // #ifdef as5600DirPinHigh
+         //    uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
+         //    + as5600CalibratedOffset;
+         // #else
+         //    uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+         //    + as5600CalibratedOffset;
+         // #endif
 
-      // int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
-      // if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
-      //    ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
-      //    abort();
-      // }
-      // int newBNumber = (global.sectorTarget+1)%6;
-      
-      int newBNumber = global.sectorTarget; //set to mimic stalling motor
-      
-      //transfer old position and put in new vlaue
-      global.oldSectorTarget = global.sectorTarget;
-      global.sectorTarget = newBNumber;
+         // int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
+         // if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
+         //    ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
+         //    abort();
+         // }
+         
+         //transfer old position and put in new vlaue
+         #define motorStall 
+            int newBNumber = 2; //comment out to mimic motor stalling
+            global.sectorTarget = newBNumber; //comment out to mimic motor stalling
+            global.oldSectorTarget = newBNumber; //comment out to mimic motor stalling
+            
+         #ifdef motorStall
+         #elif 
+         int newBNumber = (global.sectorTarget+1)%6; //comment out to mimic motor stalling
+         global.oldSectorTarget = global.sectorTarget;
+         global.sectorTarget = newBNumber; //comment out to mimic motor stalling
+         #endif
 
-      mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
-      tempClearReg.timer0_tez_int_clr = 1;
-      preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearReg.val);
-   } else if(
-      tempStatusReg.timer1_tez_int_st || //since phaseA_gen_one_third =0
-      tempStatusReg.timer1_tep_int_st ||
-      tempStatusReg.op0_tea_int_st ||
-      tempStatusReg.op0_teb_int_st)
-   { //L TIMER = id1, SO WE USE TIMER 1
-      uint32_t azz= isrCounter2;
-      azz= azz +1;
-      isrCounter2 = azz;   
-      esp_rom_printf( red "LOW isr! \n");
-      // const char* counter_str = (cyan +std::to_string(
-      //    tempStatusReg.timer0_tez_int_st << 4 | //16
-      //    tempStatusReg.timer0_tep_int_st << 3 |
-      //    tempStatusReg.op0_tea_int_st << 2|
-      //    tempStatusReg.op0_teb_int_st << 1
-      //    ) + "\n").c_str();
-      // esp_rom_printf(counter_str);
-
-      mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
-      tempClearReg.op0_tea_int_clr = 1;
-      tempClearReg.op0_teb_int_clr = 1;
-      tempClearReg.timer1_tez_int_clr = 1;
-      tempClearReg.timer1_tep_int_clr = 1;
-      phaseSwitching(&tempClearReg, MCPWMx);
+         esp_rom_printf(white);
+         BT_time = esp_timer_get_time();
+         esp_rom_printf((std::to_string(BT_time-LT_time)).c_str());
+         preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearR1.val);
+      } 
+      else if(
+         tempStatusReg.timer1_tez_int_st || // ltimer has id 1
+         tempStatusReg.timer1_tep_int_st ||
+         tempStatusReg.op0_tea_int_st || //since phaseA_gen_one_third =0
+         tempStatusReg.op0_teb_int_st)
+      { //L TIMER = id1, SO WE USE TIMER 1
+         uint32_t azz= isrCounter2;
+         azz= azz +1;
+         isrCounter2 = azz;   
+         esp_rom_printf( red "L: µs");
+         //8, 16,128, 32768, 262144
+         executeGates(&tempClearR2, MCPWMx);
+      }
    }
 }
 

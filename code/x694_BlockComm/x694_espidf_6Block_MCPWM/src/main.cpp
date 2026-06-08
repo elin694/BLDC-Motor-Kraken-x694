@@ -69,7 +69,7 @@ void debugLog(void * parameter){
     c2 = isrCounter2;
     c3 =isrGroupCounter;
     // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
-    ESP_LOGI("Number of","BTimer intr:%d, LTimer intr: %d, #intr trigger: %d \n",(int) c1, (int)c2, (int)c3);
+    ESP_LOGI("Number of","BTimer intr:%d, LTimer intr: %d, #intr trigger: %d ",(int) c1, (int)c2, (int)c3);
     
     vTaskDelay(pdMS_TO_TICKS(3*143)); 
   }

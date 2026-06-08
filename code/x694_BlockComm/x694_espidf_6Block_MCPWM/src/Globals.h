@@ -21,8 +21,8 @@
 #define µsToTicksInt static_cast<float>(timerResolution/1e6) //ontime * this = tick
 
 //====================FUNCTION DECLARATION =======================
- 
-inline uint32_t intr_array[32];
+inline uint32_t BT_time = 0;
+inline uint32_t LT_time = 0;
 #define black "\033[30m"
 #define red "\033[31m"
 #define green "\033[32m"
@@ -35,7 +35,6 @@ inline uint32_t intr_array[32];
 
 void readPotRepeat(void * parameter);
 void readPotOnce(void * parameter);
-const char* color(std::string str, std::string clr); 
 
 inline int ledD =0;
 // #define phaseAHighPort GPIO_NUM_33
@@ -74,19 +73,28 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
    /*You can Probably Change*/
-   #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
+   #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(400)
    #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(estimatedI2CReadTimeInMicros*µsToTicks)
    #define timerResolution  static_cast<uint32_t>(5e4) //125ns , must not simple ratio
    #define activePwmPeriod static_cast<uint32_t>(timerResolution/10000)  //change to 20khz when high
-   //greater than timerPeriod when HighGate is in off state
+   //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
 
-    #define startingDuty .2 //The Duty cycle is 1 - this.Value
-    #define minDutyHigh .05 // Or when Cmp value is (1-this.value)* activePwmPeriod/2
+   #define startingDuty static_cast<float>(1- .8) //The Duty cycle is 1 - this.Value
+   #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
+   
 
-    #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
-    #define offGateCmpValue static_cast<uint32_t>(minDutyHigh*activePwmPeriod) //comparatorValue when OFF, modify this when switching
-    
-    #define highDefaultPWMPeriod static_cast<uint32_t>(.05 * activePwmPeriod)
+    /* old version- all values copied over
+    REMINDER THAT THE ITMER IS UP AND DOWN --> DIVIDE BY 2
+        #define startingDuty .2 //The Duty cycle is 1 - this.Value
+        #define minDutyHigh .05 // Or when Cmp value is (1-this.value)* activePwmPeriod/2
+
+        #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
+        #define idleHighGateCmpVal 2
+        #define offGateCmpValue static_cast<uint32_t>(minDutyHigh*activePwmPeriod) //comparatorValue when OFF, modify this when switching
+
+        #define offGatePWMPeriod static_cast<uint32_t>(.05 * activePwmPeriod)
+    */
+   
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
 
     /*DO NOT CHANGE VALUE*/
@@ -96,7 +104,7 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
     inline mcpwm_timer_handle_t globalLowTimer =NULL;
     #define highSideGroup 1 //used in isr intr_source
     #define lowSideGroup 0
-    constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
+    // constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
     constexpr uint32_t lowGateLevelCycle[6] = {
         // (float)(2/3.0), 1.0f, (float)(2/3.0), (float)(1/3.0), 0.0f, (float)(1/3.0) 
         2,3,2,1,0,1
