@@ -18,7 +18,7 @@ void initializeSyncs();
 void initializeInterruptEnablePin();
 void activateAllSyncs();
 void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1);
-
+void synchr(mcpwm_sync_handle_t handle, std::string name);
 
 inline void blinkDebugLed(int delay){
     for(int i= 1000; i>0 && (ledD !=0); i--){
@@ -125,7 +125,7 @@ mcpwm_timer_sync_phase_config_t BTimerOnSync = {
     .sync_src = BTimerTrigger, //assign to a syn src
     .count_value = 10000, 
     .direction = MCPWM_TIMER_DIRECTION_UP,
-};//output:activate to time when to read AS5600
+};//active Btimer sync
 
 mcpwm_soft_sync_config_t LTimerTriggerSetup = {};
 mcpwm_sync_handle_t LTimerTrigger;

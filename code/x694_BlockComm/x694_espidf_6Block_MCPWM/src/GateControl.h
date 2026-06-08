@@ -46,7 +46,7 @@ void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTa
 void initializeISR();
 
 //Loop
-void preloadGates(phaseMcpwm * highSide, phaseMcpwm * lowSide,  int previousState, int nextState, uint32_t blockPeriod_f);
+void preloadGates(int previousState, int nextState, uint32_t blockPeriod_f, mcpwm_dev_t * mcpwm, uint32_t clearMask);
 void phaseSwitching(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm);
 void executeGates(mcpwm_sync_handle_t * triggers, size_t arraySize);
 int mod6(int value);

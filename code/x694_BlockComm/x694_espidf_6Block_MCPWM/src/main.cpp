@@ -55,7 +55,7 @@ void readPotOnce(void * parameter){
     global.CMR_value_3[2] = cmr_dividers_3_2;
     taskEXIT_CRITICAL(&stepPeriodMux);
     //isr loop needs to keep checking
-    ESP_LOGI("readPotOnce", magenta "read pot once");
+    // ESP_LOGI("readPotOnce", magenta "read pot once");
 }
 
     uint32_t c1 =0;

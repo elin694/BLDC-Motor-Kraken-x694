@@ -4,7 +4,7 @@
 
 void initialize(void * parameter){
    for(int i = 0; i<4; i++){
-      global.CMR_value_3[i] = global.blockPeriod*(float)i/6.0f;
+      global.CMR_value_3[i] = global.blockPeriod*i;
    }
    global.BTimerPhaseShift= global.blockPeriod-(estimatedI2CReadTimeInMicros*µsToTicks);
    pinSetup();
@@ -13,7 +13,6 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    // as5600initialize();
-   global.sectorTarget=2;
    global.oldSectorTarget = global.sectorTarget;
    mcpwmSetup(global.sectorTarget, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
@@ -134,12 +133,15 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
    #elif (lowSideGroup == 0)
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
    #endif
+
    mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
+   esp_rom_printf( blue "\n main isr called, ");
 
    if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
       uint32_t a= counter;
       a= a +1;
       counter = a;
+      esp_rom_printf( yellow "BLOCK isr! \n");
       // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       //    &as5600TargetRegister, 
       //    as5600WriteSize,
@@ -159,35 +161,34 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       //    ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
       //    abort();
       // }
-      int newBNumber = (global.sectorTarget+1)%6;
-      //transfer old position
-      global.oldSectorTarget = global.sectorTarget; 
-      //put in new vlaue
+      // int newBNumber = (global.sectorTarget+1)%6;
+      
+      int newBNumber = global.sectorTarget; //set to mimic stalling motor
+      
+      //transfer old position and put in new vlaue
+      global.oldSectorTarget = global.sectorTarget;
       global.sectorTarget = newBNumber;
-      // ((gVar_t *) returnValue)-> sectorTarget = (volatile uint32_t) newBNumber;
-      
-      //PRELAOD
-      
+
       mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
       tempClearReg.timer0_tez_int_clr = 1;
-      (MCPWMx)->int_clr.val = tempClearReg.val;
+      preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearReg.val);
    } else if(
-      tempStatusReg.timer0_tez_int_st || //since phaseA_gen_one_third =0
-      tempStatusReg.timer0_tep_int_st ||
+      tempStatusReg.timer1_tez_int_st || //since phaseA_gen_one_third =0
+      tempStatusReg.timer1_tep_int_st ||
       tempStatusReg.op0_tea_int_st ||
       tempStatusReg.op0_teb_int_st)
    { //L TIMER = id1, SO WE USE TIMER 1
       uint32_t azz= isrCounter2;
       azz= azz +1;
       isrCounter2 = azz;   
-      esp_rom_printf( red "Low timer On: ");
-      const char* counter_str = (cyan +std::to_string(
-         tempStatusReg.timer0_tez_int_st << 4 | //16
-         tempStatusReg.timer0_tep_int_st << 3 |
-         tempStatusReg.op0_tea_int_st << 2|
-         tempStatusReg.op0_teb_int_st << 1
-         ) + "\n").c_str();
-      esp_rom_printf(counter_str);
+      esp_rom_printf( red "LOW isr! \n");
+      // const char* counter_str = (cyan +std::to_string(
+      //    tempStatusReg.timer0_tez_int_st << 4 | //16
+      //    tempStatusReg.timer0_tep_int_st << 3 |
+      //    tempStatusReg.op0_tea_int_st << 2|
+      //    tempStatusReg.op0_teb_int_st << 1
+      //    ) + "\n").c_str();
+      // esp_rom_printf(counter_str);
 
       mcpwm_int_clr_reg_t tempClearReg = { .val = 0b0};
       tempClearReg.op0_tea_int_clr = 1;

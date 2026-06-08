@@ -18,10 +18,11 @@
 
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
-#define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
+#define µsToTicksInt static_cast<float>(timerResolution/1e6) //ontime * this = tick
 
 //====================FUNCTION DECLARATION =======================
  
+inline uint32_t intr_array[32];
 #define black "\033[30m"
 #define red "\033[31m"
 #define green "\033[32m"
@@ -37,18 +38,23 @@ void readPotOnce(void * parameter);
 const char* color(std::string str, std::string clr); 
 
 inline int ledD =0;
-//CHANGE ASSOCIATED PORT SET AND CLEAR
-#define phaseAHighPort GPIO_NUM_33
-#define phaseALowPort GPIO_NUM_14
-// #define phaseBHighPort GPIO_NUM_2
-#define phaseBHighPort GPIO_NUM_17
-#define phaseBLowPort GPIO_NUM_2
-#define phaseCHighPort GPIO_NUM_26
-#define phaseCLowPort GPIO_NUM_32
+// #define phaseAHighPort GPIO_NUM_33
+// #define phaseALowPort GPIO_NUM_14
+// #define phaseBHighPort GPIO_NUM_17
+// #define phaseBLowPort GPIO_NUM_16
+// #define phaseCHighPort GPIO_NUM_26
+// #define phaseCLowPort GPIO_NUM_32
 
-volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out1_w1ts };
-volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out1_w1tc};
-constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort-32))};
+#define phaseAHighPort GPIO_NUM_33
+#define phaseALowPort GPIO_NUM_12
+#define phaseBHighPort GPIO_NUM_17
+#define phaseBLowPort GPIO_NUM_14
+#define phaseCHighPort GPIO_NUM_26
+#define phaseCLowPort GPIO_NUM_2
+//CHANGE ASSOCIATED PORT SET AND CLEAR
+volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
+volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
+constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
 // *deref
 #define dataPin GPIO_NUM_21
 #define clockPin GPIO_NUM_22
@@ -68,13 +74,14 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
    /*You can Probably Change*/
-   #define estimatedI2CReadTimeInMicros 170
-   #define timerResolution  static_cast<uint32_t>(1e5) //125ns , must not simple ratio
+   #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
+   #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(estimatedI2CReadTimeInMicros*µsToTicks)
+   #define timerResolution  static_cast<uint32_t>(5e4) //125ns , must not simple ratio
    #define activePwmPeriod static_cast<uint32_t>(timerResolution/10000)  //change to 20khz when high
+   //greater than timerPeriod when HighGate is in off state
 
-
-    #define startingDuty .2
-    #define minDutyHigh .05
+    #define startingDuty .2 //The Duty cycle is 1 - this.Value
+    #define minDutyHigh .05 // Or when Cmp value is (1-this.value)* activePwmPeriod/2
 
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
     #define offGateCmpValue static_cast<uint32_t>(minDutyHigh*activePwmPeriod) //comparatorValue when OFF, modify this when switching
@@ -90,8 +97,9 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
     #define highSideGroup 1 //used in isr intr_source
     #define lowSideGroup 0
     constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
-    constexpr float lowGateLevelCycle[6] = {
-        (float)(2/3.0), 1.0f, (float)(2/3.0), (float)(1/3.0), 0.0f, (float)(1/3.0) 
+    constexpr uint32_t lowGateLevelCycle[6] = {
+        // (float)(2/3.0), 1.0f, (float)(2/3.0), (float)(1/3.0), 0.0f, (float)(1/3.0) 
+        2,3,2,1,0,1
     };
     //given index of current sector, tells which phase is high
     constexpr int activeHighGate[6]= {1,2,2,0,0,1};
@@ -108,10 +116,10 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
     };
     constexpr mcpwm_timer_direction_t LTimerDir[6] ={
         MCPWM_TIMER_DIRECTION_UP,
-        MCPWM_TIMER_DIRECTION_UP, //NULL
+        MCPWM_TIMER_DIRECTION_DOWN, //NULL
         MCPWM_TIMER_DIRECTION_DOWN,
         MCPWM_TIMER_DIRECTION_DOWN,
-        MCPWM_TIMER_DIRECTION_DOWN, //null
+        MCPWM_TIMER_DIRECTION_UP, //null
         MCPWM_TIMER_DIRECTION_UP,
     };
 //+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
@@ -126,7 +134,7 @@ typedef struct{
     float CMR_value_3[4];//impleemnt
     // ^^^^^^^^^^^^^^^^^^^^^
     volatile uint32_t oldSectorTarget =- 1010;
-    volatile int sectorTarget = -1000; //for stator current vector
+    volatile int sectorTarget = 2; //for stator current vector
     volatile uint32_t blockPeriod= static_cast<uint32_t>((131072/2)/6); 
     //21845 is the maximum since 131073 is probably the maximum
     uint32_t BTimerPhaseShift;
