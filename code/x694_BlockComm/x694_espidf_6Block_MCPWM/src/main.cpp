@@ -3,8 +3,6 @@
 #include "GateControl.h"
 #include "Globals.h"
 //Ti sinusoidal : https://www.youtube.com/watch?v=-By_vt27Xhs&t=21s
-const double fMin = 15; //119/in hertz
-const double fMax = 17;
 
 adc_oneshot_unit_handle_t adcHandle = NULL;
 uint32_t potBuffer[128];

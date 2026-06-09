@@ -18,8 +18,8 @@ void initialize(void * parameter){
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
-   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 1, NULL, 0);
-    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 0);
+   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 1, NULL, 0);
+   //  xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 0);
    vTaskDelete(NULL);
 }
 
@@ -144,8 +144,8 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       az= az +1;
       isrGroupCounter = az;
 
-      esp_rom_printf( blue "\n m, ");
-      esp_rom_printf(cyan "int_st: %s, ", (std::to_string(tempStatusReg.val)).c_str());
+      // esp_rom_printf( blue "\n m, ");
+      esp_rom_printf(cyan "\n i_reg: %6d, ", tempStatusReg.val);
 
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
       //120-170 gpt µs at 400kHz
@@ -153,7 +153,8 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          uint32_t a= counter;
          a= a +1;
          counter = a;
-         esp_rom_printf( yellow "B: µs");
+         // esp_rom_printf( yellow "B, %d", (int) esp_timer_get_time());
+         esp_rom_printf( yellow "B");
          // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
          //    &as5600TargetRegister, 
          //    as5600WriteSize,
@@ -175,21 +176,17 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          // }
          
          //transfer old position and put in new vlaue
-         #define motorStall 
-            int newBNumber = 2; //comment out to mimic motor stalling
+         #ifdef motorStall
+            int newBNumber = 4; //comment out to mimic motor stalling
             global.sectorTarget = newBNumber; //comment out to mimic motor stalling
             global.oldSectorTarget = newBNumber; //comment out to mimic motor stalling
             
-         #ifdef motorStall
-         #elif 
+         #else
          int newBNumber = (global.sectorTarget+1)%6; //comment out to mimic motor stalling
          global.oldSectorTarget = global.sectorTarget;
-         global.sectorTarget = newBNumber; //comment out to mimic motor stalling
+         global.sectorTarget = newBNumber; //
          #endif
-
-         esp_rom_printf(white);
-         BT_time = esp_timer_get_time();
-         esp_rom_printf((std::to_string(BT_time-LT_time)).c_str());
+         // esp_rom_printf(green "OST %d, NST %d",global.oldSectorTarget , global.sectorTarget );
          preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearR1.val);
       } 
       else if(
@@ -201,8 +198,11 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          uint32_t azz= isrCounter2;
          azz= azz +1;
          isrCounter2 = azz;   
+         esp_rom_printf(green "OST %d, NST %d",global.oldSectorTarget , global.sectorTarget );
          esp_rom_printf( red "L: µs");
-         //8, 16,128, 32768, 262144
+         LT_time = esp_timer_get_time();
+         esp_rom_printf(white "%d", LT_time);;
+         // 32768, 128, 32768, 262144, 16, 262144
          executeGates(&tempClearR2, MCPWMx);
       }
    }

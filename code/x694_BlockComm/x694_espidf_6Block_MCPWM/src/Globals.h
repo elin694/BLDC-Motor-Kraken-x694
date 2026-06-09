@@ -20,59 +20,9 @@
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
 #define µsToTicksInt static_cast<float>(timerResolution/1e6) //ontime * this = tick
 
-//====================FUNCTION DECLARATION =======================
-inline uint32_t BT_time = 0;
-inline uint32_t LT_time = 0;
-#define black "\033[30m"
-#define red "\033[31m"
-#define green "\033[32m"
-#define yellow "\033[33m"
-#define blue "\033[34m"
-#define magenta "\033[35m"
-#define cyan "\033[36m"
-#define white "\033[37m"
-#define esc "\033[0m"
-
-void readPotRepeat(void * parameter);
-void readPotOnce(void * parameter);
-
-inline int ledD =0;
-// #define phaseAHighPort GPIO_NUM_33
-// #define phaseALowPort GPIO_NUM_14
-// #define phaseBHighPort GPIO_NUM_17
-// #define phaseBLowPort GPIO_NUM_16
-// #define phaseCHighPort GPIO_NUM_26
-// #define phaseCLowPort GPIO_NUM_32
-
-#define phaseAHighPort GPIO_NUM_33
-#define phaseALowPort GPIO_NUM_12
-#define phaseBHighPort GPIO_NUM_17
-#define phaseBLowPort GPIO_NUM_14
-#define phaseCHighPort GPIO_NUM_26
-#define phaseCLowPort GPIO_NUM_2
-//CHANGE ASSOCIATED PORT SET AND CLEAR
-volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
-volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
-constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
-// *deref
-#define dataPin GPIO_NUM_21
-#define clockPin GPIO_NUM_22
-#define pot GPIO_NUM_35 // or 35
-#define inlineShuntC 36 //Vp 
-#define inlineShuntA 39 //Vn
-// #define adcChannel 34
-#define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
-
-#ifdef as5600DirPinHigh
-#define as5600CalibratedOffset static_cast<uint16_t>(-(2107-(4095.0/3)) + 30.0 *(4095/3)/360);
- //2107 bit at c high a low (block 3#3 )with DIR  @5V
-#else
- #define as5600CalibratedOffset static_cast<uint16_t>(-((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360); 
-#endif
-
-//++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
    /*You can Probably Change*/
+//    #define motorStall 
    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(400)
    #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(estimatedI2CReadTimeInMicros*µsToTicks)
    #define timerResolution  static_cast<uint32_t>(5e4) //125ns , must not simple ratio
@@ -80,8 +30,7 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
    //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
 
    #define startingDuty static_cast<float>(1- .8) //The Duty cycle is 1 - this.Value
-   #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
-   
+   #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     /* old version- all values copied over
     REMINDER THAT THE ITMER IS UP AND DOWN --> DIVIDE BY 2
@@ -94,11 +43,9 @@ constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort)
 
         #define offGatePWMPeriod static_cast<uint32_t>(.05 * activePwmPeriod)
     */
-   
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
 
     /*DO NOT CHANGE VALUE*/
-    constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
     constexpr int electricalCycles = 3; //constexpr is defineable compile time costant 
     inline mcpwm_timer_handle_t blockTimer=NULL;
     inline mcpwm_timer_handle_t globalLowTimer =NULL;
@@ -142,7 +89,8 @@ typedef struct{
     float CMR_value_3[4];//impleemnt
     // ^^^^^^^^^^^^^^^^^^^^^
     volatile uint32_t oldSectorTarget =- 1010;
-    volatile int sectorTarget = 2; //for stator current vector
+    volatile int sectorTarget =5 ; //for stator current vector
+    // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
     volatile uint32_t blockPeriod= static_cast<uint32_t>((131072/2)/6); 
     //21845 is the maximum since 131073 is probably the maximum
     uint32_t BTimerPhaseShift;
@@ -152,3 +100,57 @@ inline gVar_t global;
 inline volatile uint32_t counter =10;
 inline volatile uint32_t isrCounter2 =10;
 inline volatile uint32_t isrGroupCounter =10;
+//===================
+void readPotRepeat(void * parameter);
+void readPotOnce(void * parameter);
+
+inline int ledD =0;
+// #define phaseAHighPort GPIO_NUM_33
+// #define phaseALowPort GPIO_NUM_14
+// #define phaseBHighPort GPIO_NUM_17
+// #define phaseBLowPort GPIO_NUM_16
+// #define phaseCHighPort GPIO_NUM_26
+// #define phaseCLowPort GPIO_NUM_32
+
+#define phaseAHighPort GPIO_NUM_33
+#define phaseALowPort GPIO_NUM_12
+#define phaseBHighPort GPIO_NUM_17
+#define phaseBLowPort GPIO_NUM_14
+#define phaseCHighPort GPIO_NUM_26
+#define phaseCLowPort GPIO_NUM_2
+//CHANGE ASSOCIATED PORT SET AND CLEAR
+volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
+volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
+constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
+// *deref
+constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
+#define dataPin GPIO_NUM_21
+#define clockPin GPIO_NUM_22
+#define pot GPIO_NUM_35 // or 35
+#define inlineShuntC 36 //Vp 
+#define inlineShuntA 39 //Vn
+// #define adcChannel 34
+#define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
+
+#ifdef as5600DirPinHigh
+#define as5600CalibratedOffset static_cast<uint16_t>(-(2107-(4095.0/3)) + 30.0 *(4095/3)/360);
+ //2107 bit at c high a low (block 3#3 )with DIR  @5V
+#else
+ #define as5600CalibratedOffset static_cast<uint16_t>(-((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360); 
+#endif
+//====================FUNCTION DECLARATION =======================
+inline uint32_t BT_time = 0;
+inline uint32_t LT_time = 0;
+
+
+#define fMin static_cast<float>(10) //119/in hertz
+#define fMax static_cast<float>(17)
+#define black "\033[30m"
+#define red "\033[31m"
+#define green "\033[32m"
+#define yellow "\033[33m"
+#define blue "\033[34m"
+#define magenta "\033[35m"
+#define cyan "\033[36m"
+#define white "\033[37m"
+#define esc "\033[0m"

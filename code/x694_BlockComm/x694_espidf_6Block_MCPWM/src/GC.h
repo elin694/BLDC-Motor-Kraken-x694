@@ -1,8 +1,8 @@
 #pragma once 
 #include "Globals.h"
+
 #define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.9) //isr 700ns responds time
 #define relativeDeadTime 5
-
 #define syncTickBeforeCMPRThreshold -2
 
 // gpio 19- miso, b High side is tx2
@@ -19,6 +19,7 @@ void activateAllSyncs();
 void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1);
 void synchr(mcpwm_sync_handle_t handle, std::string name);
 void synchrISR(mcpwm_sync_handle_t handle, const char* name);
+void getTimerCountNow(const char* str);
 
 inline void blinkDebugLed(int delay){
     for(int i= 1000; i>0 && (ledD !=0); i--){
@@ -28,6 +29,18 @@ inline void blinkDebugLed(int delay){
         vTaskDelay(delay);
     }
 }
+mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
+    .group_id = highSideGroup,
+    .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
+    .resolution_hz = timerResolution,
+    .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
+    // .intr_priority = 1,
+    .flags = {
+        .update_period_on_empty = 0,
+        .update_period_on_sync = 1 
+    }
+};
+
 mcpwm_timer_config_t blockTimerSetup = { //onces per step/block
     .group_id = lowSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
@@ -39,21 +52,10 @@ mcpwm_timer_config_t blockTimerSetup = { //onces per step/block
         .update_period_on_sync = 1
     }
 };
-mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
-    .group_id = highSideGroup,
-    .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
-    .resolution_hz = static_cast<uint32_t>(timerResolution),
-    .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
-    // .intr_priority = 1,
-    .flags = {
-        .update_period_on_empty = 0,
-        .update_period_on_sync = 1 
-    }
-};
 mcpwm_timer_config_t globalTimerSetupLow = { //Grass with peaks
     .group_id = lowSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
-    .resolution_hz = static_cast<uint32_t>(timerResolution),
+    .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     // .intr_priority = 1,
     .flags = {

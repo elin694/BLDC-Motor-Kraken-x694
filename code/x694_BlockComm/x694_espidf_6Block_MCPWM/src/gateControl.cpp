@@ -8,13 +8,19 @@ void mcpwmSetup(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_fu
     initializeLowGate(startingTargetSector, global.CMR_value_3); // suppress Lgate to OFF
     configureLowGateEvents();
     initializeSyncs();
-    synchr(LTimerTrigger, "LTimerSync");
     //LIGHT THE FUSE:::::::::::::::✨✨✨✨✨:Start and wait out first block to trigger ISR1
     initializeISR();
     initializeTimer(startingTargetSector, *bPeriod_pass_by_function); 
-    initializeInterruptEnablePin(); //after isr init 
+    
+    synchrISR(BTimerTrigger, "Pre-intr_ena BT Sync"); //start after to mimic phase offset wave
+    synchrISR(LTimerTrigger, "Pre-intr_ena LT Sync"); //start after to mimic phase offset wave
+    // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); //0-1us
+    // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger)); //0-1us 
+    esp_rom_delay_us(13); //calib minimum
+    initializeInterruptEnablePin(); //after isr init  and L sync 
+    // synchr(BTimerTrigger, "Post-intr_ena BT Sync"); //start after to mimic phase offset wave
+    // synchr(LTimerTrigger, "Post-intr_ena LT Sync"); //start after to mimic phase offset wave 
     // ESP_ERROR_CHECK(esp_intr_enable(oneBlockISR)); //Starting AS5600 read ISR
-    synchr(BTimerTrigger, "BTimerSync");
     ESP_LOGI( "GC6.5", "====act ivate BtimeTrigger getSector to get another read and ISR");
     for (int i= 0; i<3; i++){ 
         // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, -1, false)); 
@@ -33,17 +39,17 @@ void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPerio
         CMRA0Threshold = static_cast<uint32_t>((*bPeriod_pass_by_function1)*startingDuty);
         phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(offGatePWMPeriod);
     */
-   phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(activePwmPeriod);
-    CMRA0Threshold = static_cast<uint32_t>((phaseTimerSetupHigh.period_ticks)*startingDuty /2.0 );
+    phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(activePwmPeriod);
+    CMRA0Threshold = static_cast<uint32_t>(startingGateCmpValue);
 
     blockTimerSetup.period_ticks =static_cast<uint32_t>(*bPeriod_pass_by_function1); //1 phase every change int
     globalTimerSetupLow.period_ticks =static_cast<uint32_t>(6*(*bPeriod_pass_by_function1));
-    ESP_LOGW(blue "GC1  Periods (in ticks)", blue "Btimer Period: %d , ltimer Period: %d ", blockTimerSetup.period_ticks, (int) globalTimerSetupLow.period_ticks);
+    ESP_LOGW(blue "GC1  Periods (in ticks)", blue "Btimer Period: %d , ltimer Period: %d ", (int)blockTimerSetup.period_ticks, (int) globalTimerSetupLow.period_ticks);
 
     tripleHighOnSync.count_value = 1; //Practically does not need to be changed
-    BTimerOnSync.count_value = static_cast<uint32_t>(*bPeriod_pass_by_function1-(estimatedI2CReadTimeInMicros*µsToTicksInt)); //is the starting phaseOffset
+    BTimerOnSync.count_value = estimatedI2CReadTimeInTicks; //is the starting phaseOffset
     LTimerOnSync.count_value = static_cast<uint32_t>(lowGateLevelCycle[startingTargetSector] *(*bPeriod_pass_by_function1));
-    ESP_LOGW(magenta "GC 1.5 OnSyncValues", "Btimer count_val: %" PRIu32 ", LTimer count_val %d ", BTimerOnSync.count_value, (int)LTimerOnSync.count_value);
+    ESP_LOGW(magenta "GC 1.5 OnSyncValues", "Btimer count_val: %d, LTimer count_val %d ", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value);
 }
 
 void initializeHighGate(int startingTargetSector, uint32_t comparatorOff_Duty){
@@ -97,7 +103,7 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
 
     //TIMER 1= LTimer
     ESP_ERROR_CHECK(mcpwm_new_timer(&globalTimerSetupLow, &globalLowTimer)); 
-    ESP_LOGW("      initLG", "2/3 peak : %d, BTimer Period: %u, LTimer Period %u \n", 
+    ESP_LOGW("      initLG", "2/3 peak : %d, BTimer Period: %u, LTimer Period %u \n",  
         (int)(threshold_thirds[2]), static_cast<int>(global.blockPeriod),  globalTimerSetupLow.period_ticks);
 
     for (int i = 0; i <3; i++){
@@ -135,21 +141,22 @@ void initializeISR(){
             .direction =
         }
     */
+   mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     MCPWMx->int_ena.val = 0x00000000;
-    MCPWMx->int_st.val = 0x00000000;
+    MCPWMx->int_clr.val= 0xFFFFFFFF;
     ESP_ERROR_CHECK(esp_intr_alloc(
-            ETS_PWM0_INTR_SOURCE,
-            ESP_INTR_FLAG_LEVEL3 
-            | ESP_INTR_FLAG_IRAM
-            ,
-            getSectorNumber,
-            (void *)&global,
-            &oneBlockISR
-        )  
-    );
-    mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
-    MCPWMx->int_clr.val=  clearReg.val;
-    ESP_LOGI("======esp_alloc_intr used to allocate ISR line before flushing all related intr_ena bits", " ");
+        ETS_PWM0_INTR_SOURCE,
+        ESP_INTR_FLAG_LEVEL3 
+        | ESP_INTR_FLAG_IRAM
+        ,
+        getSectorNumber,
+        (void *)&global,
+        &oneBlockISR
+    )  
+);
+MCPWMx->int_ena.val = 0x00000000;
+MCPWMx->int_clr.val=  clearReg.val;
+ESP_LOGI("======esp_alloc_intr used to allocate ISR line before flushing all related intr_ena bits", " ");
 }
 
 void initializeInterruptEnablePin(){
@@ -166,6 +173,7 @@ void initializeInterruptEnablePin(){
     MCPWMx->int_ena.op0_tea_int_ena = 1; // op0 = phase A lowside
     MCPWMx->int_ena.op0_teb_int_ena = 1; // timer
     ESP_LOGW(cyan "binary int_ena", " %" PRIu32, MCPWMx->int_ena.val);
+    ESP_LOGW(cyan "esp_rom time", "%d", (int) esp_timer_get_time());
     ESP_LOGI("======CLEARing INTR REGISTER AND PUSHing INTR_ENABLE BITS", " ");
 }
 
@@ -234,11 +242,10 @@ void initializeTimer(int startingTargetSector, uint32_t bPeriod_pass_by_function
      for (int i= 0; i<3; i++){
          // ESP_ERROR_CHECK(mcpwm_timer_start_stop(motorH[i].timer, MCPWM_TIMER_START_NO_STOP));
         }
-        ESP_LOGW("          ", blue "Starting block timer nxtl" );
-        ESP_ERROR_CHECK(mcpwm_timer_start_stop(blockTimer, MCPWM_TIMER_START_NO_STOP));
-        ESP_LOGW("          ", blue "Starting Low timer nxtl" );
         ESP_ERROR_CHECK(mcpwm_timer_start_stop(globalLowTimer, MCPWM_TIMER_START_NO_STOP));
-    ESP_LOGI(blue "GC6", "======ENABLES AND STARTS counting on all 5 timers ");
+        ESP_ERROR_CHECK(mcpwm_timer_start_stop(blockTimer, MCPWM_TIMER_START_NO_STOP));
+    // ESP_LOGI(blue "GC6", "======ENABLES AND STARTS counting on all 5 timers ");
+    esp_rom_delay_us(100);
 }
 
 void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTargetSector, uint32_t bPeriod_pass_by_function){
@@ -278,13 +285,13 @@ void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_p
     if (global.sectorTarget == global.oldSectorTarget) { //Motor stalling case
         //The phase that is high doesn't change
         // Low Gates- Precalcuate values to Resync timers to previous Block
-        BTimerOnSync.count_value = global.blockPeriod-estimatedI2CReadTimeInTicks; //Test if needed
+        BTimerOnSync.count_value = estimatedI2CReadTimeInTicks; //Test if needed
         ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(blockTimer, &BTimerOnSync)); //Test if needed
         
         LTimerOnSync.count_value = lowGateLevelCycle[global.sectorTarget] * global.blockPeriod; //n/3 fraction
         LTimerOnSync.direction = LTimerDir[global.sectorTarget];
         ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(globalLowTimer, &LTimerOnSync));
-        
+        // esp_rom_printf(magenta "Bt_cv: %d, LT_cv: %d", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value);
         // Gpio level remains set by dt_config
         // Set w/ gpio.out1_w1ts for safety (test/calibr) 
     } 
@@ -320,7 +327,11 @@ void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_p
         */
         
     // } //extra case of 1->2, 3->4, 5->0, but high gate is the same and comparatorActions wills set LGates low --> no code needed
+    // esp_rom_printf(magenta "DOES HE ACTUALLY LEAVE THIS LOOP \n");
     mcpwm-> int_clr.val = clearMask;
+    // MCPWM0.timer[0].timer_status.timer_value; //block tiemr count
+    // esp_rom_printf(magenta "iR:%d, TC: %d", (int)(mcpwm-> int_st.val), MCPWM0.timer[1].timer_status.
+
 }
 
 void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm){
@@ -333,11 +344,16 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
     //     ESP_ERROR_CHECK(mcpwm_generator_set_force_level (motorH[activeHighGate[global.oldSectorTarget]].pwmGate0, 0 , true)); //turn off old one by setting to 0!
     //     ESP_ERROR_CHECK(mcpwm_generator_set_force_level (motorH[activeHighGate[global.sectorTarget]].pwmGate0, -1, true)); //turn off old one by setting to 0!
     // }
-
-    // synchrISR(LTimerTrigger, "Ltimer On!"); //can'ts wap for some reason
-    // synchrISR(BTimerTrigger, "Btimer");
-    esp_rom_printf(white);
-    LT_time= esp_timer_get_time();
+    esp_rom_printf(magenta "BTC: %d, LTC: %d", MCPWM0.timer[0].timer_status.timer_value, MCPWM0.timer[1].timer_status.timer_value);
+    if(global.sectorTarget == global.oldSectorTarget){
+        // esp_rom_delay_us(20); //keep below period of 1 tick
+        synchrISR(LTimerTrigger, "Ltimer On!"); //can'ts wap for some reason
+    }
+    esp_rom_delay_us(ticksToµs); //keep below period of 1 tick
+    synchrISR(BTimerTrigger, "Btimer");
+    // esp_rom_printf(white);
+    // LT_time= esp_timer_get_time();
+    // esp_rom_printf((std::to_string(LT_time)).c_str());
 
     //tea, tep, tea,teb,tez,teb
     //log_2 : 15, 7, 15,  18, 4, 18 [0-5]
@@ -357,17 +373,19 @@ int mod6 (int value){ //for single add
 }
 
 void synchr(mcpwm_sync_handle_t handle, std::string name){
-    ESP_LOGI( red "                           ", "syncing %s", name.c_str());
+    ESP_LOGI(white "              ", "syncing %s", name.c_str());
     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle));
 }
 
-// void synchrISR(mcpwm_sync_handle_t handle, std::string name){
-//     esp_rom_printf( red "                           ", "actively syncing %s", name.c_str());
-//     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle));
-// }
-
-void IRAM_ATTR synchrISR(mcpwm_sync_handle_t handle, const char* name){
-    esp_rom_printf( red "                      syncing %s \n", name);
-    ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle));
+void IRAM_ATTR synchrISR(mcpwm_sync_handle_t handle, const char* name){ 
+    //if code only activites sync, execution time <1us
+    // esp_rom_printf(white "         syncing %s \n", name); //109us/2 faster than synchr, still 194us/2
+    ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle)); //0-1us
 }
 
+void getTimerCountNow(const char* str){
+    int bt1 = MCPWM0.timer[0].timer_status.timer_value;
+    int lt1 = MCPWM0.timer[1].timer_status.timer_value;
+    esp_rom_printf(yellow "%s BTC: %d, LTC: %d \n", str, bt1, lt1);
+
+}
