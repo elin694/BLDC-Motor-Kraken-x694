@@ -1,5 +1,6 @@
 #pragma once 
 #include "Globals.h"
+#include "driver/gpio.h"
 
 #define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.9) //isr 700ns responds time
 #define relativeDeadTime 5
@@ -20,14 +21,6 @@ void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPerio
 void synchr(mcpwm_sync_handle_t handle, std::string name);
 void synchrISR(mcpwm_sync_handle_t handle, const char* name);
 
-inline void blinkDebugLed(int delay){
-    for(int i= 1000; i>0 && (ledD !=0); i--){
-        GPIO.out_w1ts |= 1<<2;
-        vTaskDelay(delay);
-        GPIO.out_w1tc |= 1<<2;
-        vTaskDelay(delay);
-    }
-}
 mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
     .group_id = highSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
@@ -45,7 +38,7 @@ mcpwm_timer_config_t blockTimerSetup = { //onces per step/block
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-    // .intr_priority = 1,
+    .intr_priority = 2,
     .flags = {
         .update_period_on_empty = 0,
         .update_period_on_sync = 1
@@ -56,7 +49,7 @@ mcpwm_timer_config_t globalTimerSetupLow = { //Grass with peaks
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
-    // .intr_priority = 1,
+    .intr_priority = 2,
     .flags = {
         .update_period_on_empty = 0,
         .update_period_on_sync = 1 

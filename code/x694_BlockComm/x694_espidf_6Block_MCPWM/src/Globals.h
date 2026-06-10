@@ -22,13 +22,14 @@
 
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 /*You can Probably Change*/
-    #define preCompStartingTargetSector 5
-    #define preComp_cvPeriod 50
+    #define digitalReadPin GPIO_NUM_25
+    #define preCompStartingTargetSector 1
+    #define preComp_cvPeriod 2*50
     #define motorStall 
 
     #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
     #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(estimatedI2CReadTimeInMicros*µsToTicks)
-    #define timerResolution  static_cast<uint32_t>(2e4) //125ns , must not simple ratio
+    #define timerResolution  static_cast<uint32_t>(4e4) //125ns , must not simple ratio
     #define activePwmPeriod static_cast<uint32_t>(timerResolution/10000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
 
@@ -44,7 +45,8 @@
         volatile uint32_t oldSectorTarget = preCompStartingTargetSector;
         volatile int sectorTarget =5 ; //for stator current vector
         // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
-        volatile uint32_t blockPeriod= static_cast<uint32_t>((131072/2)/6); 
+        // volatile uint32_t blockPeriod= static_cast<uint32_t>(((131072)/2)/6); 
+        volatile uint32_t blockPeriod= static_cast<uint32_t>(((120000)/2)/6); 
         uint32_t BTimerPhaseShift;
     } gVar_t;
     extern adc_oneshot_unit_handle_t adcHandle;
@@ -65,13 +67,13 @@
     inline mcpwm_timer_handle_t globalLowTimer =NULL;
     #define highSideGroup 1 //used in isr intr_source
     #define lowSideGroup 0
+
     // constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
     constexpr uint32_t lowGateLevelCycle[6] = {
         // (float)(2/3.0), 1.0f, (float)(2/3.0), (float)(1/3.0), 0.0f, (float)(1/3.0) 
         2,3,2,1,0,1
     };
-    //given index of current sector, tells which phase is high
-    constexpr int activeHighGate[6]= {1,2,2,0,0,1};
+    constexpr int activeHighGate[6]= {1,2,2,0,0,1}; //given index of current sector, tells which phase is high
     constexpr int gateLevelCycle[6][6] = { //ah al bh bl ch cl
         {0, 1, 1, 0, 0, 0}, //block 0,  HLHLHL
         {0, 1, 0, 0, 1, 0},
@@ -80,13 +82,19 @@
         {1, 0, 0, 0, 0, 1},
         {0, 0, 1, 0, 0, 1},
     };
-    constexpr mcpwm_timer_direction_t LTimerDir[6] ={MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_DIRECTION_DOWN,  MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_DIRECTION_UP,  MCPWM_TIMER_DIRECTION_UP};
+    constexpr mcpwm_timer_direction_t LTimerDir[6] ={
+        MCPWM_TIMER_DIRECTION_UP, 
+        MCPWM_TIMER_DIRECTION_DOWN,  
+        MCPWM_TIMER_DIRECTION_DOWN, 
+        MCPWM_TIMER_DIRECTION_DOWN, 
+        MCPWM_TIMER_DIRECTION_UP,  
+        MCPWM_TIMER_DIRECTION_UP};
 //===================
 void readPotRepeat(void * parameter);
 void readPotOnce(void * parameter);
 void getTimerCountNow(const char* str);
 void spamSearchCV(void *parameter);
-inline int ledD =0;
+
 // #define phaseAHighPort GPIO_NUM_33
 // #define phaseALowPort GPIO_NUM_14
 // #define phaseBHighPort GPIO_NUM_17
@@ -95,7 +103,7 @@ inline int ledD =0;
 // #define phaseCLowPort GPIO_NUM_32
 
 #define phaseAHighPort GPIO_NUM_33
-#define phaseALowPort GPIO_NUM_12
+#define phaseALowPort GPIO_NUM_27
 #define phaseBHighPort GPIO_NUM_17
 #define phaseBLowPort GPIO_NUM_14
 #define phaseCHighPort GPIO_NUM_26
@@ -106,6 +114,7 @@ volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc
 constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
 // *deref
 constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
+constexpr int intGateArray[6]= {33,27,17,14,26,2};
 #define dataPin GPIO_NUM_21
 #define clockPin GPIO_NUM_22
 #define pot GPIO_NUM_35 // or 35

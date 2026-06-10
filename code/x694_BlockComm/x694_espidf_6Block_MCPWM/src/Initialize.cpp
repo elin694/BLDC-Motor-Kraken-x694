@@ -8,14 +8,17 @@ void initialize(void * parameter){
       ESP_LOGI(blue "C_3 thirds", "%f", global.CMR_value_3[i]);
    }
    global.BTimerPhaseShift= global.blockPeriod-(estimatedI2CReadTimeInMicros*µsToTicks);
-   pinSetup();
+   // pinSetup();
    initAnalogReadOnce();
    // readPotOnce(NULL);
-   ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
-   ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
+   // ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
+   // ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    // as5600initialize();
    global.sectorTarget = preCompStartingTargetSector;
    global.oldSectorTarget = global.sectorTarget;
+   
+   ESP_LOGI(cyan "STARTING", " MCPWM SETUP");
+   // vTaskDelay(pdMS_TO_TICKS(1000));
    mcpwmSetup(global.sectorTarget, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    /*no bidirection compatability yet
@@ -57,15 +60,23 @@ i2c_device_config_t as5600Setup = {
 i2c_master_dev_handle_t as5600Handle;
 
 void pinSetup(){
-   printf("Setup Begun \n ");
+   ESP_LOGI(yellow "Pin Setip", "Set Begun ");
    gpio_reset_pin(clockPin);
    gpio_reset_pin(dataPin);
+   ESP_LOGI(yellow "Pin Setupp", "Clock and Data pin reset ");
    // use ledc to set potentionmeter to input analog read
-   for(gpio_num_t gate : gateArray){
-      gpio_reset_pin(gate);
-      gpio_set_direction(gate,GPIO_MODE_OUTPUT);
-      gpio_set_pull_mode(gate, GPIO_FLOATING);
+   for(int i = 0; i<6; i++){
+      gpio_reset_pin(gateArray[i]);
+      // gpio_set_direction(gateArray[i],GPIO_MODE_OUTPUT);
+      gpio_set_direction(gateArray[i], GPIO_MODE_INPUT_OUTPUT);
+      ESP_LOGW("pintSetup", "i: %d, lvl: %d",i,gpio_get_level(gateArray[i]));
+      gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
    }
+   gpio_reset_pin(digitalReadPin);
+   gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
+   gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
+   // esp_rom_delay_us(6000000); IT ORKS
+   ESP_LOGI(yellow "Pin Setup", " each pin is reset, set to output and floating");
 }
 
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
@@ -145,6 +156,7 @@ mcpwm_int_clr_reg_t tempClearR2 = {
    .op0_tea_int_clr = 1,
    .op0_teb_int_clr = 1
 };
+mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
 #if (lowSideGroup == 1)
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
 #elif (lowSideGroup == 0)
@@ -152,14 +164,14 @@ mcpwm_int_clr_reg_t tempClearR2 = {
 #endif
 
 void IRAM_ATTR getSectorNumber(void * returnValue) { 
-   mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
+   tempStatusReg.val =  (MCPWMx)->int_st.val;
    if(tempStatusReg.val){ //in case of ghost interrupts
-      uint32_t az= isrGroupCounter;
-      az= az +1;
-      isrGroupCounter = az;
+      // getTimerCountNow("isr: ");
+      // uint32_t az= isrGroupCounter;
+      // az= az +1;
+      // isrGroupCounter = az;
 
-      // esp_rom_printf( blue "\n m, ");
-      esp_rom_printf(cyan "\n R %6d, ", tempStatusReg.val);
+      // esp_rom_printf(cyan "\n R %6d, ", tempStatusReg.val);
 
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
       //120-170 gpt µs at 400kHz
@@ -168,8 +180,8 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          a= a +1;
          counter = a;
          // esp_rom_printf( yellow "B, %d", (int) esp_timer_get_time());
-         esp_rom_printf( yellow "B");
-         getTimerCountNow("      ");
+         esp_rom_printf(blue "B");
+         // getTimerCountNow("      ");
          // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
          //    &as5600TargetRegister, 
          //    as5600WriteSize,
@@ -205,18 +217,21 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearR1.val);
       } 
       else if(
-         tempStatusReg.timer1_tez_int_st || // ltimer has id 1
-         tempStatusReg.timer1_tep_int_st ||
-         tempStatusReg.op0_tea_int_st || //since phaseA_gen_one_third =0
-         tempStatusReg.op0_teb_int_st)
+         /*// ltimer has id 1*/
+         tempStatusReg.timer1_tez_int_st || //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
+         tempStatusReg.timer1_tep_int_st || //timer 1= LTimer, (ie change from block 0-1), 2^7 = 128
+         /*since phaseA_gen_one_third =0 */
+         tempStatusReg.op0_tea_int_st || // op0 = phase A lowside, (ie change from block 5-0 or 1-2), 2^15 = 32765
+         tempStatusReg.op0_teb_int_st) // timer, (ie change from block 2-3 or 4-5), 2^18 = 262144
       { //L TIMER = id1, SO WE USE TIMER 1
-         uint32_t azz= isrCounter2;
-         azz= azz +1;
-         isrCounter2 = azz;   
+         // uint32_t azz= isrCounter2;
+         // azz= azz +1;
+         // isrCounter2 = azz;   
+         
+         // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
          esp_rom_printf( red "L");
-         esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
-         // LT_time = esp_timer_get_time();
-         // esp_rom_printf(white "%d", LT_time);
+         // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
+         
          // 32768, 128, 32768, 262144, 16, 262144
          executeGates(&tempClearR2, MCPWMx);
       }
