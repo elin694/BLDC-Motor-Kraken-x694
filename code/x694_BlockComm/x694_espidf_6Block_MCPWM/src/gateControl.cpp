@@ -212,16 +212,16 @@ void configureLowGateEvents(){
     mcpwm_timer_event_t timerEmpty =  MCPWM_TIMER_EVENT_EMPTY;
     int i =0;
     ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[0].pwmGate0,
-        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[0].comparator0, action[1]), //up , then down
+        // MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[0].comparator0, action[1]), //up , then down
         MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[0].comparator0, action[0]),
         MCPWM_GEN_COMPARE_EVENT_ACTION_END()
     ));
     //=================
     i=1;
-    ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[i].pwmGate0,
-        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[i].comparator0, action[1]),
-        MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-    ));
+    // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[i].pwmGate0,
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[i].comparator0, action[1]),
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+    // ));
      ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[i].pwmGate0,
             MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[0]),
             MCPWM_GEN_TIMER_EVENT_ACTION_END()
@@ -229,11 +229,11 @@ void configureLowGateEvents(){
     );
     //=================
     i=2;
-    ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[i].pwmGate0,
-            MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[1]),
-            MCPWM_GEN_TIMER_EVENT_ACTION_END()
-        )
-    );
+    // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[i].pwmGate0,
+    //         MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[1]),
+    //         MCPWM_GEN_TIMER_EVENT_ACTION_END()
+    //     )
+    // );
     ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[i].pwmGate0,
         MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[i].comparator0, action[0]),
         MCPWM_GEN_COMPARE_EVENT_ACTION_END()
