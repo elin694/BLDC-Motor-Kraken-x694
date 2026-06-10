@@ -23,7 +23,7 @@
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
    /*You can Probably Change*/
 //    #define motorStall 
-   #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(400)
+   #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
    #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(estimatedI2CReadTimeInMicros*µsToTicks)
    #define timerResolution  static_cast<uint32_t>(5e4) //125ns , must not simple ratio
    #define activePwmPeriod static_cast<uint32_t>(timerResolution/10000)  //change to 20khz when high
@@ -32,17 +32,6 @@
    #define startingDuty static_cast<float>(1- .8) //The Duty cycle is 1 - this.Value
    #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
-    /* old version- all values copied over
-    REMINDER THAT THE ITMER IS UP AND DOWN --> DIVIDE BY 2
-        #define startingDuty .2 //The Duty cycle is 1 - this.Value
-        #define minDutyHigh .05 // Or when Cmp value is (1-this.value)* activePwmPeriod/2
-
-        #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod) //High gate comparator's comparatorValue when ON; can be modified later
-        #define idleHighGateCmpVal 2
-        #define offGateCmpValue static_cast<uint32_t>(minDutyHigh*activePwmPeriod) //comparatorValue when OFF, modify this when switching
-
-        #define offGatePWMPeriod static_cast<uint32_t>(.05 * activePwmPeriod)
-    */
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
 
     /*DO NOT CHANGE VALUE*/
@@ -58,9 +47,6 @@
     };
     //given index of current sector, tells which phase is high
     constexpr int activeHighGate[6]= {1,2,2,0,0,1};
-    // constexpr int activeLowGate[6]= {1,2,2,0,0,1};
-
-    //in gateControl.cpp
     constexpr int gateLevelCycle[6][6] = { //ah al bh bl ch cl
         {0, 1, 1, 0, 0, 0}, //block 0,  HLHLHL
         {0, 1, 0, 0, 1, 0},
@@ -69,37 +55,7 @@
         {1, 0, 0, 0, 0, 1},
         {0, 0, 1, 0, 0, 1},
     };
-    constexpr mcpwm_timer_direction_t LTimerDir[6] ={
-        MCPWM_TIMER_DIRECTION_UP,
-        MCPWM_TIMER_DIRECTION_DOWN, //NULL
-        MCPWM_TIMER_DIRECTION_DOWN,
-        MCPWM_TIMER_DIRECTION_DOWN,
-        MCPWM_TIMER_DIRECTION_UP, //null
-        MCPWM_TIMER_DIRECTION_UP,
-    };
-//+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
-extern adc_oneshot_unit_handle_t adcHandle;
-inline float duty = .5;
-inline int dir = 1; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
-inline bool newFrequency = false;
-// timer rez = ticks per period * periods/second 
-
-//Global Glabal Variables
-typedef struct{
-    float CMR_value_3[4];//impleemnt
-    // ^^^^^^^^^^^^^^^^^^^^^
-    volatile uint32_t oldSectorTarget =- 1010;
-    volatile int sectorTarget =5 ; //for stator current vector
-    // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
-    volatile uint32_t blockPeriod= static_cast<uint32_t>((131072/2)/6); 
-    //21845 is the maximum since 131073 is probably the maximum
-    uint32_t BTimerPhaseShift;
-} gVar_t;
-
-inline gVar_t global;
-inline volatile uint32_t counter =10;
-inline volatile uint32_t isrCounter2 =10;
-inline volatile uint32_t isrGroupCounter =10;
+    constexpr mcpwm_timer_direction_t LTimerDir[6] ={MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_DIRECTION_DOWN,  MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_DIRECTION_UP,  MCPWM_TIMER_DIRECTION_UP};
 //===================
 void readPotRepeat(void * parameter);
 void readPotOnce(void * parameter);
