@@ -11,14 +11,12 @@ int rawData = 0;
 portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
-// void run6Block(void * parameter) { 
-//   TickType_t xLastWakeTime = xTaskGetTickCount();
-//   for(;;){
-//     getSectorNumber((void *)&global); //optimize ot remove modulo***********************
-//     // phaseSwitching(blockNumber, (blockNumber + 2*dir) % 6);
-//     taskYIELD();
-//     }
-// }
+void spamSearchCV(void *parameter){
+  for(;;){
+    getTimerCountNow("\n -");
+    vTaskDelay(pdMS_TO_TICKS(preComp_cvPeriod));
+  }
+}
 
 void readPotRepeat(void * parameter){
   for(;;){
@@ -55,27 +53,27 @@ void readPotOnce(void * parameter){
     //isr loop needs to keep checking
     // ESP_LOGI("readPotOnce", magenta "read pot once");
 }
-
-    uint32_t c1 =0;
-    uint32_t c2 =0;
-    uint32_t c3 =0;
+    int c1 =0;
+    int c2 =0;
+    int c3 =0;
 void debugLog(void * parameter){
   for(;;){
-    ESP_LOGI("REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
+    ESP_LOGI("\n REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
     // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
     c1 =counter;
     c2 = isrCounter2;
     c3 =isrGroupCounter;
     // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
-    ESP_LOGI("Number of","BTimer intr:%d, LTimer intr: %d, #intr trigger: %d ",(int) c1, (int)c2, (int)c3);
+    ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
+    getTimerCountNow("");
     
-    vTaskDelay(pdMS_TO_TICKS(3*143)); 
+    vTaskDelay(pdMS_TO_TICKS(10*143)); 
   }
 }
       
 extern "C"{
   void app_main(){
-    xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 3, NULL, 1);
+    xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 2, NULL, 1);
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
     // xTaskCreatePinnedToCore(run6Block, "run6Block", 16384, NULL, 4, NULL, 1);
     

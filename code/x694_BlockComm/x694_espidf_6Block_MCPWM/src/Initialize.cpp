@@ -5,6 +5,7 @@
 void initialize(void * parameter){
    for(int i = 0; i<4; i++){
       global.CMR_value_3[i] = global.blockPeriod*i;
+      ESP_LOGI(blue "C_3 thirds", "%f", global.CMR_value_3[i]);
    }
    global.BTimerPhaseShift= global.blockPeriod-(estimatedI2CReadTimeInMicros*µsToTicks);
    pinSetup();
@@ -13,16 +14,28 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    // as5600initialize();
+   global.sectorTarget = preCompStartingTargetSector;
    global.oldSectorTarget = global.sectorTarget;
    mcpwmSetup(global.sectorTarget, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
-   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 1, NULL, 0);
-   //  xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 1, NULL, 0);
-   vTaskDelete(NULL);
+   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
+   xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
+   // xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
+   // vTaskDelete(NULL);
+   for(;;){
+      vTaskDelay(pdMS_TO_TICKS(100000));
+   }
 }
-
+int mod6 (int value){ //for single add
+    if(value > 5){
+        value = 0;
+    } else if(value < 0){
+        value = 5;
+    }
+    return value;
+}
 i2c_master_bus_config_t busSetup = { 
    .i2c_port = -1,
    .sda_io_num= dataPin,
@@ -94,8 +107,9 @@ void as5600initialize() {
          + as5600CalibratedOffset;
       #endif
 
-      int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
-      if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
+      int newBNumber = 
+         mod6(mod6(rotorAngle * SECTOR_PER_BITS+dir)+dir); //0- bitsPerSector --> smaller sector
+      if((std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
          ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
          vTaskDelay(pdMS_TO_TICKS(2000)); 
          abort();
@@ -122,15 +136,15 @@ void initAnalogReadOnce(){
 
 
 
-   mcpwm_int_clr_reg_t tempClearR1 = { 
-      .timer0_tez_int_clr =1,
-   };
-   mcpwm_int_clr_reg_t tempClearR2 = { 
-      .timer1_tez_int_clr =1,
-      .timer1_tep_int_clr =1,
-      .op0_tea_int_clr = 1,
-      .op0_teb_int_clr = 1
-   };
+mcpwm_int_clr_reg_t tempClearR1 = { 
+   .timer0_tez_int_clr =1,
+};
+mcpwm_int_clr_reg_t tempClearR2 = { 
+   .timer1_tez_int_clr =1,
+   .timer1_tep_int_clr =1,
+   .op0_tea_int_clr = 1,
+   .op0_teb_int_clr = 1
+};
 #if (lowSideGroup == 1)
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
 #elif (lowSideGroup == 0)
@@ -145,7 +159,7 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       isrGroupCounter = az;
 
       // esp_rom_printf( blue "\n m, ");
-      esp_rom_printf(cyan "\n i_reg: %6d, ", tempStatusReg.val);
+      esp_rom_printf(cyan "\n R %6d, ", tempStatusReg.val);
 
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
       //120-170 gpt µs at 400kHz
@@ -155,6 +169,7 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          counter = a;
          // esp_rom_printf( yellow "B, %d", (int) esp_timer_get_time());
          esp_rom_printf( yellow "B");
+         getTimerCountNow("      ");
          // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
          //    &as5600TargetRegister, 
          //    as5600WriteSize,
@@ -177,7 +192,7 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          
          //transfer old position and put in new vlaue
          #ifdef motorStall
-            int newBNumber = 4; //comment out to mimic motor stalling
+            int newBNumber = preCompStartingTargetSector; //comment out to mimic motor stalling
             global.sectorTarget = newBNumber; //comment out to mimic motor stalling
             global.oldSectorTarget = newBNumber; //comment out to mimic motor stalling
             
@@ -198,16 +213,16 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          uint32_t azz= isrCounter2;
          azz= azz +1;
          isrCounter2 = azz;   
-         esp_rom_printf(green "OST %d, NST %d",global.oldSectorTarget , global.sectorTarget );
-         esp_rom_printf( red "L: µs");
-         LT_time = esp_timer_get_time();
-         esp_rom_printf(white "%d", LT_time);;
+         esp_rom_printf( red "L");
+         esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
+         // LT_time = esp_timer_get_time();
+         // esp_rom_printf(white "%d", LT_time);
          // 32768, 128, 32768, 262144, 16, 262144
          executeGates(&tempClearR2, MCPWMx);
       }
    }
 }
 
-// mcpwm_comparator_set_compare_value()
+// mcpwm_comparator_set_comare_value()
 // mcpwm_timer_set_period()
 // threadsafe

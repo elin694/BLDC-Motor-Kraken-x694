@@ -48,7 +48,6 @@ void initializeISR();
 //Loop
 void preloadGates(int previousState, int nextState, uint32_t blockPeriod_f, mcpwm_dev_t * mcpwm, uint32_t clearMask);
 void executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm);
-int mod6(int value);
 
 #if (lowSideGroup == 1)
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)

@@ -21,18 +21,43 @@
 #define µsToTicksInt static_cast<float>(timerResolution/1e6) //ontime * this = tick
 
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-   /*You can Probably Change*/
-//    #define motorStall 
-   #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
-   #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(estimatedI2CReadTimeInMicros*µsToTicks)
-   #define timerResolution  static_cast<uint32_t>(5e4) //125ns , must not simple ratio
-   #define activePwmPeriod static_cast<uint32_t>(timerResolution/10000)  //change to 20khz when high
-   //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
+/*You can Probably Change*/
+    #define preCompStartingTargetSector 5
+    #define preComp_cvPeriod 50
+    #define motorStall 
 
-   #define startingDuty static_cast<float>(1- .8) //The Duty cycle is 1 - this.Value
-   #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
+    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
+    #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(estimatedI2CReadTimeInMicros*µsToTicks)
+    #define timerResolution  static_cast<uint32_t>(2e4) //125ns , must not simple ratio
+    #define activePwmPeriod static_cast<uint32_t>(timerResolution/10000)  //change to 20khz when high
+    //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
+
+    #define startingDuty static_cast<float>(1- .8) //The Duty cycle is 1 - this.Value
+    #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
+
+    //+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
+    typedef struct{
+        float CMR_value_3[4];//impleemnt
+        // ^^^^^^^^^^^^^^^^^^^^^
+        volatile uint32_t oldSectorTarget = preCompStartingTargetSector;
+        volatile int sectorTarget =5 ; //for stator current vector
+        // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
+        volatile uint32_t blockPeriod= static_cast<uint32_t>((131072/2)/6); 
+        uint32_t BTimerPhaseShift;
+    } gVar_t;
+    extern adc_oneshot_unit_handle_t adcHandle;
+    inline float duty = .5;
+    inline bool newFrequency = false;
+    // timer rez = ticks per period * periods/second 
+    
+    inline gVar_t global;
+    inline volatile uint32_t counter =0;
+    inline volatile uint32_t isrCounter2 =0;
+    inline volatile uint32_t isrGroupCounter =0;
+
+
 
     /*DO NOT CHANGE VALUE*/
     constexpr int electricalCycles = 3; //constexpr is defineable compile time costant 
@@ -59,7 +84,8 @@
 //===================
 void readPotRepeat(void * parameter);
 void readPotOnce(void * parameter);
-
+void getTimerCountNow(const char* str);
+void spamSearchCV(void *parameter);
 inline int ledD =0;
 // #define phaseAHighPort GPIO_NUM_33
 // #define phaseALowPort GPIO_NUM_14
@@ -91,8 +117,10 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 #ifdef as5600DirPinHigh
 #define as5600CalibratedOffset static_cast<uint16_t>(-(2107-(4095.0/3)) + 30.0 *(4095/3)/360);
  //2107 bit at c high a low (block 3#3 )with DIR  @5V
-#else
+ inline int dir = 5; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
+ #else
  #define as5600CalibratedOffset static_cast<uint16_t>(-((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360); 
+ inline int dir = 1; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
 #endif
 //====================FUNCTION DECLARATION =======================
 inline uint32_t BT_time = 0;

@@ -11,6 +11,7 @@ void initAnalogReadOnce();
 
 void getSectorNumber(void *returnValue);
 void debugLog(void * parameter);
+int mod6(int value);
 
 //+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++
 extern i2c_master_bus_config_t busSetup;

@@ -19,7 +19,6 @@ void activateAllSyncs();
 void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1);
 void synchr(mcpwm_sync_handle_t handle, std::string name);
 void synchrISR(mcpwm_sync_handle_t handle, const char* name);
-void getTimerCountNow(const char* str);
 
 inline void blinkDebugLed(int delay){
     for(int i= 1000; i>0 && (ledD !=0); i--){
