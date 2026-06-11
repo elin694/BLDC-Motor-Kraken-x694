@@ -8,6 +8,9 @@ void initialize(void * parameter){
       ESP_LOGI(blue "C_3 thirds", "%f", global.CMR_value_3[i]);
    }
    global.BTimerPhaseShift= global.blockPeriod-(estimatedI2CReadTimeInMicros*µsToTicks);
+   gpio_reset_pin(digitalReadPin);
+   gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
+   gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
    // pinSetup();
    initAnalogReadOnce();
    // readPotOnce(NULL);
@@ -72,9 +75,6 @@ void pinSetup(){
       ESP_LOGW("pintSetup", "i: %d, lvl: %d",i,gpio_get_level(gateArray[i]));
       gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
    }
-   gpio_reset_pin(digitalReadPin);
-   gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
-   gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
    // esp_rom_delay_us(6000000); IT ORKS
    ESP_LOGI(yellow "Pin Setup", " each pin is reset, set to output and floating");
 }
@@ -228,6 +228,11 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          // azz= azz +1;
          // isrCounter2 = azz;   
          
+         if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "TEZ\n");
+         if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "TEP\n");
+         if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "TEA\n");
+         if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "TEB\n");
+
          // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
          esp_rom_printf( red "L");
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );

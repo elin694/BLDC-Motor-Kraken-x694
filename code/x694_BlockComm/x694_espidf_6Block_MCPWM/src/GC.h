@@ -101,7 +101,6 @@ const mcpwm_operator_config_t operatorSetupLow = {
 
 //=========================================== SYNC =======================================================
 //syncs block timer
-#define sacrificialUniversalGpio 27
 #define SET_SUG_REGISTER (uint32_t *)(&GPIO.out_w1ts)
 #define CLEAR_SUG_REGISTER (uint32_t *)(&GPIO.out_w1tc)
 
