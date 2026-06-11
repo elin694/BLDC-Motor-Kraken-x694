@@ -18,7 +18,7 @@ void mcpwmSetup(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_fu
     int bt12 = MCPWM0.timer[0].timer_status.timer_value;
     int lt12 = MCPWM0.timer[1].timer_status.timer_value;
     esp_rom_printf(red "Bc %5d Lc %5d, (ot,nt): %d, %d \n", bt12, lt12, global.oldSectorTarget, global.sectorTarget);
-    synchrISR(BTimerTrigger, "Post-intr_ena BT Sync"); //0-1us
+    synchrISR(BTimerTrigger, "Post-intr_ena B   T Sync"); //0-1us
     synchrISR(LTimerTrigger, "Post-intr_ena LT Sync"); //0-1us 
     esp_rom_delay_us(ticksToµs+1); //calib minimum
 
@@ -59,7 +59,7 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
     for (int i = 0; i <3; i++){
         motorL[i] = { .opConfig = operatorSetupLow};
         ESP_LOGE("initLG: first set", "i: %d, first actual pin number %d",i, motorL[i].pwmConfig.gen_gpio_num);
-        motorL[i].pwmConfig.gen_gpio_num = intGateArray[2*i+1];
+        motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
     }
     //TIMER 0 = BTimer
     ESP_ERROR_CHECK(mcpwm_new_timer(&blockTimerSetup, &blockTimer));
@@ -102,6 +102,7 @@ void configureLowGateEvents(){
 
     ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[0].pwmGate0,
         MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[index1].comparator0, action[1]), //up , then down
+        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, MCPWM_GEN_ACTION_TOGGLE),
         MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, action[0]),
         MCPWM_GEN_COMPARE_EVENT_ACTION_END()
     ));
@@ -121,6 +122,7 @@ void configureLowGateEvents(){
     index1=2;
     ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[index1].pwmGate0,
             MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[1]),
+            MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, MCPWM_GEN_ACTION_TOGGLE),
             MCPWM_GEN_TIMER_EVENT_ACTION_END()
         )
     );
