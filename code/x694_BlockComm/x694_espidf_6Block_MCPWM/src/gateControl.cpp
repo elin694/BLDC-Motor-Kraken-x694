@@ -59,7 +59,7 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
     for (int i = 0; i <3; i++){
         motorL[i] = { .opConfig = operatorSetupLow};
         ESP_LOGE("initLG: first set", "i: %d, first actual pin number %d",i, motorL[i].pwmConfig.gen_gpio_num);
-        motorL[i].pwmConfig.gen_gpio_num = intGateArray[2*i+1];
+        motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
     }
     //TIMER 0 = BTimer
     ESP_ERROR_CHECK(mcpwm_new_timer(&blockTimerSetup, &blockTimer));

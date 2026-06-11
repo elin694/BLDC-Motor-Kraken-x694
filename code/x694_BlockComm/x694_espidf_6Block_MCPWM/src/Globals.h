@@ -105,16 +105,15 @@ void spamSearchCV(void *parameter);
 #define phaseAHighPort GPIO_NUM_33
 #define phaseALowPort GPIO_NUM_27
 #define phaseBHighPort GPIO_NUM_17
-#define phaseBLowPort GPIO_NUM_14
+#define phaseBLowPort GPIO_NUM_2
 #define phaseCHighPort GPIO_NUM_26
-#define phaseCLowPort GPIO_NUM_2
+#define phaseCLowPort GPIO_NUM_14
 //CHANGE ASSOCIATED PORT SET AND CLEAR
 volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
 volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
 constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
 // *deref
 constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
-constexpr int intGateArray[6]= {33,27,17,14,26,2};
 #define dataPin GPIO_NUM_21
 #define clockPin GPIO_NUM_22
 #define pot GPIO_NUM_35 // or 35
