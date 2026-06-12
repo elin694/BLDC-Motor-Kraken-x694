@@ -323,7 +323,7 @@ void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_p
         LTimerOnSync.count_value = lowGateLevelCycle[global.sectorTarget] * global.blockPeriod; //n/3 fraction
         LTimerOnSync.direction = LTimerDir[global.sectorTarget];
         ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(globalLowTimer, &LTimerOnSync));
-        esp_rom_printf(green " pg SYNC BCV %d, LCV %d \n", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value);
+        // esp_rom_printf(green " pg SYNC BCV %d, LCV %d \n", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value);
 
         // Gpio level remains set by dt_config
         // Set w/ gpio.out1_w1ts for safety (test/calibr) 
@@ -360,42 +360,72 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
         int a1= global.sectorTarget/2;
         int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
         
-        esp_rom_printf("p%d lvl%d \n", a1, a2);
+        // esp_rom_printf("p%d lvl%d \n", a1, a2);
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
             // motorL[global.sectorTarget/2].pwmGate0,
             // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
             motorL[a1].pwmGate0,a2,
-            true
+            false
         ));
         
         int nST = mod6(global.sectorTarget+dir);
         a1= nST/2;
         a2 = gateLevelCycle[nST][2*nST/2];
-        esp_rom_printf("p%d lvl%d \n", a1, a2);
+        // esp_rom_printf("p%d lvl%d \n", a1, a2);
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
             // motorL[nST/2].pwmGate0,
             // gateLevelCycle[nST][2*nST/2],
             motorL[a1].pwmGate0, a2,
-            true
-        ));
-        p_stalled = true;
-        // t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);    
-            
-        } else if(p_stalled){
-        esp_rom_printf("yeeerrt \n");
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
-            motorL[global.oldSectorTarget/2].pwmGate0,
-            gateLevelCycle[global.oldSectorTarget][2*global.oldSectorTarget/2],
             false
         ));
-        int nST = global.sectorTarget;
+        p_stalled = true; //previously stalled?
+        // t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);    
+            
+    } else if(p_stalled){
+        //progress stage of previously on led
+        int a1= global.sectorTarget/2;
+        int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
+        // esp_rom_printf("P%d LVL%d \n", a1, a2);
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
-            motorL[nST/2].pwmGate0,
-            gateLevelCycle[nST][nST/2],
+            // motorL[global.sectorTarget/2].pwmGate0,
+            // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
+            motorL[a1].pwmGate0,a2,
+            false
+        ));
+        
+        //progress stage of next  led
+        int nST = mod6(global.sectorTarget+dir);
+        a1= nST/2;
+        a2 = gateLevelCycle[nST][2*nST/2];
+        // esp_rom_printf("P%d LVL%d \n", a1, a2);
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
+            // motorL[nST/2].pwmGate0,
+            // gateLevelCycle[nST][2*nST/2],
+            motorL[a1].pwmGate0, a2,
             false
         ));
         p_stalled=false;
     }
+
+/*
+block 3 when stalls
+    phase b force set to high,
+    phase C force set to GND
+No stall
+    b= high
+    c high
+*/
+
+/*
+block 2  stalling
+    phase b force set to GND
+    phase b force set to HIGH
+No stall
+    b= high
+    c high
+*/
+
+
     synchrISR(BTimerTrigger, "Btimer");
     esp_rom_delay_us(del); //delay between 2 syncs, needs to be long enough for the first sync to trigger the timer event and execute the generator action that turns on the gate, but short enough to not cause a noticeable delay in the waveform.
 

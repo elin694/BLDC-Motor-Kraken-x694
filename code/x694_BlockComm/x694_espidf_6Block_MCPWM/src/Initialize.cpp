@@ -11,7 +11,7 @@ void initialize(void * parameter){
    gpio_reset_pin(digitalReadPin);
    gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
    gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
-   // pinSetup();
+   pinSetup();
    initAnalogReadOnce();
    // readPotOnce(NULL);
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
@@ -179,7 +179,7 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          a= a +1;
          counter = a;
          // esp_rom_printf( yellow "B, %d", (int) esp_timer_get_time());
-         esp_rom_printf(blue "B");
+         esp_rom_printf(blue "B|");
          // getTimerCountNow("      ");
          esp_rom_delay_us(150);
 
@@ -212,7 +212,7 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
             #endif
          */
          if (motorStall){
-            global.sectorTarget = global.oldSectorTarget;
+             global.oldSectorTarget= global.sectorTarget;
          } else{
             global.oldSectorTarget = global.sectorTarget;
             global.sectorTarget = mod6(global.sectorTarget+1);
@@ -240,7 +240,7 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          esp_rom_printf(white "| c_b#: %d| ", global.oldSectorTarget);
 
          // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
-         esp_rom_printf( red "L \n \n");
+         esp_rom_printf( red "L_ \n");
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
          
          // 32768, 128, 32768, 262144, 16, 262144

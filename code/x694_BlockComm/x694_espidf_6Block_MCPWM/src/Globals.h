@@ -18,10 +18,10 @@
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 /*You can Probably Change*/
     #define digitalReadPin GPIO_NUM_25
-    #define preCompStartingTargetSector 1
-    #define preComp_cvPeriod 250
+    #define preCompStartingTargetSector 3
+    #define preComp_cvPeriod 50
     // #define debug
-    #define debugPeriodicity 5000
+    #define debugPeriodicity (int)(2000)
 
     inline bool p_stalled= false;
     inline bool motorStall =true;
@@ -35,7 +35,7 @@
 
     #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(500)
     #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-    #define timerResolution  static_cast<uint32_t>(2e4) //125ns , must not simple ratio
+    #define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
     #define activePwmPeriod static_cast<uint32_t>(timerResolution/5000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
 
