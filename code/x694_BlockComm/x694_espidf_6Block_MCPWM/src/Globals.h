@@ -19,8 +19,8 @@
 /*You can Probably Change*/
     #define digitalReadPin GPIO_NUM_25
     #define preCompStartingTargetSector 3
-    #define preComp_cvPeriod 50
-    // #define debug
+    #define preComp_cvPeriod 250
+    #define debug
     #define debugPeriodicity (int)(2000)
 
     inline bool p_stalled= false;
@@ -141,7 +141,7 @@ inline uint32_t LT_time = 0;
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
 
 
-#define fMin static_cast<float>(10) //119/in hertz
+#define fMin static_cast<float>(15) //119/in hertz
 #define fMax static_cast<float>(17)
 #define black "\033[30m"
 #define red "\033[31m"

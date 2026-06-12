@@ -8,9 +8,11 @@ void initialize(void * parameter){
       ESP_LOGI(blue "C_3 thirds", "%f", global.CMR_value_3[i]);
    }
    global.BTimerPhaseShift= global.blockPeriod-(estimatedI2CReadTimeInMicros*µsToTicks);
-   gpio_reset_pin(digitalReadPin);
-   gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
-   gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
+   #ifdef digitalReadPin
+      gpio_reset_pin(digitalReadPin);
+      gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
+      gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
+   #endif
    pinSetup();
    initAnalogReadOnce();
    // readPotOnce(NULL);
@@ -28,7 +30,7 @@ void initialize(void * parameter){
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
 
-   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
    xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
    vTaskDelete(NULL);
@@ -179,7 +181,7 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          a= a +1;
          counter = a;
          // esp_rom_printf( yellow "B, %d", (int) esp_timer_get_time());
-         esp_rom_printf(blue "B|");
+                                                                                                                                                   // esp_rom_printf(blue "B|");
          // getTimerCountNow("      ");
          esp_rom_delay_us(150);
 
@@ -233,14 +235,14 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          // azz= azz +1;
          // isrCounter2 = azz;   
          
-         if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "TEZ");
-         if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "TEP");
-         if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "TEA");
-         if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "TEB");
-         esp_rom_printf(white "| c_b#: %d| ", global.oldSectorTarget);
+         // if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "TEZ");
+         // if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "TEP");
+         // if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "TEA");
+         // if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "TEB");
+                                                                                                                                          // esp_rom_printf(white "| c_b#: %d| ", global.oldSectorTarget);
 
          // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
-         esp_rom_printf( red "L_ \n");
+                                                                                                                                          // esp_rom_printf( red "L_ \n");
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
          
          // 32768, 128, 32768, 262144, 16, 262144

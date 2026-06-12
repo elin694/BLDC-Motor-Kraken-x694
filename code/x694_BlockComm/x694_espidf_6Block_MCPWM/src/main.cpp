@@ -13,8 +13,10 @@ portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
 void spamSearchCV(void *parameter){
   for(;;){
-    esp_rom_printf(yellow "%d",gpio_get_level(digitalReadPin));
-    getTimerCountNow("");
+    #ifdef digitalReadPin
+      esp_rom_printf(yellow "%d",gpio_get_level(digitalReadPin));
+    #endif
+    // getTimerCountNow("");
     vTaskDelay(pdMS_TO_TICKS(preComp_cvPeriod));
   }
 }
