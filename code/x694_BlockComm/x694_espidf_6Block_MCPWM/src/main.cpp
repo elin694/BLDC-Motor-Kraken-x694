@@ -59,16 +59,20 @@ void readPotOnce(void * parameter){
     int c3 =0;
 void debugLog(void * parameter){
   for(;;){
-    ESP_LOGI("\n REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
-    // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
+    #ifdef debug
+    taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
     c1 =counter;
     c2 = isrCounter2;
     c3 =isrGroupCounter;
-    // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
+    taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
+    ESP_LOGI("\n REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
     ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
-    getTimerCountNow("");
-    
-    vTaskDelay(pdMS_TO_TICKS(10*143)); 
+    #else
+    motorStall = !motorStall;
+    ESP_LOGW("motorStall======","%d",motorStall);
+    #endif
+    vTaskDelay(pdMS_TO_TICKS(debugPeriodicity)); 
+    // vTaskDelay(pdMS_TO_TICKS(10*143)); 
   }
 }
       

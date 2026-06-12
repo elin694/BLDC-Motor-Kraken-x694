@@ -14,8 +14,8 @@ void initialize(void * parameter){
    // pinSetup();
    initAnalogReadOnce();
    // readPotOnce(NULL);
-   // ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
-   // ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
+   ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
+   ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    // as5600initialize();
    global.sectorTarget = preCompStartingTargetSector;
    global.oldSectorTarget = global.sectorTarget;
@@ -24,15 +24,14 @@ void initialize(void * parameter){
    // vTaskDelay(pdMS_TO_TICKS(1000));
    mcpwmSetup(global.sectorTarget, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
+
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
+
    // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
    xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
-   // xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
-   // vTaskDelete(NULL);
-   for(;;){
-      vTaskDelay(pdMS_TO_TICKS(100000));
-   }
+   xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
+   vTaskDelete(NULL);
 }
 int mod6 (int value){ //for single add
     if(value > 5){
@@ -182,6 +181,8 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          // esp_rom_printf( yellow "B, %d", (int) esp_timer_get_time());
          esp_rom_printf(blue "B");
          // getTimerCountNow("      ");
+         esp_rom_delay_us(150);
+
          // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
          //    &as5600TargetRegister, 
          //    as5600WriteSize,
@@ -202,17 +203,21 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          //    abort();
          // }
          
-         //transfer old position and put in new vlaue
-         #ifdef motorStall
-            int newBNumber = preCompStartingTargetSector; //comment out to mimic motor stalling
-            global.sectorTarget = newBNumber; //comment out to mimic motor stalling
-            global.oldSectorTarget = newBNumber; //comment out to mimic motor stalling
-            
-         #else
-         int newBNumber = (global.sectorTarget+1)%6; //comment out to mimic motor stalling
-         global.oldSectorTarget = global.sectorTarget;
-         global.sectorTarget = newBNumber; //
-         #endif
+         /*
+            #ifdef motorStall
+               global.sectorTarget = global.oldSectorTarget;
+            #else
+               global.oldSectorTarget = global.sectorTarget;
+               global.sectorTarget = mod6(global.sectorTarget+1);
+            #endif
+         */
+         if (motorStall){
+            global.sectorTarget = global.oldSectorTarget;
+         } else{
+            global.oldSectorTarget = global.sectorTarget;
+            global.sectorTarget = mod6(global.sectorTarget+1);
+         }
+
          // esp_rom_printf(green "OST %d, NST %d",global.oldSectorTarget , global.sectorTarget );
          preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearR1.val);
       } 
@@ -228,16 +233,18 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          // azz= azz +1;
          // isrCounter2 = azz;   
          
-         if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "TEZ\n");
-         if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "TEP\n");
-         if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "TEA\n");
-         if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "TEB\n");
+         if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "TEZ");
+         if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "TEP");
+         if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "TEA");
+         if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "TEB");
+         esp_rom_printf(white "| c_b#: %d| ", global.oldSectorTarget);
 
          // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
-         esp_rom_printf( red "L");
+         esp_rom_printf( red "L \n \n");
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
          
          // 32768, 128, 32768, 262144, 16, 262144
+         //
          executeGates(&tempClearR2, MCPWMx);
       }
    }

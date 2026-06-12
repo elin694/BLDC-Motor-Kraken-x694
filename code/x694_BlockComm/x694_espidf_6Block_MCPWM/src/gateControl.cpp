@@ -62,13 +62,14 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
         motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
     }
     //TIMER 0 = BTimer
+    ESP_LOGI("initLG"," first set");
     ESP_ERROR_CHECK(mcpwm_new_timer(&blockTimerSetup, &blockTimer));
+    ESP_LOGW("initLG"," first set");
 
     //TIMER 1= LTimer
     ESP_ERROR_CHECK(mcpwm_new_timer(&globalTimerSetupLow, &globalLowTimer)); 
     ESP_LOGW("      initLG", "2/3 peak : %d, BTimer Period: %u, LTimer Period %u \n",  
-        (int)(threshold_thirds[2]), static_cast<int>(global.blockPeriod),  globalTimerSetupLow.period_ticks);
-
+    (int)(threshold_thirds[2]), static_cast<int>(global.blockPeriod),  globalTimerSetupLow.period_ticks);
     for (int i = 0; i <3; i++){
         //AL op0, BL op1, CL op2
         ESP_ERROR_CHECK(mcpwm_new_operator(&motorL[i].opConfig, &motorL[i].operatorModule));
@@ -102,7 +103,7 @@ void configureLowGateEvents(){
 
     ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[0].pwmGate0,
         MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[index1].comparator0, action[1]), //up , then down
-        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, MCPWM_GEN_ACTION_TOGGLE),
+        // MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, MCPWM_GEN_ACTION_TOGGLE),
         MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, action[0]),
         MCPWM_GEN_COMPARE_EVENT_ACTION_END()
     ));
@@ -110,7 +111,7 @@ void configureLowGateEvents(){
     index1=1;
     ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[index1].pwmGate0,
         MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, action[1]),
-        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, MCPWM_GEN_ACTION_TOGGLE),
+        // MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, MCPWM_GEN_ACTION_TOGGLE),
         MCPWM_GEN_COMPARE_EVENT_ACTION_END()
     ));
      ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[index1].pwmGate0,
@@ -122,7 +123,7 @@ void configureLowGateEvents(){
     index1=2;
     ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[index1].pwmGate0,
             MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[1]),
-            MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, MCPWM_GEN_ACTION_TOGGLE),
+            // MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, MCPWM_GEN_ACTION_TOGGLE),
             MCPWM_GEN_TIMER_EVENT_ACTION_END()
         )
     );
@@ -335,7 +336,7 @@ void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_p
     // } //extra case of 1->2, 3->4, 5->0, but high gate is the same and comparatorActions wills set LGates low --> no code needed
     mcpwm-> int_clr.val = clearMask;
 
-    esp_rom_printf(white "ISR2E gpiolvl: %d\n",gpio_get_level(digitalReadPin));
+    // esp_rom_printf(white "ISR2E gpiolvl: %d\n",gpio_get_level(digitalReadPin));
     // MCPWM0.timer[0].timer_status.timer_value; //block tiemr count
     // esp_rom_printf(magenta "iR:%d, TC: %d", (int)(mcpwm-> int_st.val), MCPWM0.timer[1].timer_status.
 
@@ -351,24 +352,59 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
     //     ESP_ERROR_CHECK(mcpwm_generator_set_ force_level (motorH[activeHighGate[global.oldSectorTarget]].pwmGate0, 0 , true)); //turn off old one by setting to 0!
     //     ESP_ERROR_CHECK(mcpwm_generator_set_ force_level (motorH[activeHighGate[global.sectorTarget]].pwmGate0, -1, true)); //turn off old one by setting to 0!
     // }
-    #define del 2*ticksToµs
-    uint32_t intermediateGpioLvl[3] = {10,10,10};
-    intermediateGpioLvl[0] = gpio_get_level(digitalReadPin);
-
+    #define del (ticksToµs+1)
+    
     if(global.sectorTarget == global.oldSectorTarget){
+        int t1= esp_timer_get_time();
         synchrISR(LTimerTrigger, "Ltimer On!"); //can'ts wap for some reason
+        int a1= global.sectorTarget/2;
+        int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
+        
+        esp_rom_printf("p%d lvl%d \n", a1, a2);
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
+            // motorL[global.sectorTarget/2].pwmGate0,
+            // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
+            motorL[a1].pwmGate0,a2,
+            true
+        ));
+        
+        int nST = mod6(global.sectorTarget+dir);
+        a1= nST/2;
+        a2 = gateLevelCycle[nST][2*nST/2];
+        esp_rom_printf("p%d lvl%d \n", a1, a2);
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
+            // motorL[nST/2].pwmGate0,
+            // gateLevelCycle[nST][2*nST/2],
+            motorL[a1].pwmGate0, a2,
+            true
+        ));
+        p_stalled = true;
+        // t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);    
+            
+        } else if(p_stalled){
+        esp_rom_printf("yeeerrt \n");
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
+            motorL[global.oldSectorTarget/2].pwmGate0,
+            gateLevelCycle[global.oldSectorTarget][2*global.oldSectorTarget/2],
+            false
+        ));
+        int nST = global.sectorTarget;
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
+            motorL[nST/2].pwmGate0,
+            gateLevelCycle[nST][nST/2],
+            false
+        ));
+        p_stalled=false;
     }
-    intermediateGpioLvl[1] = gpio_get_level(digitalReadPin);
-
-    //CODEBLUE where it turns on
     synchrISR(BTimerTrigger, "Btimer");
-    intermediateGpioLvl[2] = gpio_get_level(digitalReadPin);
+    esp_rom_delay_us(del); //delay between 2 syncs, needs to be long enough for the first sync to trigger the timer event and execute the generator action that turns on the gate, but short enough to not cause a noticeable delay in the waveform.
 
-    getTimerCountNow("");
-    esp_rom_printf(white "GPIOLVL abc: %d, %d, %d\n \n",intermediateGpioLvl[0], intermediateGpioLvl[1], intermediateGpioLvl[2]);
+    // getTimerCountNow("\n");
+    // esp_rom_printf(white "GPIOLVL abc: %d, %d, %d\n \n",intermediateGpioLvl[0], intermediateGpioLvl[1], intermediateGpioLvl[2]);
 
     /* 
         tea, tep, tea,teb,tez,teb
+        apa,bzb
         log_2 : 15, 7, 15,  18, 4, 18 [0-5]
         32768, 128, 32768, 262144, 16, 262144
         3,1,3,2,1,2
