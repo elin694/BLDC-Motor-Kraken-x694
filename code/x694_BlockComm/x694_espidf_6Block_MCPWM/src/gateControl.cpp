@@ -302,10 +302,9 @@ void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_p
     if (global.sectorTarget == global.oldSectorTarget) { //Motor stalling case
         //The phase that is high doesn't change
         // Low Gates- Precalcuate values to Resync timers to previous Block
-        BTimerOnSync.count_value = estimatedI2CReadTimeInTicks; //Test if needed
-        ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(blockTimer, &BTimerOnSync)); //Test if needed
-        
+        taskENTER_CRITICAL_ISR(&stepPeriodMux);
         LTimerOnSync.count_value = lowGateLevelCycle[global.sectorTarget] * global.blockPeriod; //n/3 fraction
+        taskEXIT_CRITICAL_ISR(&stepPeriodMux);
         LTimerOnSync.direction = LTimerDir[global.sectorTarget];
         ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(globalLowTimer, &LTimerOnSync));
         // esp_rom_printf(green " pg SYNC BCV %d, LCV %d \n", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value);
@@ -335,7 +334,7 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
     #define del (ticksToµs+1)
     
     if(global.sectorTarget == global.oldSectorTarget){
-        int t1= esp_timer_get_time();
+        // int t1= esp_timer_get_time();
         synchrISR(LTimerTrigger, "Ltimer On!"); //can'ts wap for some reason
         int a1= global.sectorTarget/2;
         int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
@@ -359,7 +358,7 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
             false
         ));
         p_stalled = true; //previously stalled?
-        // t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);    
+        //int t1= esp_timer_get_time();, t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);    
             
     } else if(p_stalled){
         //progress stage of previously on led

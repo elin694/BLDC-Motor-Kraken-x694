@@ -8,15 +8,14 @@ adc_oneshot_unit_handle_t adcHandle = NULL;
 uint32_t potBuffer[128];
 float RPS= 0 ;
 int rawData = 0;
-portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
 void spamSearchCV(void *parameter){
   for(;;){
     #ifdef digitalReadPin
       esp_rom_printf(yellow "%d",gpio_get_level(digitalReadPin));
+      getTimerCountNow("");
     #endif
-    // getTimerCountNow("");
     vTaskDelay(pdMS_TO_TICKS(preComp_cvPeriod));
   }
 }
@@ -24,7 +23,7 @@ void spamSearchCV(void *parameter){
 void readPotRepeat(void * parameter){
   for(;;){
     readPotOnce(parameter);
-    vTaskDelay(pdMS_TO_TICKS(70)); 
+    vTaskDelay(pdMS_TO_TICKS(2500)); 
   }
 }
 void readPotOnce(void * parameter){
@@ -36,6 +35,7 @@ void readPotOnce(void * parameter){
 
     //This bottom part needs to be instantaneous assignment
     uint32_t bPeriod_temp= (uint32_t)((float)timerResolution/(float)(RPS *electricalCycles*6));
+    ESP_LOGI("newBP", "%d, gbp %d\n", (int )bPeriod_temp, (int)global.blockPeriod);
     // * µsToTicks; //mcpwm timer icks per block when spinnig
     float cmr_dividers_3_1 = (float)global.blockPeriod/3.0f;
     float cmr_dividers_3_2 = 2 * cmr_dividers_3_1;
@@ -43,16 +43,17 @@ void readPotOnce(void * parameter){
     // ESP_LOGW("redPotonce", "bPeriod_temp :%" PRIu32 ", RPS: %f, rawData: %d", bPeriod_temp, RPS, rawData);
     taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
     if(global.blockPeriod != bPeriod_temp){
-      newFrequency =true;
+      // newFrequency =true;
       //ISR checks this constatnly. If true, it runs code to update the CMRA trheshold.
       // might be useless
-      ESP_ERROR_CHECK(mcpwm_timer_set_period(blockTimer, bPeriod_temp));
-      ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, 6*bPeriod_temp));
+      
+      // ESP_ERROR_CHECK(mcpwm_timer_set_period(blockTimer, bPeriod_temp));
+      // ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, 6*bPeriod_temp));
     }
     global.blockPeriod = bPeriod_temp;
+    taskEXIT_CRITICAL(&stepPeriodMux);
     global.CMR_value_3[1] = cmr_dividers_3_1;
     global.CMR_value_3[2] = cmr_dividers_3_2;
-    taskEXIT_CRITICAL(&stepPeriodMux);
     //isr loop needs to keep checking
     // ESP_LOGI("readPotOnce", magenta "read pot once");
 }

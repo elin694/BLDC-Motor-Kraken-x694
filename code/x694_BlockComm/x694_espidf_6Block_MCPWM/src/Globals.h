@@ -17,10 +17,10 @@
 #include <cinttypes>
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 /*You can Probably Change*/
-    #define digitalReadPin GPIO_NUM_25
+    // #define digitalReadPin GPIO_NUM_25
     #define preCompStartingTargetSector 3
     #define preComp_cvPeriod 250
-    #define debug
+    // #define debug
     #define debugPeriodicity (int)(2000)
 
     inline bool p_stalled= false;
@@ -33,7 +33,7 @@
     #define phaseCHighPort GPIO_NUM_26
     #define phaseCLowPort GPIO_NUM_2
 
-    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(500)
+    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
     #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
     #define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
     #define activePwmPeriod static_cast<uint32_t>(timerResolution/5000)  //change to 20khz when high
@@ -57,13 +57,11 @@
     } gVar_t;
     extern adc_oneshot_unit_handle_t adcHandle;
     inline float duty = .5;
-    inline bool newFrequency = false;
+    inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
+    // inline bool newFrequency = false;
     // timer rez = ticks per period * periods/second 
     
     inline gVar_t global;
-    inline volatile uint32_t counter =0;
-    inline volatile uint32_t isrCounter2 =0;
-    inline volatile uint32_t isrGroupCounter =0;
 
 
 
