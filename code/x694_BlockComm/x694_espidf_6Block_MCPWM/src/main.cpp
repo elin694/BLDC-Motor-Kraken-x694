@@ -40,9 +40,22 @@ void debugLog(void * parameter){
   void readPotRepeat(void * parameter){
     for(;;){
       readPotOnce(parameter);
-      vTaskDelay(pdMS_TO_TICKS(2500)); 
+      vTaskDelay(pdMS_TO_TICKS(potReadPeriod)); 
     }
 }
+
+// const int lookUpTable[] = {
+//   10000,
+//   200,300,400,500,600,700,800,900,
+//   1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
+//   9000, 8000, 7000,6000,5000,4000,3000,2000, 1000,
+//   4952,10340, 5000, 8422, 9123,5832, 2127,9321,8351,
+//   7636,4241,4236,9463,8151,8230,3631,8589,6752,9638,1441,6509,4443,8043,2422,
+//   3579,6587,6323,9214,9634,1553,7038,7477,10169,2918,5137,8707,9776,4325,4704,
+//   6780,9152,5096,6334,10240,1409,8543,6087,3513,6028
+// };
+int lookUpTableIndex = 0;
+
 void readPotOnce(void * parameter){
    rawData = 0;
     ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
@@ -52,8 +65,11 @@ void readPotOnce(void * parameter){
 
     //This bottom part needs to be instantaneous assignment
     uint32_t bPeriod_temp= (uint32_t)((float)timerResolution/(float)(RPS *electricalCycles*6));
-    bPeriod_temp=5000;
-    ESP_LOGE("newBP", "%d, gbp %d\n", (int )bPeriod_temp, (int)global.blockPeriod);
+    bPeriod_temp = 10000;
+    // bPeriod_temp = lookUpTable[lookUpTableIndex];
+    // lookUpTableIndex++;
+
+    ESP_LOGE("potRedaNewBP", "%d, gbp %d\n", (int )bPeriod_temp, (int)global.blockPeriod);
     // * µsToTicks; //mcpwm timer icks per block when spinnig
     float cmr_dividers_3_1 = (float)global.blockPeriod/3.0f;
     float cmr_dividers_3_2 = 2 * cmr_dividers_3_1;

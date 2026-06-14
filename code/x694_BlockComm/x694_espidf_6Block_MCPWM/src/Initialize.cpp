@@ -168,18 +168,15 @@ mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
 void IRAM_ATTR getSectorNumber(void * returnValue) { 
    tempStatusReg.val =  (MCPWMx)->int_st.val;
    if(tempStatusReg.val){ //in case of ghost interrupts
-      // getTimerCountNow("isr: ");
-      // uint32_t az= isrGroupCounter;
-      // az= az +1;
-      // isrGroupCounter = az;
-
-      // esp_rom_printf(cyan "\n R %6d, ", tempStatusReg.val);
 
       // getTimerCountNow("@");
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
       //120-170 gpt µs at 400kHz
       //as5600 is default increasing on clockwise. set DIR high to invert 
-                                                                                                                                                   esp_rom_printf(blue "B");
+
+      #ifdef fastDebug
+      esp_rom_printf(blue "B");
+      #endif
          // getTimerCountNow("      ");
          esp_rom_delay_us(150);
 
@@ -229,18 +226,21 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          tempStatusReg.op0_tea_int_st || // op0 = phase A lowside, (ie change from block 5-0 or 1-2), 2^15 = 32765
          tempStatusReg.op0_teb_int_st) // timer, (ie change from block 2-3 or 4-5), 2^18 = 262144
       { //L TIMER = id1, SO WE USE TIMER 1
+
+         /*instant DBUG*/
+         #ifdef fastDebug
          if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "|TEZ");
          if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "|TEP");
          if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "|TEA");
          if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "|TEB");
                                                                                                                                           esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
-         // getTimerCountNow("");
+         esp_rom_printf( red "|L_ \n");
+         #endif
+
          // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
-                                                                                                                                          esp_rom_printf( red "|L_ \n");
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
          
          // 32768, 128, 32768, 262144, 16, 262144
-         //
          executeGates(&tempClearR2, MCPWMx);
       }
    }

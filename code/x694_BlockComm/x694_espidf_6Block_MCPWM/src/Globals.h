@@ -16,16 +16,21 @@
 #include <string>
 #include <cinttypes>
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-/*You can Probably Change*/
     // #define digitalReadPin GPIO_NUM_25
-    #define preCompStartingTargetSector 1
-    #define preComp_cvPeriod 20
     // #define debug 
+    #define preCompStartingTargetSector 1
+    // #define fastDebug
     #define debugWithCounterStatus
-    #define debugPeriodicity (int)(10010)
+    #define debugPeriodicity (int)(1000) //affect mtr sim rate
+    #define potReadPeriod (int)(2*debugPeriodicity+400)
 
-    inline bool p_stalled= false;
+    #ifdef fastDebug
+    #define preComp_cvPeriod  10
+    #else 
+    #define preComp_cvPeriod 1000000000
+    #endif
     inline bool motorStall =false;
+    inline bool p_stalled= false;
 
     #define phaseAHighPort GPIO_NUM_14
     #define phaseALowPort GPIO_NUM_13
@@ -40,7 +45,7 @@
     #define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
 
-    #define startingDuty static_cast<float>(1- .8) //The Duty cycle is 1 - this.Value
+    #define startingDuty static_cast<float>(1- .9) //The Duty cycle is 1 - this.Value
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
@@ -141,8 +146,8 @@ inline uint32_t LT_time = 0;
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
 
 
-#define fMin static_cast<float>(15) //119/in hertz
-#define fMax static_cast<float>(17)
+#define fMin static_cast<float>(1) //119/in hertz
+#define fMax static_cast<float>(20)
 #define black "\033[30m"
 #define red "\033[31m"
 #define green "\033[32m"
