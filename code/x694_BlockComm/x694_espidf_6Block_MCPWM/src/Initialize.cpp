@@ -3,19 +3,20 @@
 #include <bitset> 
 
 void initialize(void * parameter){
+   #ifdef digitalReadPin
+   gpio_reset_pin(digitalReadPin);
+   gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
+   gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
+   #endif
+
+   pinSetup();
+   initAnalogReadOnce();
+   readPotOnce(NULL);
    for(int i = 0; i<4; i++){
       global.CMR_value_3[i] = global.blockPeriod*i;
       ESP_LOGI(blue "C_3 thirds", "%f", global.CMR_value_3[i]);
-   }
-   global.BTimerPhaseShift= global.blockPeriod-(estimatedI2CReadTimeInMicros*µsToTicks);
-   #ifdef digitalReadPin
-      gpio_reset_pin(digitalReadPin);
-      gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
-      gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
-   #endif
-   pinSetup();
-   initAnalogReadOnce();
-   // readPotOnce(NULL);
+   };
+
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    // as5600initialize();
@@ -23,13 +24,13 @@ void initialize(void * parameter){
    global.oldSectorTarget = global.sectorTarget;
    
    ESP_LOGI(cyan "STARTING", " MCPWM SETUP");
-   vTaskDelay(pdMS_TO_TICKS(10));
    mcpwmSetup(global.sectorTarget, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
 
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
 
+    vTaskDelay(pdMS_TO_TICKS(1500));
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
    xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
