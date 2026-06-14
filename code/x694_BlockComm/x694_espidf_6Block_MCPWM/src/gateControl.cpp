@@ -198,7 +198,7 @@ void initializeISR(){
 }
 
 void initializeInterruptEnablePin(){
-    // ------#ifdef phaseA_gen_one_third 
+    // ------#if def phaseA_gen_one_third 
     // ------&motorL[phaseA_gen_one_third].comparator1
     mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     MCPWMx->int_clr.val=  clearReg.val;

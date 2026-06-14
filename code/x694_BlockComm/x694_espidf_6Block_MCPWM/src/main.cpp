@@ -15,7 +15,7 @@ void spamSearchCV(void *parameter){
     #ifdef digitalReadPin
       esp_rom_printf(yellow "%d",gpio_get_level(digitalReadPin));
     #endif
-    #ifdef debugWithCounterStatus
+    #ifdef debug_spamPrintCounterStatus
       getTimerCountNow("");
       #endif
       vTaskDelay(pdMS_TO_TICKS(preComp_cvPeriod));
@@ -24,17 +24,19 @@ void spamSearchCV(void *parameter){
   
 void debugLog(void * parameter){
   for(;;){
-    #ifdef debug
+    #ifdef debug_printRPS
     // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
     // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
     ESP_LOGI("\n REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
-    ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
+    // ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
     #else
-    motorStall = !motorStall;
-    ESP_LOGW("mtrStl=","%d",motorStall);
+      #ifdef debug_testOnLED
+      motorStall = !motorStall;
+      ESP_LOGW("mtrStl=","%d",motorStall);
+      #endif
+
     #endif
     vTaskDelay(pdMS_TO_TICKS(debugPeriodicity)); 
-    // vTaskDelay(pdMS_TO_TICKS(10*143)); 
   }
 }
   void readPotRepeat(void * parameter){

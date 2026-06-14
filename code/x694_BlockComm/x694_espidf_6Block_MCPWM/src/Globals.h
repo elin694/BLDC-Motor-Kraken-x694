@@ -16,28 +16,47 @@
 #include <string>
 #include <cinttypes>
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-    // #define digitalReadPin GPIO_NUM_25
-    // #define debug 
+// #define digitalReadPin GPIO_NUM_25
+#define debug_testOnLED
+// #define debug_fastPrints //will spam more details
+// #define debug_printRPS
+    
+#ifdef debug_fastPrints //does not include motor stalling alternation
+    #define preComp_cvPeriod  10
+#else 
+    #define preComp_cvPeriod 1000000000
+#endif
+
     #define preCompStartingTargetSector 1
-    // #define fastDebug
-    #define debugWithCounterStatus
+    #define debug_spamPrintCounterStatus
     #define debugPeriodicity (int)(1000) //affect mtr sim rate
     #define potReadPeriod (int)(2*debugPeriodicity+400)
 
-    #ifdef fastDebug
-    #define preComp_cvPeriod  10
-    #else 
-    #define preComp_cvPeriod 1000000000
-    #endif
     inline bool motorStall =false;
     inline bool p_stalled= false;
 
-    #define phaseAHighPort GPIO_NUM_14
-    #define phaseALowPort GPIO_NUM_13
-    #define phaseBHighPort GPIO_NUM_26
-    #define phaseBLowPort GPIO_NUM_25
-    #define phaseCHighPort GPIO_NUM_33
-    #define phaseCLowPort GPIO_NUM_32
+
+    #ifdef debug_testOnLED
+        #define phaseAHighPort GPIO_NUM_14
+        #define phaseALowPort GPIO_NUM_13
+        #define phaseBHighPort GPIO_NUM_26
+        #define phaseBLowPort GPIO_NUM_25
+        #define phaseCHighPort GPIO_NUM_33
+        #define phaseCLowPort GPIO_NUM_32
+
+    #else
+        #define phaseAHighPort GPIO_NUM_33
+        #define phaseALowPort GPIO_NUM_14
+        #define phaseBHighPort GPIO_NUM_17
+        #define phaseBLowPort GPIO_NUM_16
+        #define phaseCHighPort GPIO_NUM_26
+        #define phaseCLowPort GPIO_NUM_32
+    //CHANGE ASSOCIATED PORT SET AND CLEAR
+    // // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
+    // // volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
+    // constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
+    #endif
+
 
     #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(210)
     #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
@@ -108,17 +127,6 @@ void readPotOnce(void * parameter);
 void getTimerCountNow(const char* str);
 void spamSearchCV(void *parameter);
 
-// #define phaseAHighPort GPIO_NUM_33
-// #define phaseALowPort GPIO_NUM_14
-// #define phaseBHighPort GPIO_NUM_17
-// #define phaseBLowPort GPIO_NUM_16
-// #define phaseCHighPort GPIO_NUM_26
-// #define phaseCLowPort GPIO_NUM_32
-//CHANGE ASSOCIATED PORT SET AND CLEAR
-// // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
-// // volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
-// constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
-// *deref
 constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
 #define dataPin GPIO_NUM_21
 #define clockPin GPIO_NUM_22

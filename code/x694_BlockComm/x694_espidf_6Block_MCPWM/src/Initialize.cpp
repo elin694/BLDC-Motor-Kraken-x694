@@ -3,15 +3,12 @@
 #include <bitset> 
 
 void initialize(void * parameter){
-   #ifdef digitalReadPin
-   gpio_reset_pin(digitalReadPin);
-   gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
-   gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
-   #endif
-
    pinSetup();
    initAnalogReadOnce();
-   readPotOnce(NULL);
+   #ifndef debug_testOnLED
+      readPotOnce(NULL);
+   #endif
+
    for(int i = 0; i<4; i++){
       global.CMR_value_3[i] = global.blockPeriod*i;
       ESP_LOGI(blue "C_3 thirds", "%f", global.CMR_value_3[i]);
@@ -19,20 +16,25 @@ void initialize(void * parameter){
 
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
-   // as5600initialize();
-   global.sectorTarget = preCompStartingTargetSector;
-   global.oldSectorTarget = global.sectorTarget;
+   #ifdef debug_testOnLED 
+      global.sectorTarget = preCompStartingTargetSector;
+      global.oldSectorTarget = global.sectorTarget;
+   #else
+      as5600initialize();
+   #endif
    
-   ESP_LOGI(cyan "STARTING", " MCPWM SETUP");
    mcpwmSetup(global.sectorTarget, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
 
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
 
-    vTaskDelay(pdMS_TO_TICKS(1500));
+    vTaskDelay(pdMS_TO_TICKS(1000));
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
-   xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
+   #ifdef debug_fastPrints
+      xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
+   #endif
+   
    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
    vTaskDelete(NULL);
 }
@@ -65,20 +67,21 @@ i2c_device_config_t as5600Setup = {
 i2c_master_dev_handle_t as5600Handle;
 
 void pinSetup(){
-   ESP_LOGI(yellow "Pin Setip", "Set Begun ");
+   #ifdef digitalReadPin
+   gpio_reset_pin(digitalReadPin);
+   gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
+   gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
+   #endif
+
    gpio_reset_pin(clockPin);
    gpio_reset_pin(dataPin);
-   ESP_LOGI(yellow "Pin Setupp", "Clock and Data pin reset ");
    // use ledc to set potentionmeter to input analog read
    for(int i = 0; i<6; i++){
       gpio_reset_pin(gateArray[i]);
-      // gpio_set_direction(gateArray[i],GPIO_MODE_OUTPUT);
       gpio_set_direction(gateArray[i], GPIO_MODE_INPUT_OUTPUT);
       ESP_LOGW("pintSetup", "i: %d, lvl: %d",i,gpio_get_level(gateArray[i]));
       gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
    }
-   // esp_rom_delay_us(6000000); IT ORKS
-   ESP_LOGI(yellow "Pin Setup", " each pin is reset, set to output and floating");
 }
 
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
@@ -165,7 +168,7 @@ mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
 #endif
 
-void IRAM_ATTR getSectorNumber(void * returnValue) { 
+void IRAM_ATTR getSectorNumber(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;
    if(tempStatusReg.val){ //in case of ghost interrupts
 
@@ -174,51 +177,43 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       //120-170 gpt µs at 400kHz
       //as5600 is default increasing on clockwise. set DIR high to invert 
 
-      #ifdef fastDebug
-      esp_rom_printf(blue "B");
-      #endif
-         // getTimerCountNow("      ");
-         esp_rom_delay_us(150);
-
-         // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
-         //    &as5600TargetRegister, 
-         //    as5600WriteSize,
-         //    as5600RawDataBuf, 
-         //    as5600ReadSize, //ensure 2 bytes is read
-         //    -1));
-         // #ifdef as5600DirPinHigh
-         //    uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-         //    + as5600CalibratedOffset;
-         // #else
-         //    uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-         //    + as5600CalibratedOffset;
-         // #endif
-
-         // int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
-         // if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
-         //    ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
-         //    abort();
-         // }
+      #ifdef debug_testOnLED
+         #ifdef fastDebug
+            esp_rom_printf(blue "B");
+         #endif
          
-         /*
-            #ifdef motorStall
-               global.sectorTarget = global.oldSectorTarget;
-            #else
-               global.oldSectorTarget = global.sectorTarget;
-               global.sectorTarget = mod6(global.sectorTarget+1);
-            #endif
-         */
-         if (motorStall){
-             global.oldSectorTarget= global.sectorTarget;
-         } else{
-            global.oldSectorTarget = global.sectorTarget;
-            global.sectorTarget = mod6(global.sectorTarget+1);
-         }
+      esp_rom_delay_us(150);
+      if (motorStall){
+         global.oldSectorTarget= global.sectorTarget;
+      } else{
+         global.oldSectorTarget = global.sectorTarget;
+         global.sectorTarget = mod6(global.sectorTarget+1);
+      }
+      
+      #else
+         ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+            &as5600TargetRegister, 
+            as5600WriteSize,
+            as5600RawDataBuf, 
+            as5600ReadSize, //ensure 2 bytes is read
+            -1));
+         #ifdef as5600DirPinHigh
+            uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
+            + as5600CalibratedOffset;
+         #else
+            uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+            + as5600CalibratedOffset;
+         #endif
 
-         // esp_rom_printf(green "OST %d, NST %d",global.oldSectorTarget , global.sectorTarget );
-         preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearR1.val);
-      } 
-      else if(
+         int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
+         if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
+            ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
+            abort();
+         }
+      #endif
+      
+      preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearR1.val);
+   } else if(
          /*// ltimer has id 1*/
          tempStatusReg.timer1_tez_int_st || //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
          tempStatusReg.timer1_tep_int_st || //timer 1= LTimer, (ie change from block 0-1), 2^7 = 128
@@ -228,13 +223,15 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       { //L TIMER = id1, SO WE USE TIMER 1
 
          /*instant DBUG*/
+         #ifdef debug_testOnLED
          #ifdef fastDebug
          if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "|TEZ");
          if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "|TEP");
          if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "|TEA");
          if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "|TEB");
-                                                                                                                                          esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
+         esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
          esp_rom_printf( red "|L_ \n");
+         #endif
          #endif
 
          // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
