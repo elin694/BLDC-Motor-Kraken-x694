@@ -18,10 +18,11 @@
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 /*You can Probably Change*/
     // #define digitalReadPin GPIO_NUM_25
-    #define preCompStartingTargetSector 3
-    #define preComp_cvPeriod 250
-    // #define debug
-    #define debugPeriodicity (int)(2000)
+    #define preCompStartingTargetSector 1
+    #define preComp_cvPeriod 20
+    // #define debug 
+    #define debugWithCounterStatus
+    #define debugPeriodicity (int)(710)
 
     inline bool p_stalled= false;
     inline bool motorStall =true;
@@ -33,10 +34,10 @@
     #define phaseCHighPort GPIO_NUM_26
     #define phaseCLowPort GPIO_NUM_2
 
-    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
+    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(210)
     #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-    #define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
-    #define activePwmPeriod static_cast<uint32_t>(timerResolution/5000)  //change to 20khz when high
+    #define timerResolution  static_cast<uint32_t>(2e5) //125ns , must not simple ratio
+    #define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
 
     #define startingDuty static_cast<float>(1- .8) //The Duty cycle is 1 - this.Value
@@ -54,6 +55,7 @@
         // volatile uint32_t blockPeriod= static_cast<uint32_t>(((131072)/2)/6); 
         volatile uint32_t blockPeriod= static_cast<uint32_t>(((120000)/2)/6); 
         uint32_t BTimerPhaseShift;
+        volatile bool newPotValue = false;
     } gVar_t;
     extern adc_oneshot_unit_handle_t adcHandle;
     inline float duty = .5;

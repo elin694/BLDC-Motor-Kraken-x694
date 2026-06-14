@@ -14,17 +14,34 @@ void spamSearchCV(void *parameter){
   for(;;){
     #ifdef digitalReadPin
       esp_rom_printf(yellow "%d",gpio_get_level(digitalReadPin));
-      getTimerCountNow("");
     #endif
-    vTaskDelay(pdMS_TO_TICKS(preComp_cvPeriod));
+    #ifdef debugWithCounterStatus
+      getTimerCountNow("");
+      #endif
+      vTaskDelay(pdMS_TO_TICKS(preComp_cvPeriod));
+    }
+  }
+  
+void debugLog(void * parameter){
+  for(;;){
+    #ifdef debug
+    // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
+    // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
+    ESP_LOGI("\n REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
+    ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
+    #else
+    motorStall = !motorStall;
+    ESP_LOGW("mtrStl=","%d",motorStall);
+    #endif
+    vTaskDelay(pdMS_TO_TICKS(debugPeriodicity)); 
+    // vTaskDelay(pdMS_TO_TICKS(10*143)); 
   }
 }
-
-void readPotRepeat(void * parameter){
-  for(;;){
-    readPotOnce(parameter);
-    vTaskDelay(pdMS_TO_TICKS(2500)); 
-  }
+  void readPotRepeat(void * parameter){
+    for(;;){
+      readPotOnce(parameter);
+      vTaskDelay(pdMS_TO_TICKS(2500)); 
+    }
 }
 void readPotOnce(void * parameter){
    rawData = 0;
@@ -35,49 +52,31 @@ void readPotOnce(void * parameter){
 
     //This bottom part needs to be instantaneous assignment
     uint32_t bPeriod_temp= (uint32_t)((float)timerResolution/(float)(RPS *electricalCycles*6));
-    ESP_LOGI("newBP", "%d, gbp %d\n", (int )bPeriod_temp, (int)global.blockPeriod);
+    bPeriod_temp=5000;
+    ESP_LOGE("newBP", "%d, gbp %d\n", (int )bPeriod_temp, (int)global.blockPeriod);
     // * µsToTicks; //mcpwm timer icks per block when spinnig
     float cmr_dividers_3_1 = (float)global.blockPeriod/3.0f;
     float cmr_dividers_3_2 = 2 * cmr_dividers_3_1;
     
     // ESP_LOGW("redPotonce", "bPeriod_temp :%" PRIu32 ", RPS: %f, rawData: %d", bPeriod_temp, RPS, rawData);
-    taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
     if(global.blockPeriod != bPeriod_temp){
-      // newFrequency =true;
-      //ISR checks this constatnly. If true, it runs code to update the CMRA trheshold.
-      // might be useless
-      
+    taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
+    global.blockPeriod = bPeriod_temp;
+      global.newPotValue =true;
+      /*ISR checks this constatnly. If true, it runs code to update the CMRA trheshold. might be useless */
+
       // ESP_ERROR_CHECK(mcpwm_timer_set_period(blockTimer, bPeriod_temp));
       // ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, 6*bPeriod_temp));
+      taskEXIT_CRITICAL(&stepPeriodMux);
     }
-    global.blockPeriod = bPeriod_temp;
-    taskEXIT_CRITICAL(&stepPeriodMux);
-    global.CMR_value_3[1] = cmr_dividers_3_1;
-    global.CMR_value_3[2] = cmr_dividers_3_2;
+    // global.CMR_value_3[1] = cmr_dividers_3_1;
+    // global.CMR_value_3[2] = cmr_dividers_3_2;
     //isr loop needs to keep checking
     // ESP_LOGI("readPotOnce", magenta "read pot once");
 }
     int c1 =0;
     int c2 =0;
     int c3 =0;
-void debugLog(void * parameter){
-  for(;;){
-    #ifdef debug
-    taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
-    c1 =counter;
-    c2 = isrCounter2;
-    c3 =isrGroupCounter;
-    taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
-    ESP_LOGI("\n REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
-    ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
-    #else
-    motorStall = !motorStall;
-    ESP_LOGW("motorStall======","%d",motorStall);
-    #endif
-    vTaskDelay(pdMS_TO_TICKS(debugPeriodicity)); 
-    // vTaskDelay(pdMS_TO_TICKS(10*143)); 
-  }
-}
       
 extern "C"{
   void app_main(){

@@ -23,14 +23,14 @@ void initialize(void * parameter){
    global.oldSectorTarget = global.sectorTarget;
    
    ESP_LOGI(cyan "STARTING", " MCPWM SETUP");
-   // vTaskDelay(pdMS_TO_TICKS(1000));
+   vTaskDelay(pdMS_TO_TICKS(10));
    mcpwmSetup(global.sectorTarget, &global.blockPeriod);
     //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
 
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
 
-   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
    xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
    vTaskDelete(NULL);
@@ -174,10 +174,11 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
 
       // esp_rom_printf(cyan "\n R %6d, ", tempStatusReg.val);
 
+      // getTimerCountNow("@");
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
       //120-170 gpt µs at 400kHz
       //as5600 is default increasing on clockwise. set DIR high to invert 
-                                                                                                                                                   // esp_rom_printf(blue "B|");
+                                                                                                                                                   esp_rom_printf(blue "B");
          // getTimerCountNow("      ");
          esp_rom_delay_us(150);
 
@@ -227,14 +228,14 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          tempStatusReg.op0_tea_int_st || // op0 = phase A lowside, (ie change from block 5-0 or 1-2), 2^15 = 32765
          tempStatusReg.op0_teb_int_st) // timer, (ie change from block 2-3 or 4-5), 2^18 = 262144
       { //L TIMER = id1, SO WE USE TIMER 1
-         // if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "TEZ");
-         // if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "TEP");
-         // if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "TEA");
-         // if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "TEB");
-                                                                                                                                          // esp_rom_printf(white "| c_b#: %d| ", global.oldSectorTarget);
-
+         if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "|TEZ");
+         if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "|TEP");
+         if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "|TEA");
+         if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "|TEB");
+                                                                                                                                          esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
+         // getTimerCountNow("");
          // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
-                                                                                                                                          // esp_rom_printf( red "L_ \n");
+                                                                                                                                          esp_rom_printf( red "|L_ \n");
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
          
          // 32768, 128, 32768, 262144, 16, 262144
