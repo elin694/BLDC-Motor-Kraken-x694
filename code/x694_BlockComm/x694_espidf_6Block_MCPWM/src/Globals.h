@@ -17,7 +17,7 @@
 #include <cinttypes>
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 // #define digitalReadPin GPIO_NUM_25
-#define debug_testOnLED
+// #define debug_testOnLED
 // #define debug_fastPrints //will spam more details
 // #define debug_printRPS
     
@@ -60,11 +60,11 @@
 
     #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(210)
     #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-    #define timerResolution  static_cast<uint32_t>(2e5) //125ns , must not simple ratio
-    #define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
+    #define timerResolution  static_cast<uint32_t>(4e4) //125ns , must not simple ratio
+    #define activePwmPeriod static_cast<uint32_t>(timerResolution/10000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
 
-    #define startingDuty static_cast<float>(1- .9) //The Duty cycle is 1 - this.Value
+    #define startingDuty static_cast<float>(1- .7) //The Duty cycle is 1 - this.Value
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
@@ -128,8 +128,8 @@ void getTimerCountNow(const char* str);
 void spamSearchCV(void *parameter);
 
 constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
-#define dataPin GPIO_NUM_21
-#define clockPin GPIO_NUM_22
+#define dataPin GPIO_NUM_21 //i2c data yellow, 21 
+#define clockPin GPIO_NUM_22 //i2c clock
 #define pot GPIO_NUM_35 // or 35
 #define inlineShuntC 36 //Vp 
 #define inlineShuntA 39 //Vn

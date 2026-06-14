@@ -14,6 +14,7 @@ void initialize(void * parameter){
       ESP_LOGI(blue "C_3 thirds", "%f", global.CMR_value_3[i]);
    };
 
+
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    #ifdef debug_testOnLED 
@@ -34,7 +35,7 @@ void initialize(void * parameter){
    #ifdef debug_fastPrints
       xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
    #endif
-   
+
    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
    vTaskDelete(NULL);
 }
@@ -51,7 +52,7 @@ i2c_master_bus_config_t busSetup = {
    .sda_io_num= dataPin,
    .scl_io_num= clockPin,
    .clk_source = I2C_CLK_SRC_APB,
-   .glitch_ignore_cnt = 7,
+   // .glitch_ignore_cnt = 7,
    // .intr_priority = 1,
    .flags={.enable_internal_pullup = true}
 };
@@ -60,7 +61,7 @@ i2c_master_bus_handle_t busHandle;
 i2c_device_config_t as5600Setup = {
    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
    .device_address = as5600Address,
-   .scl_speed_hz= 390000, //need fast enough  to avoid invalid state
+   .scl_speed_hz= 300000, //need fast enough  to avoid invalid state
    .scl_wait_us = 30,
    .flags = {.disable_ack_check = false}
 };
@@ -108,33 +109,26 @@ void as5600initialize() {
       std::bitset<2>(fthRegisterData[0] & 0b00000011).to_string().c_str()
    );
    //===================================GET A STARTING SECTOR VALUE ===================================
-
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
-         &as5600TargetRegister, 
-         as5600WriteSize,
-         as5600RawDataBuf, 
-         as5600ReadSize, //ensure 2 bytes is read
-         -1));
+      &as5600TargetRegister, 
+      as5600WriteSize,
+      as5600RawDataBuf, 
+      as5600ReadSize, //ensure 2 bytes is read
+      -1));
       #ifdef as5600DirPinHigh
-         uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-         + as5600CalibratedOffset;
+      uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
+      + as5600CalibratedOffset;
       #else
-         uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-         + as5600CalibratedOffset;
+      uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+      + as5600CalibratedOffset;
       #endif
-
+      
       int newBNumber = 
-         mod6(mod6(rotorAngle * SECTOR_PER_BITS+dir)+dir); //0- bitsPerSector --> smaller sector
-      if((std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
-         ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
-         vTaskDelay(pdMS_TO_TICKS(2000)); 
-         abort();
-      }
-      //transfer old target
+      mod6(mod6(rotorAngle * SECTOR_PER_BITS+dir)+dir); //0- bitsPerSector --> smaller sector
       global.oldSectorTarget = newBNumber; 
-      //put in new vlaue
       global.sectorTarget = newBNumber;
-}
+      ESP_LOGI(cyan "\nFirstPotRead", "ost, nst: (%d, %d)\n", global.oldSectorTarget, global.sectorTarget);
+   }
 
 void initAnalogReadOnce(){
   adc_oneshot_unit_init_cfg_t adcSetup= {
@@ -191,12 +185,14 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       }
       
       #else
-         ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
-            &as5600TargetRegister, 
-            as5600WriteSize,
-            as5600RawDataBuf, 
-            as5600ReadSize, //ensure 2 bytes is read
-            -1));
+      esp_rom_printf(yellow "I got up to here");
+      ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+         &as5600TargetRegister, 
+         as5600WriteSize,
+         as5600RawDataBuf, 
+         as5600ReadSize, //ensure 2 bytes is read
+         3));
+         esp_rom_printf(yellow "I got up to here");
          #ifdef as5600DirPinHigh
             uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
             + as5600CalibratedOffset;
