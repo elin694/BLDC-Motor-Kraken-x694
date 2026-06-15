@@ -25,7 +25,7 @@
 #ifdef debug_fastPrints //does not include motor stalling alternation
     #define debug_spamDelay  100000000
 #else 
-    #define debug_spamDelay 4
+    #define debug_spamDelay 40000
 #endif
 
     #define preCompStartingTargetSector 5
@@ -36,12 +36,10 @@
 
     inline bool motorStall =false;
     inline bool p_stalled= false;
-
-
     
     #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(300)
     #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-    #define timerResolution  static_cast<uint32_t>(1e4) //125ns , must not simple ratio
+    #define timerResolution  static_cast<uint32_t>(1e5) //125ns , must not simple ratio
     #define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
 
