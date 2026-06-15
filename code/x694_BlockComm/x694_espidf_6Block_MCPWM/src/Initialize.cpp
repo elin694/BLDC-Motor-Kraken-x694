@@ -3,10 +3,12 @@
 #include <bitset> 
 
 void initialize(void * parameter){
+   
    pinSetup();
    initAnalogReadOnce();
    #ifndef debug_testOnLED
-      readPotOnce(NULL);
+      // readPotOnce(NULL);
+      
    #endif
 
    for(int i = 0; i<4; i++){
@@ -20,6 +22,7 @@ void initialize(void * parameter){
    #ifdef debug_testOnLED 
       global.sectorTarget = preCompStartingTargetSector;
       global.oldSectorTarget = global.sectorTarget;
+      xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  uxTaskPriorityGet(setupTask)+1  /*priority*/, &getSectorNumberTask, 1);
    #else
       as5600initialize();
    #endif
@@ -29,24 +32,32 @@ void initialize(void * parameter){
 
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
-
-    vTaskDelay(pdMS_TO_TICKS(1000));
-   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 2, NULL, 0);
-   #ifdef debug_fastPrints
-      xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047, NULL, 2, NULL, 1);
+   UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
+   // xTaskCreate(readPotRepeat, "readPotRepeat", 10000, NULL, (int)(thisTaskPriority*.5)-2, NULL);
+   #if (defined(debug_spamPrintBlockStatus) || defined(debug_spamPrintCounterStatus))
+      xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
    #endif
 
-   xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, 2, NULL, 0);
+   xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, (int)(thisTaskPriority*.5)-3, NULL, 0);
    vTaskDelete(NULL);
 }
+
+
+
+
+
+
 int mod6 (int value){ //for single add
     if(value > 5){
-        value = 0;
+        value -= 6;
+      //   value = 0 ;
     } else if(value < 0){
-        value = 5;
+        value += 6;
+      //   value = 5;
     }
     return value;
 }
+
 i2c_master_bus_config_t busSetup = { 
    .i2c_port = -1,
    .sda_io_num= dataPin,
@@ -61,7 +72,7 @@ i2c_master_bus_handle_t busHandle;
 i2c_device_config_t as5600Setup = {
    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
    .device_address = as5600Address,
-   .scl_speed_hz= 300000, //need fast enough  to avoid invalid state
+   .scl_speed_hz= 400000, //need fast enough  to avoid invalid state
    .scl_wait_us = 30,
    .flags = {.disable_ack_check = false}
 };
@@ -96,43 +107,59 @@ void as5600initialize() {
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-   3));
-   fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask;
+      3));
+      fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //reset
+
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)2, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
    3));
-   ESP_LOGI("As5600 Initialized", "FTH register: %s, SF registers set: %s ",
-      std::bitset<3>((fthRegisterData[0] & 0b00011100) >> 2).to_string().c_str(),
-      std::bitset<2>(fthRegisterData[0] & 0b00000011).to_string().c_str()
-   );
+
+
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+      fthRegister, //address to start on
+      (size_t)1, //write 1 byte's woth from fthRegister
+      fthRegisterData, //where to save the read data
+      (size_t)1, //read 1 byte
+   3));
+   //max sample time at 150us
+   //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
+   ESP_LOGI(magenta "Read:", "whole thing %d \n", (int)fthRegisterData[0]);
    //===================================GET A STARTING SECTOR VALUE ===================================
+   /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       &as5600TargetRegister, 
       as5600WriteSize,
       as5600RawDataBuf, 
       as5600ReadSize, //ensure 2 bytes is read
-      -1));
-      #ifdef as5600DirPinHigh
-      uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
+      -1)
+   );
+   t1= esp_timer_get_time() - t1;esp_rom_printf("n ===========t1: %d\n", t1);
+   int rd= (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
+   #ifdef as5600DirPinHigh
+   global.rotorVal = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
       + as5600CalibratedOffset;
-      #else
-      uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+   #else
+   global.rotorVal = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
       + as5600CalibratedOffset;
-      #endif
-      
-      int newBNumber = 
-      mod6(mod6(rotorAngle * SECTOR_PER_BITS+dir)+dir); //0- bitsPerSector --> smaller sector
-      global.oldSectorTarget = newBNumber; 
-      global.sectorTarget = newBNumber;
-      ESP_LOGI(cyan "\nFirstPotRead", "ost, nst: (%d, %d)\n", global.oldSectorTarget, global.sectorTarget);
-   }
+   #endif
+   
+   int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+2*dir)%6; //0- bitsPerSector --> smaller sector
+   global.oldSectorTarget = newBNumber; 
+   global.sectorTarget = newBNumber;
+   ESP_LOGI(cyan "\nFirstPotRead", "ost, nst: (%d, %d), raw: %d, rotorAng: %d, bl# %d\n", global.oldSectorTarget, global.sectorTarget, rd, global.rotorVal, newBNumber);
+   
+   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  uxTaskPriorityGet(setupTask)+1  /*priority*/, &getSectorNumberTask, 1);  /*PIN TO SAME CORE AS CREATOR, and SMALER PRIORITY*/
+   // xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL, uxTaskPriorityGet(setupTask)-1 /*priority*/, &getSectorNumberTask, 1);
+   // vTaskSuspend(getSectorNumberTask);
+   // vTaskPrioritySet(getSectorNumberTask, uxTaskPriorityGet(setupTask)+1 );
+}
 
 void initAnalogReadOnce(){
-  adc_oneshot_unit_init_cfg_t adcSetup= {
-    .unit_id = ADC_UNIT_1,
+   adc_oneshot_unit_init_cfg_t adcSetup= {
+      .unit_id = ADC_UNIT_1,
     .ulp_mode = ADC_ULP_MODE_DISABLE,
   };
   adc_oneshot_chan_cfg_t adcChannelSetup = {
@@ -143,6 +170,7 @@ void initAnalogReadOnce(){
   ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
 }
 //run pwm at f ~40-50kHz for adjustable torque control
+
 
 
 
@@ -162,7 +190,7 @@ mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
 #endif
 
-void IRAM_ATTR getSectorNumber(void * returnValue) {
+void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;
    if(tempStatusReg.val){ //in case of ghost interrupts
 
@@ -171,56 +199,39 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
       //120-170 gpt µs at 400kHz
       //as5600 is default increasing on clockwise. set DIR high to invert 
 
-      #ifdef debug_testOnLED
-         #ifdef fastDebug
-            esp_rom_printf(blue "B");
-         #endif
-         
-      esp_rom_delay_us(150);
-      if (motorStall){
-         global.oldSectorTarget= global.sectorTarget;
-      } else{
-         global.oldSectorTarget = global.sectorTarget;
-         global.sectorTarget = mod6(global.sectorTarget+1);
-      }
-      
-      #else
-      esp_rom_printf(yellow "I got up to here");
-      ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
-         &as5600TargetRegister, 
-         as5600WriteSize,
-         as5600RawDataBuf, 
-         as5600ReadSize, //ensure 2 bytes is read
-         3));
-         esp_rom_printf(yellow "I got up to here");
-         #ifdef as5600DirPinHigh
-            uint32_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-            + as5600CalibratedOffset;
-         #else
-            uint32_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-            + as5600CalibratedOffset;
-         #endif
-
-         int newBNumber = static_cast<uint32_t>((rotorAngle * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
-         if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
-            ESP_LOGE("POTENTIOMETER READ",": Sector jumped by more  than 1. Previous Sector: %2d. Incoming Sector: %2d", global.sectorTarget, newBNumber);
-            abort();
-         }
+      #ifdef debug_fastPrints
+         esp_rom_printf(blue "B");
       #endif
-      
-      preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod, MCPWMx, tempClearR1.val);
-   } else if(
-         /*// ltimer has id 1*/
-         tempStatusReg.timer1_tez_int_st || //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
-         tempStatusReg.timer1_tep_int_st || //timer 1= LTimer, (ie change from block 0-1), 2^7 = 128
-         /*since phaseA_gen_one_third =0 */
-         tempStatusReg.op0_tea_int_st || // op0 = phase A lowside, (ie change from block 5-0 or 1-2), 2^15 = 32765
-         tempStatusReg.op0_teb_int_st) // timer, (ie change from block 2-3 or 4-5), 2^18 = 262144
-      { //L TIMER = id1, SO WE USE TIMER 1
 
+      xTaskResumeFromISR(getSectorNumberTask);
+      MCPWMx-> int_clr.val = tempClearR1.val;
+      // #ifdef debug_testOnLED
+         
+      // esp_rom_delay_us(150);
+      // if (motorStall){
+      //    global.oldSectorTarget= global.sectorTarget;
+      // } else{
+      //    global.oldSectorTarget = global.sectorTarget;
+      //    global.sectorTarget = mod6(global.sectorTarget+1);
+      // }
+      
+      // preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod);
+      // #else
+      // xTaskResumeFromISR(getSectorNumberTask);
+      // MCPWMx-> int_clr.val = tempClearR1.val;
+      // #endif
+      return;
+   } else if(
+      /*// ltimer has id 1*/
+      tempStatusReg.timer1_tez_int_st || //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
+      tempStatusReg.timer1_tep_int_st || //timer 1= LTimer, (ie change from block 0-1), 2^7 = 128
+      /*since phaseA_gen_one_third =0 */
+      tempStatusReg.op0_tea_int_st || // op0 = phase A lowside, (ie change from block 5-0 or 1-2), 2^15 = 32765
+      tempStatusReg.op0_teb_int_st) // timer, (ie change from block 2-3 or 4-5), 2^18 = 262144
+      { //L TIMER = id1, SO WE USE TIMER 1
+         
          /*instant DBUG*/
-         #ifdef debug_testOnLED
-         #ifdef fastDebug
+         #ifdef debug_fastPrints
          if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "|TEZ");
          if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "|TEP");
          if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "|TEA");
@@ -228,16 +239,68 @@ void IRAM_ATTR getSectorNumber(void * returnValue) {
          esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
          esp_rom_printf( red "|L_ \n");
          #endif
-         #endif
 
          // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
          
          // 32768, 128, 32768, 262144, 16, 262144
          executeGates(&tempClearR2, MCPWMx);
+         return;
       }
    }
 }
+
+
+
+void getSectorNumber(void *returnValue){
+   while(1){
+      vTaskSuspend(NULL);
+      // esp_rom_printf(yellow", gsn");
+      // /*TIMETHETIMER ttt*/int t1= esp_timer_get_time(); 
+
+      #ifdef debug_testOnLED
+       esp_rom_delay_us(110);
+      if (motorStall){
+         global.oldSectorTarget= global.sectorTarget;
+      } else{
+         global.oldSectorTarget = global.sectorTarget;
+         global.sectorTarget = mod6(global.sectorTarget+1);
+      }
+      #else
+      ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+         &as5600TargetRegister, 
+         as5600WriteSize,
+         as5600RawDataBuf, 
+         as5600ReadSize, //ensure 2 bytes is read
+         4
+      )
+   );
+   // ESP_ERROR_CHECK(i2c_master_receive(as5600Handle, as5600RawDataBuf, as5600ReadSize,1));
+
+   int rd= (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
+   #ifdef as5600DirPinHigh
+      global.rotorVal = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
+      + as5600CalibratedOffset;
+   #else
+      global.rotorVal = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+      + as5600CalibratedOffset;
+   #endif 
+   int newBNumber = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
+   if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
+      ESP_LOGE("POTENTIOMETER READ",": Sector 1+ jump . Previous Sector: %2d. Incoming Sector: %2d, raw%d, blN: %d", global.sectorTarget, newBNumber, rd, newBNumber);
+      // ESP_LOGI(cyan "\n INVALID POT ReAD", "ost, nst: (%d, %d), raw: %d, rotorAng: %d, bl# %d\n", global.oldSectorTarget, global.sectorTarget, rd, global.rotorVal, newBNumber);
+      vTaskDelay(pdMS_TO_TICKS(1));
+      abort();
+   }
+   global.oldSectorTarget = global.sectorTarget;
+   global.sectorTarget = newBNumber;
+#endif
+
+   preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod);
+   // t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);
+   }
+}
+
 
 // mcpwm_comparator_set_comare_value()
 // mcpwm_timer_set_period()

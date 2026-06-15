@@ -15,19 +15,24 @@ void spamSearchCV(void *parameter){
     #ifdef digitalReadPin
       esp_rom_printf(yellow "%d",gpio_get_level(digitalReadPin));
     #endif
+
+    #ifdef debug_spamPrintBlockStatus
+      esp_rom_printf(blue "\nb#(%d, %d, %d)|", global.oldSectorTarget, global.sectorTarget, global.rotorVal);
+    #endif
+
     #ifdef debug_spamPrintCounterStatus
       getTimerCountNow("");
-      #endif
-      vTaskDelay(pdMS_TO_TICKS(preComp_cvPeriod));
-    }
+    #endif
+      vTaskDelay(pdMS_TO_TICKS(debug_spamDelay));
   }
+}
   
 void debugLog(void * parameter){
   for(;;){
     #ifdef debug_printRPS
     // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
     // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
-    ESP_LOGI("\n REPORT STATUS",":pot%: %6.4f, RPS: %5.2f",(float)rawData/4096.0f, RPS);
+    // ESP_LOGI("REPORT STATUS",":pot%: %6.4f, RPS: %5.2f, bperiod %d \n",(float)rawData/4096.0f, RPS, global.blockPeriod);
     // ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
     #else
       #ifdef debug_testOnLED
@@ -67,7 +72,7 @@ void readPotOnce(void * parameter){
 
     //This bottom part needs to be instantaneous assignment
     uint32_t bPeriod_temp= (uint32_t)((float)timerResolution/(float)(RPS *electricalCycles*6));
-    bPeriod_temp = 10000;
+    bPeriod_temp = debug_constBlockPeriod;
     // bPeriod_temp = lookUpTable[lookUpTableIndex];
     // lookUpTableIndex++;
 
@@ -98,7 +103,7 @@ void readPotOnce(void * parameter){
       
 extern "C"{
   void app_main(){
-    xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 12, &setupTask, 1); 
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
     // xTaskCreatePinnedToCore(run6Block, "run6Block", 16384, NULL, 4, NULL, 1);
     

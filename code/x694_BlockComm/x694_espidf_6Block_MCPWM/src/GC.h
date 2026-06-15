@@ -16,7 +16,6 @@ inline phaseMcpwm motorL[3];
 
 void initializeSyncs();
 void initializeInterruptEnablePin();
-void activateAllSyncs();
 void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1);
 void synchr(mcpwm_sync_handle_t handle, std::string name);
 void synchrISR(mcpwm_sync_handle_t handle, const char* name);

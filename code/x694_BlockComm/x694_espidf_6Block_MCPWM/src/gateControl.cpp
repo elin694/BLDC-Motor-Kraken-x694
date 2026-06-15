@@ -30,13 +30,6 @@ void mcpwmSetup(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_fu
     initializeInterruptEnablePin(); //after isr init  and L sync 
     ESP_LOGI( "\n"," \n\n");
     // ESP_LOGI( "GC6.5", "====activate BtimeTrigger getSector to get another read and ISR");
-
-    // activateAllSyncs();
-    /*
-        //start 6 block ISR so we can wait for when an interrupt triggers phaseSwitch ISR and enter the cycle
-        // ESP_ERROR_CHECK(esp_intr_enable(sixBlockISR)); //disabled when ISr1 and ISR2 merged
-        //NOTE: Only adjust LTimer with sync if we stay in the same block, or blockFrequency updates 
-    */
 }
 
 void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1){
@@ -188,7 +181,7 @@ void initializeISR(){
         ESP_INTR_FLAG_LEVEL3 
         | ESP_INTR_FLAG_IRAM
         ,
-        getSectorNumber,
+        runOnMCPWMIntr,
         (void *)&global,
         &oneBlockISR
     ));
@@ -253,18 +246,10 @@ void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTar
     //motor is currently not runing, good time to set phase, 5 timers need ot be syncs
     for (int i= 0; i<3; i++){ 
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, -1, false)); 
+        esp_rom_printf("glvl, %d, st %d, 2i+1 %d \n",gateLevelCycle[global.sectorTarget][2*i+1], global.sectorTarget, 2*i+1);
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, gateLevelCycle[global.sectorTarget][2*i+1], false));
     }
     // ESP_LOGI("GC7", "======Set Compare Values for each High Side \n \n");
-}
-
-void activateAllSyncs(){
-      for(int i =0; i < 3; i++){
-        synchr(tripleHighTrigger[i], "triple high triggers");
-    }
-    ////////////// synchr(BTimerTrigger, "BTimerSync");
-    // synchr(LTimerTrigger, "LTimerSync");
-    ESP_LOGI("GC8", "======Pushes compare values by actively syncing");
 }
 
 void synchr(mcpwm_sync_handle_t handle, std::string name){
@@ -287,10 +272,8 @@ void IRAM_ATTR getTimerCountNow(const char* str){
 
 
 
-
-
 //for isr1
-void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_pass_by_function, mcpwm_dev_t * mcpwm, uint32_t clearMask){
+void preloadGates(int previousState, int nextState, uint32_t bPeriod_pass_by_function){
     if (global.sectorTarget == global.oldSectorTarget || global.newPotValue) { //Motor stalling case
         if(global.newPotValue){
             
@@ -327,8 +310,6 @@ void IRAM_ATTR preloadGates(int previousState, int nextState, uint32_t bPeriod_p
         //don't modify low gate timers (they'll always be the same when high gates swap)
 
     // } //extra case of 1->2, 3->4, 5->0, but high gate is the same and comparatorActions wills set LGates low --> no code needed
-    mcpwm-> int_clr.val = clearMask;
-    // esp_rom_printf(white "ISR2E gpiolvl: %d\n",gpio_get_level(digitalReadPin));
 
 }
 

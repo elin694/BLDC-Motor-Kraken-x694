@@ -9,6 +9,7 @@ void initializeGPIO();
 void as5600initialize();
 void initAnalogReadOnce();
 
+void runOnMCPWMIntr(void *returnValue);
 void getSectorNumber(void *returnValue);
 void debugLog(void * parameter);
 int mod6(int value);
