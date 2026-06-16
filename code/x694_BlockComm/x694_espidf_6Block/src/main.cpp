@@ -76,21 +76,22 @@ uint8_t getSectorNumber() {
   //as5600 is default increasing on clockwise.
   //set DIR high to invert 
   #define data_length 2
-  ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+  esp_err_t result =(i2c_master_transmit_receive(as5600Handle, 
     &as5600TargetRegister, 
     as5600WriteSize,
     as5600RawDataBuf, 
     as5600ReadSize, //ensure 2 bytes is read
     3));
-#ifdef as5600DirPinHigh
+    #ifdef as5600DirPinHigh
     uint16_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-  + as5600CalibratedOffset;
-  #else
+    + as5600CalibratedOffset;
+    #else
     uint16_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-  + as5600CalibratedOffset;
-#endif
-
-  #define bitsPerSector (4096.0 / (electricalCycles*6))
+    + as5600CalibratedOffset;
+    #endif
+    esp_rom_printf("I2C  check: %d, data: %d", (int)result, rotorAngle);
+    
+    #define bitsPerSector (4096.0 / (electricalCycles*6))
   return (static_cast<uint8_t>(rotorAngle/bitsPerSector) % 6); //0- bitsPerSector --> smaller sector
 }
       
