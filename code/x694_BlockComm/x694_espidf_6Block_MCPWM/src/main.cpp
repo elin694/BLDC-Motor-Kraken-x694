@@ -28,6 +28,7 @@ void spamSearchCV(void *parameter){
 }
   
 void debugLog(void * parameter){
+  int tracker = 0;
   for(;;){
     #ifdef debug_printRPS
     // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
@@ -36,10 +37,11 @@ void debugLog(void * parameter){
     // ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
     #else
       #ifdef debug_testOnLED
-      motorStall = !motorStall;
-      ESP_LOGW("mtrStl=","%d",motorStall);
+        if(trakcer %3){
+        motorStall = !motorStall;
+        ESP_LOGW("mtrStl=","%d",motorStall);
+      }
       #endif
-
     #endif
     vTaskDelay(pdMS_TO_TICKS(debugPeriodicity)); 
   }
@@ -51,16 +53,16 @@ void debugLog(void * parameter){
     }
 }
 
-// const int lookUpTable[] = {
-//   10000,
-//   200,300,400,500,600,700,800,900,
-//   1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
-//   9000, 8000, 7000,6000,5000,4000,3000,2000, 1000,
-//   4952,10340, 5000, 8422, 9123,5832, 2127,9321,8351,
-//   7636,4241,4236,9463,8151,8230,3631,8589,6752,9638,1441,6509,4443,8043,2422,
-//   3579,6587,6323,9214,9634,1553,7038,7477,10169,2918,5137,8707,9776,4325,4704,
-//   6780,9152,5096,6334,10240,1409,8543,6087,3513,6028
-// };
+const int lookUpTable[] = {
+  10000,
+  300,400,500,600,700,800,900, //dont include stuff that is smaller than the wait time
+  1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
+  9000, 8000, 7000,6000,5000,4000,3000,2000, 1000,
+  4952,10340, 5000, 8422, 9123,5832, 2127,9321,8351,
+  7636,4241,4236,9463,8151,8230,3631,8589,6752,9638,1441,6509,4443,8043,2422,
+  3579,6587,6323,9214,9634,1553,7038,7477,10169,2918,5137,8707,9776,4325,4704,
+  6780,9152,5096,6334,10240,1409,8543,6087,3513,6028
+};
 int lookUpTableIndex = 0;
 
 void readPotOnce(void * parameter){
@@ -72,15 +74,18 @@ void readPotOnce(void * parameter){
 
     //This bottom part needs to be instantaneous assignment
     uint32_t bPeriod_temp= (uint32_t)((float)timerResolution/(float)(RPS *electricalCycles*6));
-    bPeriod_temp = debug_constBlockPeriod;
-    // bPeriod_temp = lookUpTable[lookUpTableIndex];
-    // lookUpTableIndex++;
 
-    ESP_LOGE("potRedaNewBP", "%d, gbp %d\n", (int )bPeriod_temp, (int)global.blockPeriod);
+    #ifdef debug_constBlockPeriod
+      #ifdef debug_useLookUpTableOnBPeriod
+      bPeriod_temp = lookUpTable[lookUpTableIndex];
+      lookUpTableIndex++;
+      #else
+      bPeriod_temp = debug_constBlockPeriod;
+      #endif
+    #endif
+
+    ESP_LOGE("potRead_BP", "(%d,%d)\n", (int)global.blockPeriod, (int )bPeriod_temp);
     // * µsToTicks; //mcpwm timer icks per block when spinnig
-    float cmr_dividers_3_1 = (float)global.blockPeriod/3.0f;
-    float cmr_dividers_3_2 = 2 * cmr_dividers_3_1;
-    
     // ESP_LOGW("redPotonce", "bPeriod_temp :%" PRIu32 ", RPS: %f, rawData: %d", bPeriod_temp, RPS, rawData);
     if(global.blockPeriod != bPeriod_temp){
     taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
@@ -92,15 +97,9 @@ void readPotOnce(void * parameter){
       // ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, 6*bPeriod_temp));
       taskEXIT_CRITICAL(&stepPeriodMux);
     }
-    // global.CMR_value_3[1] = cmr_dividers_3_1;
-    // global.CMR_value_3[2] = cmr_dividers_3_2;
     //isr loop needs to keep checking
     // ESP_LOGI("readPotOnce", magenta "read pot once");
 }
-    int c1 =0;
-    int c2 =0;
-    int c3 =0;
-      
 extern "C"{
   void app_main(){
     xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 12, &setupTask, 1); 

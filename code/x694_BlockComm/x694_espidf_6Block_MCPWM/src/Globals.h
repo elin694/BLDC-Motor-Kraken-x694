@@ -18,31 +18,31 @@
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 // #define digitalReadPin GPIO_NUM_25
 #define debug_testOnLED
-#define debug_fastPrints //will spam more details
-#define debug_printRPS
+#define debug_fastPrints //isr indicator and BLOCK#
+#define debug_printRPS 
+#define debug_readPotRepeat
 #define debug_constBlockPeriod 10000
+// #define debug_useLookUpTableOnBPeriod //commenout out to keep the Bperiod
     
 #ifdef debug_fastPrints //does not include motor stalling alternation
-    #define debug_spamDelay  100000000
+    #define debug_spamDelay  10
 #else 
     #define debug_spamDelay 40000
 #endif
-
     #define preCompStartingTargetSector 5
-    // #define debug_spamPrintCounterStatus
+    #define debug_spamPrintCounterStatus
     // #define debug_spamPrintBlockStatus
     #define debugPeriodicity (int)(1000) //affect mtr sim rate
     #define potReadPeriod (int)(2*debugPeriodicity+400)
 
     inline bool motorStall =false;
     inline bool p_stalled= false;
-    
-    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(300)
+    //============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
+    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(350)
     #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-    #define timerResolution  static_cast<uint32_t>(1e5) //125ns , must not simple ratio
+    #define timerResolution  static_cast<uint32_t>(1e4) //125ns , must not simple ratio
     #define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
-
     #define startingDuty static_cast<float>(1- .7) //The Duty cycle is 1 - this.Value
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
@@ -54,7 +54,6 @@
         #define phaseBLowPort GPIO_NUM_25
         #define phaseCHighPort GPIO_NUM_33
         #define phaseCLowPort GPIO_NUM_32
-
     #else
         #define phaseAHighPort GPIO_NUM_33
         #define phaseALowPort GPIO_NUM_14
@@ -68,27 +67,24 @@
     // constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
     #endif
 
-    //+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
-    typedef struct{
-        float CMR_value_3[4];//impleemnt
-        // ^^^^^^^^^^^^^^^^^^^^^
-        volatile uint32_t oldSectorTarget = preCompStartingTargetSector;
-        volatile int sectorTarget =5 ; //for stator current vector
-        // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
-        // volatile uint32_t blockPeriod= static_cast<uint32_t>(((131072)/2)/6); 
-        volatile uint32_t blockPeriod= static_cast<uint32_t>(debug_constBlockPeriod); 
-        uint32_t BTimerPhaseShift;
-        volatile bool newPotValue = false;
-        volatile uint32_t rotorVal =0;
-    } gVar_t;
-    extern adc_oneshot_unit_handle_t adcHandle;
-    inline float duty = .5;
-    inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
-    // inline bool newFrequency = false;
-    // timer rez = ticks per period * periods/second 
-    
-    DRAM_ATTR inline gVar_t global;
+//+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
+typedef struct{
+    float CMR_value_3[4];//impleemnt
+    // ^^^^^^^^^^^^^^^^^^^^^
+    volatile uint32_t oldSectorTarget = preCompStartingTargetSector;
+    volatile int sectorTarget =5 ; //for stator current vector
+    // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
+    // volatile uint32_t blockPeriod= static_cast<uint32_t>(((131072)/2)/6); 
+    volatile uint32_t blockPeriod= static_cast<uint32_t>(debug_constBlockPeriod); 
+    volatile bool newPotValue = false;
+    volatile uint32_t rotorVal =0;
+} gVar_t;
+extern adc_oneshot_unit_handle_t adcHandle;
+inline float duty = .5;
+inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
+// timer rez = ticks per period * periods/second 
 
+DRAM_ATTR inline gVar_t global;
 
 
     /*DO NOT CHANGE VALUE*/
@@ -149,7 +145,7 @@ inline uint32_t BT_time = 0;
 inline uint32_t LT_time = 0;
 inline TaskHandle_t setupTask= NULL;
 inline TaskHandle_t getSectorNumberTask= NULL;
-
+DRAM_ATTR constexpr const char * ghgl[6] = {"BAu2","CAd3","CBd2","ABd1","ACu0","BCu1"};
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick

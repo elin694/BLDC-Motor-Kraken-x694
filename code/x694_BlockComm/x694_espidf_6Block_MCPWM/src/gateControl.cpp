@@ -23,13 +23,11 @@ void mcpwmSetup(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_fu
     synchrISR(LTimerTrigger, "Post-intr_ena LT Sync"); //0-1us 
     for(int i =0; i < 3; i++){
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, -1, true));
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, -1, true));
     }
     
     esp_rom_delay_us(ticksToµs); //calib minimum
     initializeInterruptEnablePin(); //after isr init  and L sync 
     ESP_LOGI( "\n"," \n\n");
-    // ESP_LOGI( "GC6.5", "====activate BtimeTrigger getSector to get another read and ISR");
 }
 
 void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1){
@@ -77,7 +75,7 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorL[i].comparator0, 
             static_cast<uint32_t>(threshold_thirds[2])
         )); //all low generators need it
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true)); // Force low until ready
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
     }
     #define phaseA_gen_one_third 0 //the index of the Low Generator that has to Compare with 1/
     // ESP_ERROR_CHECK(mcpwm_new_comparator(motorL[phaseA_gen_one_third].operatorModule,
@@ -94,33 +92,33 @@ void configureLowGateEvents(){
     int index1 =0;
 
 
-    ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[0].pwmGate0,
-        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[index1].comparator0, action[1]), //up , then down
-        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, action[0]),
-        MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-    ));
-    /* =================*/
-    index1=1;
-    ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[index1].pwmGate0,
-        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, action[1]),
-        MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-    ));
-     ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[index1].pwmGate0,
-            MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[0]),
-            MCPWM_GEN_TIMER_EVENT_ACTION_END()
-        )
-    );
-    /* =================*/
-    index1=2;
-    ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[index1].pwmGate0,
-            MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[1]),
-            MCPWM_GEN_TIMER_EVENT_ACTION_END()
-        )
-    );
-    ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[index1].pwmGate0,
-        MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[index1].comparator0, action[0]),
-        MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-    ));
+    // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[0].pwmGate0,
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[index1].comparator0, action[1]), //up , then down
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, action[0]),
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+    // ));
+    // /* =================*/
+    // index1=1;
+    // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[index1].pwmGate0,
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION(dir[0], motorL[index1].comparator0, action[1]),
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+    // ));
+    //  ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[index1].pwmGate0,
+    //         MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[0]),
+    //         MCPWM_GEN_TIMER_EVENT_ACTION_END()
+    //     )
+    // );
+    // /* =================*/
+    // index1=2;
+    // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorL[index1].pwmGate0,
+    //         MCPWM_GEN_TIMER_EVENT_ACTION(dir[1], timerEmpty, action[1]),
+    //         MCPWM_GEN_TIMER_EVENT_ACTION_END()
+    //     )
+    // );
+    // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorL[index1].pwmGate0,
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION(dir[1], motorL[index1].comparator0, action[0]),
+    //     MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+    // ));
     ESP_LOGI("GC4", "======All low gate actions have been set ");
 }
 
@@ -140,7 +138,7 @@ void initializeHighGate(int staartingTargetSector, uint32_t comparatorOff_Duty){
         
         ESP_ERROR_CHECK(mcpwm_operator_connect_timer(motorH[i].operatorModule, motorH[i].timer)); 
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0, comparatorOff_Duty)); //set to max to be off
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true)); // Force low until ready
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true)); 
     }
     //putting command of setting lowGate Low and high gate High (by comparator action event) into buffer
     for (int i = 0; i <3; i++){
@@ -244,10 +242,10 @@ void initializeTimer(int startingTargetSector, uint32_t bPeriod_pass_by_function
 
 void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTargetSector, uint32_t bPeriod_pass_by_function){
     //motor is currently not runing, good time to set phase, 5 timers need ot be syncs
-    for (int i= 0; i<3; i++){ 
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, -1, false)); 
-        esp_rom_printf("glvl, %d, st %d, 2i+1 %d \n",gateLevelCycle[global.sectorTarget][2*i+1], global.sectorTarget, 2*i+1);
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, gateLevelCycle[global.sectorTarget][2*i+1], false));
+    for (int i= 0; i<5; i+= 2){ 
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i], true));
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
+        esp_rom_printf("glvl, %d, st: %d, 2i+1: %d, phase: %d \n",gateLevelCycle[global.sectorTarget][i+1], global.sectorTarget, i+1, i/2);
     }
     // ESP_LOGI("GC7", "======Set Compare Values for each High Side \n \n");
 }
@@ -270,11 +268,9 @@ void IRAM_ATTR getTimerCountNow(const char* str){
     // esp_rom_printf(green "%s \n", str);
 }
 
-
-
 //for isr1
-void preloadGates(int previousState, int nextState, uint32_t bPeriod_pass_by_function){
-    if (global.sectorTarget == global.oldSectorTarget || global.newPotValue) { //Motor stalling case
+void preloadGates(){
+    // if (global.sectorTarget == global.oldSectorTarget || global.newPotValue) { //Motor stalling case
         if(global.newPotValue){
             
             // esp_rom_printf(blue "BP==========%d\n", global.blockPeriod);
@@ -292,113 +288,130 @@ void preloadGates(int previousState, int nextState, uint32_t bPeriod_pass_by_fun
             ));
             //prepare  so esp32 runs on the start of the previous block at sync
             // global.newPotValue=false;//keep, disable in execute gates
+            taskENTER_CRITICAL_ISR(&stepPeriodMux);
+            int bp =global.blockPeriod;
+            taskEXIT_CRITICAL_ISR(&stepPeriodMux);
+            LTimerOnSync.count_value = lowGateLevelCycle[global.sectorTarget] * bp; //n/3 fraction
+            LTimerOnSync.direction = LTimerDir[global.sectorTarget];
+    
+            ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(globalLowTimer, &LTimerOnSync));
         }
-        //The phase that is high doesn't change
-        // Low Gates- Precalcuate values to Resync timers to previous Block
-        taskENTER_CRITICAL_ISR(&stepPeriodMux);
-        int bp =global.blockPeriod;
-        taskEXIT_CRITICAL_ISR(&stepPeriodMux);
-        LTimerOnSync.count_value = lowGateLevelCycle[global.sectorTarget] * bp; //n/3 fraction
-        LTimerOnSync.direction = LTimerDir[global.sectorTarget];
-
-        ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(globalLowTimer, &LTimerOnSync));
         // esp_rom_printf(green " pg SYNC BCV %d, LCV %d \n", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value);
+    // } 
 
-        // Gpio level remains set by dt_config
-    } 
-    // else if (global.sectorTarget % 2){ //the case where High Phase switches(ex. 0->1, 2->3, 4->5) 
-        //don't modify low gate timers (they'll always be the same when high gates swap)
-
-    // } //extra case of 1->2, 3->4, 5->0, but high gate is the same and comparatorActions wills set LGates low --> no code needed
-
+    /*
+        else if (global.sectorTarget % 2){ //the case where High Phase switches(ex. 0->1, 2->3, 4->5) 
+        don't modify low gate timers (they'll always be the same when high gates swap)
+        } //extra case of 1->2, 3->4, 5->0, but high gate is the same and comparatorActions wills set LGates low --> no code needed
+    */
 }
 
 
 
 void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm){
-    for(int i =0; i<3; i++){
-        // synchrISR(tripleHighTrigger[i], "a"); //v3.14 - updates cmp value only
+    //normal operating conidtions
+    for(int i =0; i<5; i+=2){
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i], true));
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
     }
-    //code below is not outdateed
-    /* ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.oldSectorTarget]].comparator0, idleHighGateCmpVal)); //can be done in a normal fucntion*/
-    if(global.oldSectorTarget != global.sectorTarget){//order with its own sync doesn't matter
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[activeHighGate[global.oldSectorTarget]].pwmGate0, 0 , true)); //turn off old one by setting to 0!
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[activeHighGate[global.sectorTarget]].pwmGate0, -1, true)); //turn off old one by setting to 0!
+
+    if(global.newPotValue){ //block period of everyhthing has to change but just run at max cycle speed
+            //however we need to be able ot adjust the velocity
+        for(int i=0; i<3; i++){
+            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(tripleHighTrigger[i])); //push new duty cycles
+        }
+        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); //push new duty cycles
+        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger)); //push new duty cycles
+        global.newPotValue=false;
+        esp_rom_delay_us(ticksToµs+1);
     }
+    esp_rom_printf(white "|v_b#hl(%d, %s)" red "|L \n", global.sectorTarget, ghgl[global.sectorTarget]);
+    // esp_rom_printf( red "|L \n");
+    // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(tripleHighTrigger[i])); //push new duty cycles
     
-    if(global.sectorTarget == global.oldSectorTarget){ //stall case
-        // int t1= esp_timer_get_time(); //2us execution time for this case
-        synchrISR(LTimerTrigger, "Ltimer On!"); //can'ts wap for some reason
-        int a1= global.sectorTarget/2;
-        int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
+    // for(int i =0; i<3; i++){
+    //     // synchrISR(tripleHighTrigger[i], "a"); //v3.14 - updates cmp value only
+    // }
+    // //code below is not outdateed
+    // /* ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.oldSectorTarget]].comparator0, idleHighGateCmpVal)); //can be done in a normal fucntion*/
+    // if(global.oldSectorTarget != global.sectorTarget){//order with its own sync doesn't matter
+    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(motorH[activeHighGate[global.oldSectorTarget]].pwmGate0, 0 , true)); //turn off old one by setting to 0!
+    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(motorH[activeHighGate[global.sectorTarget]].pwmGate0, -1, true)); //turn off old one by setting to 0!
+    // }
+    
+    // if(global.sectorTarget == global.oldSectorTarget){ //stall case
+    //     // int t1= esp_timer_get_time(); //2us execution time for this case
+    //     synchrISR(LTimerTrigger, "Ltimer On!"); //can'ts wap for some reason
+    //     int a1= global.sectorTarget/2;
+    //     int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
         
-        // esp_rom_printf("p%d lvl%d \n", a1, a2);
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
-            // motorL[global.sectorTarget/2].pwmGate0,
-            // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
-            motorL[a1].pwmGate0,a2,
-            false
-        ));
+    //     // esp_rom_printf("p%d lvl%d \n", a1, a2);
+    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(
+    //         // motorL[global.sectorTarget/2].pwmGate0,
+    //         // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
+    //         motorL[a1].pwmGate0,a2,
+    //         false
+    //     ));
         
-        int nST = mod6(global.sectorTarget+dir);
-        a1= nST/2;
-        a2 = gateLevelCycle[nST][2*nST/2];
-        // esp_rom_printf("p%d lvl%d \n", a1, a2);
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
-            // motorL[nST/2].pwmGate0,
-            // gateLevelCycle[nST][2*nST/2],
-            motorL[a1].pwmGate0, a2,
-            false
-        ));
-        p_stalled = true; //previously stalled?
-        // /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();, t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);    
+    //     int nST = mod6(global.sectorTarget+dir);
+    //     a1= nST/2;
+    //     a2 = gateLevelCycle[nST][2*nST/2];
+    //     // esp_rom_printf("p%d lvl%d \n", a1, a2);
+    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(
+    //         // motorL[nST/2].pwmGate0,
+    //         // gateLevelCycle[nST][2*nST/2],
+    //         motorL[a1].pwmGate0, a2,
+    //         false
+    //     ));
+    //     p_stalled = true; //previously stalled?
+    //     // /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();, t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);    
             
-    } else if(p_stalled){ //stalled to unstalled case
-        //progress stage of previously on led
-        int a1= global.sectorTarget/2;
-        int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
-        // esp_rom_printf("P%d LVL%d \n", a1, a2);
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
-            // motorL[global.sectorTarget/2].pwmGate0,
-            // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
-            motorL[a1].pwmGate0,a2,
-            false
-        ));
+    // } else if(p_stalled){ //stalled to unstalled case
+    //     //progress stage of previously on led
+    //     int a1= global.sectorTarget/2;
+    //     int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
+    //     // esp_rom_printf("P%d LVL%d \n", a1, a2);
+    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(
+    //         // motorL[global.sectorTarget/2].pwmGate0,
+    //         // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
+    //         motorL[a1].pwmGate0,a2,
+    //         false
+    //     ));
         
-        //progress stage of next  led
-        int nST = mod6(global.sectorTarget+dir);
-        a1= nST/2;
-        a2 = gateLevelCycle[nST][2*nST/2];
-        // esp_rom_printf("P%d LVL%d \n", a1, a2);
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(
-            // motorL[nST/2].pwmGate0,
-            // gateLevelCycle[nST][2*nST/2],
-            motorL[a1].pwmGate0, a2,
-            false
-        ));
-        p_stalled=false;
-    } else if(global.newPotValue){
-        esp_rom_printf(yellow "NEW POT ISR2 ");
-        synchrISR(LTimerTrigger, "Ltimer On!");
-        global.newPotValue = false;
-        // ESP_ERROR_CHECK(mcpwm_generator_set_ force_level(
-        //     motorL[global.oldSectorTarget/2].pwmGate0,global.oldSectorTarget,
-        //     false
-        // ));
-    }
-    #define del (ticksToµs)
-    synchrISR(BTimerTrigger, "Btimer");
-    esp_rom_delay_us(del); //delay between 2 syncs, needs to be long enough for the first sync to trigger the timer event and execute the generator action that turns on the gate, but short enough to not cause a noticeable delay in the waveform.
+    //     //progress stage of next  led
+    //     int nST = mod6(global.sectorTarget+dir);
+    //     a1= nST/2;
+    //     a2 = gateLevelCycle[nST][2*nST/2];
+    //     // esp_rom_printf("P%d LVL%d \n", a1, a2);
+    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(
+    //         // motorL[nST/2].pwmGate0,
+    //         // gateLevelCycle[nST][2*nST/2],
+    //         motorL[a1].pwmGate0, a2,
+    //         false
+    //     ));
+    //     p_stalled=false;
+    // } else if(global.newPotValue){
+    //     esp_rom_printf(yellow "NEW POT ISR2 ");
+    //     synchrISR(LTimerTrigger, "Ltimer On!");
+    //     global.newPotValue = false;
+    //     // ESP_ERROR_CHECK(mcpwm_generator_set_ for ce_level(
+    //     //     motorL[global.oldSectorTarget/2].pwmGate0,global.oldSectorTarget,
+    //     //     false
+    //     // ));
+    // }
+    // #define del (ticksToµs)
+    // synchrISR(BTimerTrigger, "Btimer");
+    // esp_rom_delay_us(del); //delay between 2 syncs, needs to be long enough for the first sync to trigger the timer event and execute the generator action that turns on the gate, but short enough to not cause a noticeable delay in the waveform.
 
-    // getTimerCountNow("\n");
-    // esp_rom_printf(white "GPIOLVL abc: %d, %d, %d\n \n",intermediateGpioLvl[0], intermediateGpioLvl[1], intermediateGpioLvl[2]);
+    // // getTimerCountNow("\n");
+    // // esp_rom_printf(white "GPIOLVL abc: %d, %d, %d\n \n",intermediateGpioLvl[0], intermediateGpioLvl[1], intermediateGpioLvl[2]);
 
-    /* 
-        tea, tep, tea,teb,tez,teb
-        apa,bzb
-        log_2 : 15, 7, 15,  18, 4, 18 [0-5]
-        32768, 128, 32768, 262144, 16, 262144
-        3,1,3,2,1,2
-    */
+    // /* 
+    //     tea, tep, tea,teb,tez,teb
+    //     apa,bzb
+    //     log_2 : 15, 7, 15,  18, 4, 18 [0-5]
+    //     32768, 128, 32768, 262144, 16, 262144
+    //     3,1,3,2,1,2
+    // */
     mcpwm->int_clr.val = clearRegister->val;
 }
