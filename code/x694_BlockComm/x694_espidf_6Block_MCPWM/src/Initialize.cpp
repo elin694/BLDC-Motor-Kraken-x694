@@ -24,6 +24,7 @@ void initialize(void * parameter){
       global.sectorTarget = preCompStartingTargetSector;
       global.oldSectorTarget = global.sectorTarget;
    #else
+   esp_rom_printf(magenta    "initial as5600 raw:3");;
       as5600initialize();
    #endif
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  
@@ -142,7 +143,8 @@ void as5600initialize() {
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-      15));
+      pdMS_TO_TICKS(100))
+   );
       fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //reset
 
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
@@ -150,14 +152,14 @@ void as5600initialize() {
       (size_t)2, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-   15));
+   pdMS_TO_TICKS(100)));
 
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-   15));
+   pdMS_TO_TICKS(100)));
    //max sample time at 150us
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "Read:", "whole thing %d \n", (int)fthRegisterData[0]);
@@ -214,7 +216,7 @@ void getSectorNumber(void *returnValue){
          as5600WriteSize,
          as5600RawDataBuf, 
          as5600ReadSize, //ensure 2 bytes is read
-         15
+         pdMS_TO_TICKS(100)
       ));
       #ifdef as5600DirPinHigh
          global.rotorVal = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) + as5600CalibratedOffset;
