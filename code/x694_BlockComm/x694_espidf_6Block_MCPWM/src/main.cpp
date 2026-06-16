@@ -43,7 +43,7 @@ void debugLog(void * parameter){
       }
       #endif
     #endif
-    vTaskDelay(pdMS_TO_TICKS(debugPeriodicity)); 
+    vTaskDelay(pdMS_TO_TICKS(debug_RPS_Periodicity)); 
   }
 }
   void readPotRepeat(void * parameter){
@@ -66,7 +66,7 @@ const int lookUpTable[] = {
 int lookUpTableIndex = 0;
 
 void readPotOnce(void * parameter){
-   rawData = 0;
+   rawData = 0; //higher voltage = higher rps
     ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
     RPS = (fMin+(fMax-fMin)*sqrtf((float)rawData/4096.0f));
     //3 is for the pole pair count per rotation

@@ -15,52 +15,58 @@
 #include "esp_adc/adc_oneshot.h"
 #include <string>
 #include <cinttypes>
-//++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 // #define digitalReadPin GPIO_NUM_25
-#define debug_testOnLED
+// #define debug_testOnLED
+#define debug_testBigBreadboard
 #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
-#define debug_readPotRepeat
+// #define debug_readPotRepeat
 #define debug_constBlockPeriod 10000
 // #define debug_useLookUpTableOnBPeriod //commenout out to keep the Bperiod
-    
-#ifdef debug_fastPrints //does not include motor stalling alternation
-    #define debug_spamDelay  10
-#else 
-    #define debug_spamDelay 40000
-#endif
-    #define preCompStartingTargetSector 5
-    #define debug_spamPrintCounterStatus
-    // #define debug_spamPrintBlockStatus
-    #define debugPeriodicity (int)(1000) //affect mtr sim rate
-    #define potReadPeriod (int)(2*debugPeriodicity+400)
 
-    inline bool motorStall =false;
-    inline bool p_stalled= false;
-    //============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
-    #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(350)
-    #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-    #define timerResolution  static_cast<uint32_t>(1e4) //125ns , must not simple ratio
-    #define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
+#define preCompStartingTargetSector 2
+/*IN MAIN.CPP DELAY, MOSTLY SPAM*/
+// #define debug_spamPrintCounterStatus
+// #define debug_spamPrintBlockStatus
+#define debug_spamDelay 20
+#define debug_RPS_Periodicity (int)(1000) //affect mtr sim rate
+#define potReadPeriod (int)(2*debug_RPS_Periodicity+400) //enable rps mtr stalling
+
+inline bool motorStall =false;
+inline bool p_stalled= false;
+//============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
+//++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(289)
+#define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
+#define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
+#define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
     #define startingDuty static_cast<float>(1- .7) //The Duty cycle is 1 - this.Value
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
-    #ifdef debug_testOnLED
-        #define phaseAHighPort GPIO_NUM_14
-        #define phaseALowPort GPIO_NUM_13
-        #define phaseBHighPort GPIO_NUM_26
-        #define phaseBLowPort GPIO_NUM_25
-        #define phaseCHighPort GPIO_NUM_33
-        #define phaseCLowPort GPIO_NUM_32
-    #else
-        #define phaseAHighPort GPIO_NUM_33
-        #define phaseALowPort GPIO_NUM_14
-        #define phaseBHighPort GPIO_NUM_17
-        #define phaseBLowPort GPIO_NUM_16
-        #define phaseCHighPort GPIO_NUM_26
-        #define phaseCLowPort GPIO_NUM_32
+    #ifdef debug_testBigBreadboard
+        #define phaseAHighPort GPIO_NUM_2
+        #define phaseALowPort GPIO_NUM_4
+        #define phaseBHighPort GPIO_NUM_16
+        #define phaseBLowPort GPIO_NUM_17
+        #define phaseCHighPort GPIO_NUM_18
+        #define phaseCLowPort GPIO_NUM_19
+    #elif define(debug_testOnLED)
+        // #define phaseAHighPort GPIO_NUM_14
+        // #define phaseALowPort GPIO_NUM_13
+        // #define phaseBHighPort GPIO_NUM_26
+        // #define phaseBLowPort GPIO_NUM_25
+        // #define phaseCHighPort GPIO_NUM_33
+        // #define phaseCLowPort GPIO_NUM_32
+    #else //real PCB
+        // #define phaseAHighPort GPIO_NUM_33
+        // #define phaseALowPort GPIO_NUM_14
+        // #define phaseBHighPort GPIO_NUM_17
+        // #define phaseBLowPort GPIO_NUM_16
+        // #define phaseCHighPort GPIO_NUM_26
+        // #define phaseCLowPort GPIO_NUM_32
+
     //CHANGE ASSOCIATED PORT SET AND CLEAR
     // // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
     // // volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};

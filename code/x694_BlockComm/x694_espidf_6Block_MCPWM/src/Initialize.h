@@ -36,7 +36,7 @@ inline i2c_master_bus_handle_t busHandle;
 constexpr i2c_device_config_t as5600Setup = {
    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
    .device_address = as5600Address,
-   .scl_speed_hz= 400000, //need fast enough  to avoid invalid state
+   .scl_speed_hz= 320000, //need fast enough  to avoid invalid state
    .scl_wait_us = 30,
    .flags = {.disable_ack_check = false}
 };

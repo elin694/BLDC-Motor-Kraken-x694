@@ -325,7 +325,9 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
         global.newPotValue=false;
         esp_rom_delay_us(ticksToµs+1);
     }
-    esp_rom_printf(white "|v_b#hl(%d, %s)" red "|L \n", global.sectorTarget, ghgl[global.sectorTarget]);
+    #ifdef debug_fastPrints
+        esp_rom_printf(white "|v_b#hl(%d, %s)" red "|L \n", global.sectorTarget, ghgl[global.sectorTarget]);
+    #endif
     // esp_rom_printf( red "|L \n");
     // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(tripleHighTrigger[i])); //push new duty cycles
     

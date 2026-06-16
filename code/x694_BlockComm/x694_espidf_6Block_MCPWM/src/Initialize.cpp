@@ -19,6 +19,7 @@ void initialize(void * parameter){
 
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
+   // vTaskDelay(pdMS_TO_TICKS(10000000)); //wait for i2c to be ready, otherwise first few reads might be wrong, which can cause wrong block commutation and motor stall
    #ifdef debug_testOnLED 
       global.sectorTarget = preCompStartingTargetSector;
       global.oldSectorTarget = global.sectorTarget;
@@ -38,10 +39,9 @@ void initialize(void * parameter){
    xTaskCreate(readPotRepeat, "readPotRepeat", 10000, NULL, (int)(thisTaskPriority*.5)-2, NULL);
    #endif 
    
-   #if (defined(debug_spamPrintBlockStatus) || defined(debug_spamPrintCounterStatus))
+   #if (defined(debug_spamPrintBlockStatus) || defined(debug_spamPrintCounterStatus) || debug_spamDelay)
       xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
    #endif
-
    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, (int)(thisTaskPriority*.5)-3, NULL, 0);
    vTaskDelete(NULL);
 }
@@ -142,7 +142,7 @@ void as5600initialize() {
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-      3));
+      15));
       fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //reset
 
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
@@ -150,15 +150,14 @@ void as5600initialize() {
       (size_t)2, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-   3));
-
+   15));
 
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-   3));
+   15));
    //max sample time at 150us
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "Read:", "whole thing %d \n", (int)fthRegisterData[0]);
@@ -169,9 +168,10 @@ void as5600initialize() {
       as5600WriteSize,
       as5600RawDataBuf, 
       as5600ReadSize, //ensure 2 bytes is read
-      -1)
+      15)
    );
    t1= esp_timer_get_time() - t1;esp_rom_printf("n ===========t1: %d\n", t1);
+
    int rd= (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
    #ifdef as5600DirPinHigh
    global.rotorVal = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
@@ -191,7 +191,8 @@ void as5600initialize() {
    // vTaskSuspend(getSectorNumberTask);
    // vTaskPrioritySet(getSectorNumberTask, uxTaskPriorityGet(setupTask)+1 );
 }
-
+/*========================================================================================*/
+/*========================================================================================*/
 void getSectorNumber(void *returnValue){
    while(1){
       vTaskSuspend(NULL);
@@ -213,9 +214,8 @@ void getSectorNumber(void *returnValue){
          as5600WriteSize,
          as5600RawDataBuf, 
          as5600ReadSize, //ensure 2 bytes is read
-         4
+         15
       ));
-      // int rd= (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
       #ifdef as5600DirPinHigh
          global.rotorVal = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) + as5600CalibratedOffset;
       #else
@@ -232,6 +232,8 @@ void getSectorNumber(void *returnValue){
       global.sectorTarget = newBNumber;
       #endif
       preloadGates();
-      t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d|", t1);
+      #ifdef debug_fastPrints
+      t1= esp_timer_get_time() - t1;esp_rom_printf("t1:%d|\r", t1);
+      #endif
    }
 }
