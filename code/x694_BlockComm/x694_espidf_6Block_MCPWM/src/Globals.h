@@ -36,9 +36,9 @@ inline bool motorStall =false;
 inline bool p_stalled= false;
 //============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(289)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(1000)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-#define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
+#define timerResolution  static_cast<uint32_t>(1e5) //125ns , must not simple ratio
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
     #define startingDuty static_cast<float>(1- .7) //The Duty cycle is 1 - this.Value
