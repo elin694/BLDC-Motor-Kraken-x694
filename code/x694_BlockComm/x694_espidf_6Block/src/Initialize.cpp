@@ -31,6 +31,10 @@ void initialize(){
    lastTime =  esp_timer_get_time();
    blockNumber = 0;
    //starting delay for user to react + setup
+   ESP_LOGI("I2C",
+         "SDA=%d SCL=%d \n \n \n ",
+         gpio_get_level(GPIO_NUM_21),
+         gpio_get_level(GPIO_NUM_22));
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    ets_delay_us(1000);
@@ -51,7 +55,7 @@ i2c_master_bus_handle_t busHandle;
 i2c_device_config_t as5600Setup = {
    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
    .device_address = as5600Address,
-   .scl_speed_hz= 300000, //need fast enough  to avoid invaldi state
+   .scl_speed_hz= 500000, //need fast enough  to avoid invaldi state
    .scl_wait_us = 30,
    .flags = {.disable_ack_check = false}
 };

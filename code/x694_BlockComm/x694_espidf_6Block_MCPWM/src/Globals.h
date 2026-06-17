@@ -18,7 +18,7 @@
 // #define digitalReadPin GPIO_NUM_25
 // #define debug_testOnLED
 #define debug_testBigBreadboard
-#define debug_fastPrints //isr indicator and BLOCK#
+// #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
 // #define debug_readPotRepeat
 #define debug_constBlockPeriod 10000
@@ -29,17 +29,22 @@
 // #define debug_spamPrintCounterStatus
 // #define debug_spamPrintBlockStatus
 #define debug_spamDelay 20
+#define debug_spamPrintTimeISR1 
 #define debug_RPS_Periodicity (int)(1000) //affect mtr sim rate
 #define potReadPeriod (int)(2*debug_RPS_Periodicity+400) //enable rps mtr stalling
 
 inline bool motorStall =false;
 inline bool p_stalled= false;
+inline DRAM_ATTR int isr2CurrentTime =0;
+inline DRAM_ATTR int isr2CurrentCounter =0;
+inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
+
 //============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(1000)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(900)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-#define timerResolution  static_cast<uint32_t>(1e5) //125ns , must not simple ratio
-#define activePwmPeriod static_cast<uint32_t>(timerResolution/1000)  //change to 20khz when high
+#define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
+#define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
     #define startingDuty static_cast<float>(1- .7) //The Duty cycle is 1 - this.Value
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
@@ -52,13 +57,13 @@ inline bool p_stalled= false;
         #define phaseBLowPort GPIO_NUM_17
         #define phaseCHighPort GPIO_NUM_18
         #define phaseCLowPort GPIO_NUM_19
-    #elif define(debug_testOnLED)
-        // #define phaseAHighPort GPIO_NUM_14
-        // #define phaseALowPort GPIO_NUM_13
-        // #define phaseBHighPort GPIO_NUM_26
-        // #define phaseBLowPort GPIO_NUM_25
-        // #define phaseCHighPort GPIO_NUM_33
-        // #define phaseCLowPort GPIO_NUM_32
+    #elif defined(debug_testOnLED)
+        #define phaseAHighPort GPIO_NUM_14
+        #define phaseALowPort GPIO_NUM_13
+        #define phaseBHighPort GPIO_NUM_26
+        #define phaseBLowPort GPIO_NUM_25
+        #define phaseCHighPort GPIO_NUM_33
+        #define phaseCLowPort GPIO_NUM_32
     #else //real PCB
         // #define phaseAHighPort GPIO_NUM_33
         // #define phaseALowPort GPIO_NUM_14

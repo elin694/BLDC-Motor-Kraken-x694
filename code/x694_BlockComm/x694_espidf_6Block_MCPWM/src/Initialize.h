@@ -36,17 +36,15 @@ inline i2c_master_bus_handle_t busHandle;
 constexpr i2c_device_config_t as5600Setup = {
    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
    .device_address = as5600Address,
-   .scl_speed_hz= 320000, //need fast enough  to avoid invalid state
+   .scl_speed_hz= 400000, //need fast enough  to avoid invalid state
    .scl_wait_us = 30,
    .flags = {.disable_ack_check = false}
 };
 inline i2c_master_dev_handle_t as5600Handle;
 
-
-
-constexpr uint8_t as5600Set = 0x36;
-constexpr uint8_t as5600TargetRegister = 0x0e;
-constexpr size_t as5600WriteSize = 1;
+constexpr DRAM_ATTR uint8_t as5600Set = 0x36;
+constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
+constexpr DRAM_ATTR size_t as5600WriteSize = 1;
 inline uint8_t as5600RawDataBuf[2];
 constexpr size_t as5600ReadSize = 2;
 // #define as5600DirPinHigh

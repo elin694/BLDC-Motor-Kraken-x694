@@ -24,8 +24,9 @@ void initialize(void * parameter){
       global.sectorTarget = preCompStartingTargetSector;
       global.oldSectorTarget = global.sectorTarget;
    #else
-   esp_rom_printf(magenta    "initial as5600 raw:3");;
-      as5600initialize();
+   esp_rom_printf(magenta    "initial as5600 rzaw:");;
+   as5600initialize(); 
+   esp_rom_printf(magenta    "initial as5600 r2aw:");;
    #endif
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  
       // uxTaskPriorityGet(setupTask)+1  /*priority*/, 
@@ -91,22 +92,8 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
       xHigherPriorityTaskWoken = xTaskResumeFromISR(getSectorNumberTask);
       MCPWMx-> int_clr.val = tempClearR1.val;
       portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-      
-      // #ifdef debug_testOnLED
-      // esp_rom_delay_us(150);
-      // if (motorStall){
-      //    global.oldSectorTarget= global.sectorTarget;
-      // } else{
-      //    global.oldSectorTarget = global.sectorTarget;
-      //    global.sectorTarget = mod6(global.sectorTarget+1);
-      // }
-      
-      // preloadGates(global.oldSectorTarget,global.sectorTarget, global.blockPeriod);
-      // #else
-      // xTaskResumeFromISR(getSectorNumberTask);
-      // MCPWMx-> int_clr.val = tempClearR1.val;
-      // #endif
       return;
+
    } else if(
       tempStatusReg.timer1_tez_int_st || //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
       tempStatusReg.timer1_tep_int_st || //timer 1= LTimer, (ie change from block 0-1), 2^7 = 128
@@ -138,28 +125,32 @@ void as5600initialize() {
    //sets fth and sf , also reduces
    uint8_t fthRegisterData[1] = {0x00};
    uint8_t fthRegister[2] = {0x07, 0x00};
+   
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-      pdMS_TO_TICKS(100))
+      /*alpha*/100)
    );
-      fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //reset
+   fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //reset
 
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)2, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-   pdMS_TO_TICKS(100)));
-
+      /*alpha*/100)
+   );
+   esp_rom_printf(blue "second tr done, ");
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-   pdMS_TO_TICKS(100)));
+      /*alpha*/100)
+   );
+   esp_rom_printf(blue "first done, ");
    //max sample time at 150us
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "Read:", "whole thing %d \n", (int)fthRegisterData[0]);
@@ -170,7 +161,7 @@ void as5600initialize() {
       as5600WriteSize,
       as5600RawDataBuf, 
       as5600ReadSize, //ensure 2 bytes is read
-      15)
+      -1)
    );
    t1= esp_timer_get_time() - t1;esp_rom_printf("n ===========t1: %d\n", t1);
 
@@ -186,20 +177,19 @@ void as5600initialize() {
    int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+2*dir)%6; //0- bitsPerSector --> smaller sector
    global.oldSectorTarget = newBNumber; 
    global.sectorTarget = newBNumber;
-   ESP_LOGI(cyan "\nFirstPotRead", "ost, nst: (%d, %d), raw: %d, rotorAng: %d, bl# %d\n", global.oldSectorTarget, global.sectorTarget, rd, global.rotorVal, newBNumber);
-   
-   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  uxTaskPriorityGet(setupTask)+1  /*priority*/, &getSectorNumberTask, 1);  /*PIN TO SAME CORE AS CREATOR, and SMALER PRIORITY*/
-   // xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL, uxTaskPriorityGet(setupTask)-1 /*priority*/, &getSectorNumberTask, 1);
-   // vTaskSuspend(getSectorNumberTask);
-   // vTaskPrioritySet(getSectorNumberTask, uxTaskPriorityGet(setupTask)+1 );
+   // ESP_LOGI(cyan "\nFirstPotRead", "ost, nst: (%d, %d), raw: %d, rotorAng: %d, bl# %d\n", global.oldSectorTarget, global.sectorTarget, rd, global.rotorVal, newBNumber);
 }
 /*========================================================================================*/
 /*========================================================================================*/
 void getSectorNumber(void *returnValue){
    while(1){
       vTaskSuspend(NULL);
-      // esp_rom_printf(yellow", gsn");
-      /*TIMETHETIMER ttt*/int t1= esp_timer_get_time(); 
+      #if defined(debug_fastPrints) || defined(debug_spamPrintTimeISR1) 
+      if(!(isr2CurrentCounter++%16)){ //just in case, should never happen
+         /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
+         isr2CurrentCounterCounted =true;
+      }
+      #endif
 
       #ifdef debug_testOnLED
        esp_rom_delay_us(210);
@@ -216,26 +206,29 @@ void getSectorNumber(void *returnValue){
          as5600WriteSize,
          as5600RawDataBuf, 
          as5600ReadSize, //ensure 2 bytes is read
-         pdMS_TO_TICKS(100)
+         /*alpha*/100
       ));
+
       #ifdef as5600DirPinHigh
          global.rotorVal = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) + as5600CalibratedOffset;
       #else
          global.rotorVal = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])+ as5600CalibratedOffset;
       #endif 
-      int newBNumber = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
+      global.sectorTarget = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
+      // int newBNumber = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
       // if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
       //    ESP_LOGE("POTENTIOMETER READ",": Sector 1+ jump . Previous Sector: %2d. Incoming Sector: %2d, raw%d, blN: %d", global.sectorTarget, newBNumber, rd, newBNumber);
-      //    // ESP_LOGI(cyan "\n INVALID POT ReAD", "ost, nst: (%d, %d), raw: %d, rotorAng: %d, bl# %d\n", global.oldSectorTarget, global.sectorTarget, rd, global.rotorVal, newBNumber);
-      //    vTaskDelay(pdMS_TO_TICKS(1));
       //    abort();
       // }
       // global.oldSectorTarget = global.sectorTarget;
-      global.sectorTarget = newBNumber;
+      // global.sectorTarget = newBNumber;
       #endif
       preloadGates();
-      #ifdef debug_fastPrints
-      t1= esp_timer_get_time() - t1;esp_rom_printf("t1:%d|\r", t1);
+      #if defined(debug_fastPrints) || defined(debug_spamPrintTimeISR1) 
+      if(isr2CurrentCounterCounted){
+         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d\n", isr2CurrentTime);
+         isr2CurrentCounterCounted =false;
+      }
       #endif
    }
 }

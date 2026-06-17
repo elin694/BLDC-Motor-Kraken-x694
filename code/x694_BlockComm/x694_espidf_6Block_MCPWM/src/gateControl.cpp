@@ -317,6 +317,7 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
 
     if(global.newPotValue){ //block period of everyhthing has to change but just run at max cycle speed
             //however we need to be able ot adjust the velocity
+            esp_rom_printf(blue "nPV%d\n", global.blockPeriod);
         for(int i=0; i<3; i++){
             ESP_ERROR_CHECK(mcpwm_soft_sync_activate(tripleHighTrigger[i])); //push new duty cycles
         }
@@ -328,92 +329,5 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
     #ifdef debug_fastPrints
         esp_rom_printf(white "|v_b#hl(%d, %s)" red "|L \n", global.sectorTarget, ghgl[global.sectorTarget]);
     #endif
-    // esp_rom_printf( red "|L \n");
-    // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(tripleHighTrigger[i])); //push new duty cycles
-    
-    // for(int i =0; i<3; i++){
-    //     // synchrISR(tripleHighTrigger[i], "a"); //v3.14 - updates cmp value only
-    // }
-    // //code below is not outdateed
-    // /* ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[activeHighGate[global.oldSectorTarget]].comparator0, idleHighGateCmpVal)); //can be done in a normal fucntion*/
-    // if(global.oldSectorTarget != global.sectorTarget){//order with its own sync doesn't matter
-    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(motorH[activeHighGate[global.oldSectorTarget]].pwmGate0, 0 , true)); //turn off old one by setting to 0!
-    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(motorH[activeHighGate[global.sectorTarget]].pwmGate0, -1, true)); //turn off old one by setting to 0!
-    // }
-    
-    // if(global.sectorTarget == global.oldSectorTarget){ //stall case
-    //     // int t1= esp_timer_get_time(); //2us execution time for this case
-    //     synchrISR(LTimerTrigger, "Ltimer On!"); //can'ts wap for some reason
-    //     int a1= global.sectorTarget/2;
-    //     int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
-        
-    //     // esp_rom_printf("p%d lvl%d \n", a1, a2);
-    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(
-    //         // motorL[global.sectorTarget/2].pwmGate0,
-    //         // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
-    //         motorL[a1].pwmGate0,a2,
-    //         false
-    //     ));
-        
-    //     int nST = mod6(global.sectorTarget+dir);
-    //     a1= nST/2;
-    //     a2 = gateLevelCycle[nST][2*nST/2];
-    //     // esp_rom_printf("p%d lvl%d \n", a1, a2);
-    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(
-    //         // motorL[nST/2].pwmGate0,
-    //         // gateLevelCycle[nST][2*nST/2],
-    //         motorL[a1].pwmGate0, a2,
-    //         false
-    //     ));
-    //     p_stalled = true; //previously stalled?
-    //     // /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();, t1= esp_timer_get_time() - t1;esp_rom_printf("t1: %d\n", t1);    
-            
-    // } else if(p_stalled){ //stalled to unstalled case
-    //     //progress stage of previously on led
-    //     int a1= global.sectorTarget/2;
-    //     int a2 = gateLevelCycle[global.sectorTarget][2*global.sectorTarget/2];
-    //     // esp_rom_printf("P%d LVL%d \n", a1, a2);
-    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(
-    //         // motorL[global.sectorTarget/2].pwmGate0,
-    //         // gateLevelCycle[global.sectorTarget][2* global.sectorTarget/2],
-    //         motorL[a1].pwmGate0,a2,
-    //         false
-    //     ));
-        
-    //     //progress stage of next  led
-    //     int nST = mod6(global.sectorTarget+dir);
-    //     a1= nST/2;
-    //     a2 = gateLevelCycle[nST][2*nST/2];
-    //     // esp_rom_printf("P%d LVL%d \n", a1, a2);
-    //     ESP_ERROR_CHECK(mcpwm_generator_set_for ce_level(
-    //         // motorL[nST/2].pwmGate0,
-    //         // gateLevelCycle[nST][2*nST/2],
-    //         motorL[a1].pwmGate0, a2,
-    //         false
-    //     ));
-    //     p_stalled=false;
-    // } else if(global.newPotValue){
-    //     esp_rom_printf(yellow "NEW POT ISR2 ");
-    //     synchrISR(LTimerTrigger, "Ltimer On!");
-    //     global.newPotValue = false;
-    //     // ESP_ERROR_CHECK(mcpwm_generator_set_ for ce_level(
-    //     //     motorL[global.oldSectorTarget/2].pwmGate0,global.oldSectorTarget,
-    //     //     false
-    //     // ));
-    // }
-    // #define del (ticksToµs)
-    // synchrISR(BTimerTrigger, "Btimer");
-    // esp_rom_delay_us(del); //delay between 2 syncs, needs to be long enough for the first sync to trigger the timer event and execute the generator action that turns on the gate, but short enough to not cause a noticeable delay in the waveform.
-
-    // // getTimerCountNow("\n");
-    // // esp_rom_printf(white "GPIOLVL abc: %d, %d, %d\n \n",intermediateGpioLvl[0], intermediateGpioLvl[1], intermediateGpioLvl[2]);
-
-    // /* 
-    //     tea, tep, tea,teb,tez,teb
-    //     apa,bzb
-    //     log_2 : 15, 7, 15,  18, 4, 18 [0-5]
-    //     32768, 128, 32768, 262144, 16, 262144
-    //     3,1,3,2,1,2
-    // */
     mcpwm->int_clr.val = clearRegister->val;
 }
