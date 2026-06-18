@@ -17,7 +17,7 @@
 #include <cinttypes>
 // #define digitalReadPin GPIO_NUM_25
 // #define debug_testOnLED
-#define debug_testBigBreadboard
+// #define debug_testBigBreadboard
 // #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
 // #define debug_readPotRepeat
@@ -41,9 +41,9 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 
 //============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(900)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(300)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-#define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
+#define timerResolution  static_cast<uint32_t>(4e6) //125ns , must not simple ratio
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
     #define startingDuty static_cast<float>(1- .7) //The Duty cycle is 1 - this.Value
@@ -71,6 +71,13 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
         // #define phaseBLowPort GPIO_NUM_16
         // #define phaseCHighPort GPIO_NUM_26
         // #define phaseCLowPort GPIO_NUM_32
+                #define phaseAHighPort GPIO_NUM_2
+        #define phaseALowPort GPIO_NUM_4
+        #define phaseBHighPort GPIO_NUM_16
+        #define phaseBLowPort GPIO_NUM_17
+        #define phaseCHighPort GPIO_NUM_18
+        #define phaseCLowPort GPIO_NUM_19
+
 
     //CHANGE ASSOCIATED PORT SET AND CLEAR
     // // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
