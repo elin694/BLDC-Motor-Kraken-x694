@@ -1,19 +1,22 @@
 #include "headers.h"
-#define generatorGPIO phaseCHighPort
+#include "soc/mcpwm_struct.h"
+#define generatorGPIO phaseBHighPort
 //b HIGH SIDE tx2
-#define phaseLowGate phaseALowPort
+#define phaseLowGate phaseALowPort //outwards
+// #define phaseLowGate GPIO_NUM_19
 // #define generatorGPIO GPIO_NUM_2 //b HIGH SIDE tx2
-#define captureGPIO GPIO_NUM_19 //miso
+// #define captureGPIO GPIO_NUM_19 //miso
 
 
 //in
-#define timerPeriod 65535 //2e16
 // #define timerPeriod (65535+1)/16 //2e16
 // #define countingFrequency (1048576*64)
-#define countingFrequency (104876)
-#define dutyCycle 50
+#define countingFrequency (2432) //2432
+// #define timerPeriod countingFrequency/20000 //2e16
+#define timerPeriod 65500 //2e16
+#define dutyCycle (1-(.9))
 
-uint32_t compareValue = dutyCycle*.005*timerPeriod;
+uint32_t compareValue = dutyCycle*.5*timerPeriod;
 int id =  1;
 
 void groundSetup(){
@@ -114,8 +117,12 @@ mcpwm_gen_handle_t genHandle;
 void setupMCPWM(){
     ets_delay_us(10000);
     groundSetup();
+    ESP_LOGE("DEBUG2easd", "period ticks %d", timerSetup.period_ticks);
+    ESP_LOGE("DEBUG2easd", "resol: %d", timerSetup.resolution_hz);
+    ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
     ESP_ERROR_CHECK(mcpwm_new_timer(&timerSetup, &timerHandle));
     ESP_ERROR_CHECK(mcpwm_new_operator(&operatorSetup, &operatorHandle));
+    ESP_LOGE("DEBUG2easd", "cmpvalue ");
     ESP_ERROR_CHECK(mcpwm_new_comparator(operatorHandle, &comparatorSetup, &comparatorHandle));
     ESP_ERROR_CHECK(mcpwm_new_generator(operatorHandle, &genSetup, &genHandle));
     // ESP_ERROR_CHECK(mcpwm_new_capture_timer(&triggerSetup, &triggerHandle));
@@ -129,7 +136,9 @@ extern "C" {
         /*RUNTIME FUNCTIONS*/
         // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(genHandle, 0, true)); // Force low until ready
         ESP_ERROR_CHECK(mcpwm_operator_connect_timer(operatorHandle, timerHandle)); //--
+        ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparatorHandle,compareValue)); 
+
         
         ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(genHandle,
             MCPWM_GEN_COMPARE_EVENT_ACTION(
@@ -152,8 +161,11 @@ extern "C" {
 
         ESP_ERROR_CHECK(mcpwm_timer_enable(timerHandle));
         ESP_ERROR_CHECK(mcpwm_timer_start_stop(timerHandle, MCPWM_TIMER_START_NO_STOP));
+        int bt1= 0;
         for(;;){
-            vTaskDelay(pdMS_TO_TICKS(100000));
+            bt1 = MCPWM1.timer[0].timer_status.timer_value;
+            // esp_rom_printf("%d\n", bt1);
+            vTaskDelay(pdMS_TO_TICKS(5));
         }       
     } 
 } 
