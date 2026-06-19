@@ -152,10 +152,12 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 
 #ifdef as5600DirPinHigh
 #define as5600CalibratedOffset static_cast<uint16_t>(-(2107-(4095.0/3)) + 30.0 *(4095/3)/360);
+#define getRotorValAdjusted(x) (as5600CalibratedOffset*x)
  //2107 bit at c high a low (block 3#3 )with DIR  @5V
  inline int dir = 5; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
  #else
- #define as5600CalibratedOffset static_cast<uint16_t>(-((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360); 
+ #define as5600CalibratedOffset static_cast<uint16_t>(-((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360)
+ #define getRotorValAdjusted(x) (4096-as5600CalibratedOffset*x)
  inline int dir = 1; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
 #endif
 //====================FUNCTION DECLARATION =======================

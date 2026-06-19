@@ -165,14 +165,7 @@ void as5600initialize() {
    );
    t1= esp_timer_get_time() - t1;esp_rom_printf("n ===========t1: %d\n", t1);
 
-   int rd= (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
-   #ifdef as5600DirPinHigh
-   global.rotorVal = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-      + as5600CalibratedOffset;
-   #else
-   global.rotorVal = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-      + as5600CalibratedOffset;
-   #endif
+   global.rotorVal = getRotorValAdjusted((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]);
    
    int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+2*dir)%6; //0- bitsPerSector --> smaller sector
    global.oldSectorTarget = newBNumber; 
@@ -209,11 +202,8 @@ void getSectorNumber(void *returnValue){
          /*alpha*/100
       ));
 
-      #ifdef as5600DirPinHigh
-         global.rotorVal = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) + as5600CalibratedOffset;
-      #else
-         global.rotorVal = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])+ as5600CalibratedOffset;
-      #endif 
+      global.rotorVal = getRotorValAdjusted((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]);
+      
       global.sectorTarget = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
       // int newBNumber = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
       // if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
