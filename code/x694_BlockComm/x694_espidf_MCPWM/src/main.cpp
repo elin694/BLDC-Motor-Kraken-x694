@@ -1,19 +1,19 @@
 #include "headers.h"
 #include "soc/mcpwm_struct.h"
-#define generatorGPIO phaseBHighPort
+#define generatorGPIO phaseCHighPort //tx2
 //b HIGH SIDE tx2
-#define phaseLowGate phaseALowPort //outwards
+#define phaseLowGate phaseBLowPort //outwards
 // #define phaseLowGate GPIO_NUM_19
 // #define generatorGPIO GPIO_NUM_2 //b HIGH SIDE tx2
 // #define captureGPIO GPIO_NUM_19 //miso
 
 
+// #define timerPeriod countingFrequency/20000 //2e16
+#define timerPeriod 4000 //2e16
 //in
 // #define timerPeriod (65535+1)/16 //2e16
 // #define countingFrequency (1048576*64)
-#define countingFrequency (2432) //2432
-// #define timerPeriod countingFrequency/20000 //2e16
-#define timerPeriod 65500 //2e16
+#define countingFrequency (4000000) //2432
 #define dutyCycle (1-(.9))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;

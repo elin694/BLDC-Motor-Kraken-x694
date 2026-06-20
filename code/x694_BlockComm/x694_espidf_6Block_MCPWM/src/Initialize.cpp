@@ -24,9 +24,7 @@ void initialize(void * parameter){
       global.sectorTarget = preCompStartingTargetSector;
       global.oldSectorTarget = global.sectorTarget;
    #else
-   esp_rom_printf(magenta    "initial as5600 rzaw:");;
    as5600initialize(); 
-   esp_rom_printf(magenta    "initial as5600 r2aw:");;
    #endif
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  
       // uxTaskPriorityGet(setupTask)+1  /*priority*/, 
