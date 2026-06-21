@@ -56,11 +56,6 @@ int mod6 (int value){ //for single add
 }
 
 void pinSetup(){
-   #ifdef digitalReadPin
-   gpio_reset_pin(digitalReadPin);
-   gpio_set_direction(digitalReadPin, GPIO_MODE_INPUT);
-   gpio_set_pull_mode(digitalReadPin, GPIO_FLOATING);
-   #endif
    gpio_reset_pin(clockPin);
    gpio_reset_pin(dataPin);
    for(int i = 0; i<6; i++){
@@ -107,8 +102,6 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "|TEB");
          // esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
          #endif
-         
-         // esp_rom_printf(white "i2 BL 14, lvl: %d\n",gpio_get_level(digitalReadPin));
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
          
          // 32768, 128, 32768, 262144, 16, 262144
@@ -189,7 +182,7 @@ void getSectorNumber(void *returnValue){
       } else{
          global.oldSectorTarget = global.sectorTarget;
          global.sectorTarget = mod6(global.sectorTarget+1);
-         esp_rom_printf(white "on(%d, %d)", global.oldSectorTarget, global.sectorTarget);
+         esp_rom_printf(white "GSNon(%d, %d)", global.oldSectorTarget, global.sectorTarget);
       }
       #else
       ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
@@ -199,17 +192,9 @@ void getSectorNumber(void *returnValue){
          as5600ReadSize, //ensure 2 bytes is read
          /*alpha*/100
       ));
-
-      global.rotorVal = getRotorValAdjusted((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]);
-      
+      int debug_as5600V = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
+      global.rotorVal = getRotorValAdjusted(debug_as5600V);
       global.sectorTarget = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
-      // int newBNumber = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
-      // if((global.sectorTarget >= 0) && (std::abs(newBNumber - global.sectorTarget)>1) && (std::abs(newBNumber - global.sectorTarget)) != 5){
-      //    ESP_LOGE("POTENTIOMETER READ",": Sector 1+ jump . Previous Sector: %2d. Incoming Sector: %2d, raw%d, blN: %d", global.sectorTarget, newBNumber, rd, newBNumber);
-      //    abort();
-      // }
-      // global.oldSectorTarget = global.sectorTarget;
-      // global.sectorTarget = newBNumber;
       #endif
       preloadGates();
       #if defined(debug_fastPrints) || defined(debug_spamPrintTimeISR1) 

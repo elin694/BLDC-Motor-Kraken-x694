@@ -15,9 +15,8 @@
 #include "esp_adc/adc_oneshot.h"
 #include <string>
 #include <cinttypes>
-// #define digitalReadPin GPIO_NUM_25
-// #define debug_testOnLED
-// #define debug_testBigBreadboard
+// #define debug_testOnLED 
+#define debug_testBigBreadboardTestPins
 // #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
 // #define debug_readPotRepeat
@@ -50,14 +49,15 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
-    #ifdef debug_testBigBreadboard
+    #ifdef debug_testBigBreadboardTestPins
         #define phaseAHighPort GPIO_NUM_2
         #define phaseALowPort GPIO_NUM_4
         #define phaseBHighPort GPIO_NUM_16
         #define phaseBLowPort GPIO_NUM_17
         #define phaseCHighPort GPIO_NUM_18
         #define phaseCLowPort GPIO_NUM_19
-    #elif defined(debug_testOnLED)
+    #else
+    #if defined(debug_testOnLED)
         #define phaseAHighPort GPIO_NUM_14
         #define phaseALowPort GPIO_NUM_13
         #define phaseBHighPort GPIO_NUM_26
@@ -83,6 +83,7 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
     // // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
     // // volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
     // constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
+    #endif
     #endif
 
 //+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
@@ -150,16 +151,31 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 // #define adcChannel 34
 #define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
 
+//assume that calibrated value CHAL at dir Pin low give 2107
+//top view of physical motor has ABC going ccw
+#define as5600CalibrationRawValue (4096)
+#define as5600CalibratedOffset static_cast<int>((4096.0)*(38.0/36.0) - (4096-as5600CalibrationRawValue) /*remove mutliples of 1 electrical cycle*/)  
 #ifdef as5600DirPinHigh
-#define as5600CalibratedOffset static_cast<uint16_t>(-(2107-(4095.0/3)) + 30.0 *(4095/3)/360);
-#define getRotorValAdjusted(x) (as5600CalibratedOffset*x)
+#define getRotorValAdjusted(x) (as5600CalibratedOffset+x)
  //2107 bit at c high a low (block 3#3 )with DIR  @5V
  inline int dir = 5; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
  #else
- #define as5600CalibratedOffset static_cast<uint16_t>(-((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360)
- #define getRotorValAdjusted(x) (4096-as5600CalibratedOffset*x)
- inline int dir = 1; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
+ #define getRotorValAdjusted(x) ((4096-x)+as5600CalibratedOffset)
+ inline int dir = 1; 
 #endif
+
+/*
+#else
+   global.rotorVal = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
+      + as5600CalibratedOffset;
+   #endif
+   
+   int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+2*dir)%6; //0- bitsPerSector --> smaller sector
+
+
+
+
+*/
 //====================FUNCTION DECLARATION =======================
 inline uint32_t BT_time = 0;
 inline uint32_t LT_time = 0;
@@ -171,7 +187,7 @@ DRAM_ATTR constexpr const char * ghgl[6] = {"BAu2","CAd3","CBd2","ABd1","ACu0","
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
 
 
-#define fMin static_cast<float>(1) //119/in hertz
+#define fMin static_cast<float>(4) //119/in hertz
 #define fMax static_cast<float>(20)
 #define black "\033[30m"
 #define red "\033[31m"

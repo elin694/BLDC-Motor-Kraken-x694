@@ -12,10 +12,6 @@ portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
 void spamSearchCV(void *parameter){
   for(;;){
-    #ifdef digitalReadPin
-      esp_rom_printf(yellow "%d",gpio_get_level(digitalReadPin));
-    #endif
-
     #ifdef debug_spamPrintBlockStatus
       esp_rom_printf(blue "\nb#(%d, %d, %d)|", global.oldSectorTarget, global.sectorTarget, global.rotorVal);
     #endif
