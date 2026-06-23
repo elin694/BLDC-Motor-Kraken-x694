@@ -255,7 +255,7 @@ void initializeTimer(int startingTargetSector, uint32_t bPeriod_pass_by_function
 void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTargetSector, uint32_t bPeriod_pass_by_function){
     //motor is currently not runing, good time to set phase, 5 timers need ot be syncs
 
-    for (int i= 0; i<3; i++){ 
+    for (int i= 0; i<3; i++){  
         //     // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, -1, false)); 
         // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, -1, true)); 
     }
