@@ -15,22 +15,25 @@
 #include "esp_adc/adc_oneshot.h"
 #include <string>
 #include <cinttypes>
+/*=============================DEBUG CONTROL PANEL=============================*/
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
 // #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
-// #define debug_readPotRepeat
-#define debug_constBlockPeriod 7980
-// #define debug_useLookUpTableOnBPeriod //commenout out to keep the Bperiod
 
-#define preCompStartingTargetSector 2
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
 // #define debug_spamPrintBlockStatus
 // #define debug_spamDelay 20
 // #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
-#define potReadPeriod (int)(2*debug_RPSprint_period+400) //enable rps mtr stalling
+#define debug_constBlockPeriod 8000
+// #define debug_useLookUpTableOnBPeriod //commenout out to keep the Bperiod
+#define debug_useLookUpTableADC //commenout out to keep the Bperiod
+
+/*=============================USER SETTING CONTROL PANEL=============================*/
+#define debug_readPotRepeat
+#define velPotReadPeriod (int)(2*debug_RPSprint_period+400) //set velocity via pot 1
 
 inline bool motorStall =false;
 inline bool p_stalled= false;
@@ -89,7 +92,7 @@ typedef struct{
     // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
     // volatile uint32_t blockPeriod= static_cast<uint32_t>(((131072)/2)/6); 
     volatile uint32_t blockPeriod= static_cast<uint32_t>(debug_constBlockPeriod); 
-    volatile bool newPotValue = false;
+    volatile bool newVelPotValue = false;
     volatile uint32_t rotorVal =0;
 } gVar_t;
 extern adc_oneshot_unit_handle_t adcHandle;
@@ -181,8 +184,8 @@ DRAM_ATTR constexpr const char * ghgl[6] = {"BAu2","CAd3","CBd2","ABd1","ACu0","
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
 
 
-#define fMin static_cast<float>(4) //119/in hertz
-#define fMax static_cast<float>(20)
+#define fMin static_cast<float>(.5) //119/in hertz
+#define fMax static_cast<float>(25)
 #define black "\033[30m"
 #define red "\033[31m"
 #define green "\033[32m"

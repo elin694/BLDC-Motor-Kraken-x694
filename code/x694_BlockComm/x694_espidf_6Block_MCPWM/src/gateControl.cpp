@@ -238,8 +238,8 @@ void IRAM_ATTR getTimerCountNow(const char* str){
 
 //for isr1
 void preloadGates(){
-    // if (global.sectorTarget == global.oldSectorTarget || global.newPotValue) { //Motor stalling case
-        if(global.newPotValue){
+    // if (global.sectorTarget == global.oldSectorTarget || global.newVelPotValue) { //Motor stalling case
+        if(global.newVelPotValue){
             // esp_rom_printf(blue "BP==========%d\n", global.blockPeriod);
             // esp_rom_printf(yellow "NEW POT ISR1 ");
             //change period of all timers and the compare values
@@ -257,7 +257,7 @@ void preloadGates(){
             */
                  
             //prepare  so esp32 runs on the start of the previous block at sync
-            // global.newPotValue=false;//keep, disable in execute gates
+            // global.newVelPotValue=false;//keep, disable in execute gates
             /*
             taskENTER_CRITICAL_ISR(&stepPeriodMux);
             int bp =global.blockPeriod;
@@ -280,7 +280,7 @@ void preloadGates(){
 
 
 void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm){
-    //normal operating conidtions
+    //normal operating conidtions, suppresss the right pins
     for(int i =0; i<5; i+=2){
         if(gateLevelCycle[global.sectorTarget][i]==1){
             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
@@ -290,7 +290,7 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
     }
 
-    if(global.newPotValue){ //block period of everyhthing has to change but just run at max cycle speed
+    if(global.newVelPotValue){ //block period of everyhthing has to change but just run at max cycle speed
             //however we need to be able ot adjust the velocity
             esp_rom_printf(blue "nPV%d\n", global.blockPeriod);
         for(int i=0; i<3; i++){
@@ -298,7 +298,7 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
         }
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); //push new duty cycles
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger)); //push new duty cycles
-        global.newPotValue=false;
+        global.newVelPotValue=false;
         esp_rom_delay_us(ticksToµs+1);
     }
     if(global.sectorTarget == global.oldSectorTarget){

@@ -47,35 +47,44 @@ void debugLog(void * parameter){
   void readPotRepeat(void * parameter){
     for(;;){
       readPotOnce(parameter);
-      vTaskDelay(pdMS_TO_TICKS(potReadPeriod)); 
+      vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
     }
 }
-
-const int lookUpTable[] = {
-  10000,
-  300,400,500,600,700,800,900, //dont include stuff that is smaller than the wait time
+/*
+https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=
+*/
+const int debug_bPeriodLookUpTable[] = {
+  10000, 300,400,500,600,700,800,900, //dont include stuff that is smaller than the wait time
   1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
   9000, 8000, 7000,6000,5000,4000,3000,2000, 1000,
-  4952,10340, 5000, 8422, 9123,5832, 2127,9321,8351,
-  7636,4241,4236,9463,8151,8230,3631,8589,6752,9638,1441,6509,4443,8043,2422,
-  3579,6587,6323,9214,9634,1553,7038,7477,10169,2918,5137,8707,9776,4325,4704,
-  6780,9152,5096,6334,10240,1409,8543,6087,3513,6028
 };
 int lookUpTableIndex = 0;
+
+const int debug_adcReadLookUpTable[50] = {
+2,77,102,134,177,237,297,445,451,466,646,654,737,751,879,896,912,1022,1025,
+1178,1220,1271,1315,1400,1403,1489,1881,1905,1914,1979,1985,2145,2201,2241,
+2444,2592,2609,2636,2660,2741,2749,2959,3004,3133,3444,3514,3547,3662,
+3703,4092};
 
 void readPotOnce(void * parameter){
    rawData = 0; //higher voltage = higher rps
     ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
+    #ifdef debug_useLookUpTableADC
+    rawData = debug_adcReadLookUpTable[lookUpTableIndex];
+    if(lookUpTableIndex++ >=50){
+      lookUpTableIndex =0;
+    };
+    #endif
     RPS = (fMin+(fMax-fMin)*sqrtf((float)rawData/4096.0f));
     esp_rom_printf(yellow "p@t: %d", rawData);
     //3 is for the pole pair count per rotation
     //turning towards negative--> longer delay for value --> slower spin
 
-    //This bottom part needs to be instantaneous assignment
+    //This bottom part needs to be instantaneous assignment 
     uint32_t bPeriod_temp= (uint32_t)((float)timerResolution/(float)(RPS *electricalCycles*6));
 
     #ifdef debug_constBlockPeriod
-      #ifdef debug_useLookUpTableOnBPeriod
+      #if (defined(debug_useLookUpTableOnBPeriod) && ! defined(debug_useLookUpTableADC))
       bPeriod_temp = lookUpTable[lookUpTableIndex];
       lookUpTableIndex++;
       #else
@@ -89,7 +98,7 @@ void readPotOnce(void * parameter){
     if(global.blockPeriod != bPeriod_temp){
     taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
     global.blockPeriod = bPeriod_temp;
-      global.newPotValue =true;
+      global.newVelPotValue =true;
       /*ISR checks this constatnly. If true, it runs code to update the CMRA trheshold. might be useless */
 
       // ESP_ERROR_CHECK(mcpwm_timer_set_period(blockTimer, bPeriod_temp));
