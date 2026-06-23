@@ -31,16 +31,20 @@ size_t as5600ReadSize = 2;
 //4 : 3π/6
 //5 : 5π/6
 
-// #define as5600DirPinHigh
+//assume that calibrated value CHAL at dir Pin low give 2107
+//top view of physical motor has ABC going ccw
+#define as5600CalibZeroOffset (3388)
+// #define as5600CalibratedOffset static_cast<int>((4096.0)*(38.0/36.0) - (4096-as5600CalibZeroOffset) /*remove mutliples of 1 electrical cycle*/)  
 #ifdef as5600DirPinHigh
 const uint16_t as5600CalibratedOffset = static_cast<uint16_t>(
-  -(2107-(4095.0/3)) + 30.0 *(4095/3)/360
+  -(as5600CalibZeroOffset-(4095.0/3)) + 30.0 *(4095/3)/360
 ); //2107 bit at c high a low (block #3 )with DIR  @5V
 #else
 const uint16_t as5600CalibratedOffset = static_cast<uint16_t>(
-  -((4096-2107)-(4095.0/3)) + 30.0 *(4095/3)/360
+  -((4096-as5600CalibZeroOffset)-(4095.0/3)) + 30.0 *(4095/3)/360
 ); 
 #endif
+// #define getSensorValue
 //format {A,B,C}, {-0-1,1} = {float,sink,source} = {float, low, high}
 // int steps[6][3] = {  {1,-1,0},  {-1,1,0},  {0,1,-1},  {0,-1,1},  {-1,0,1},  {1,0,-1}  };  og 0=sink
 int steps[6][3] = {  {1,0,-1},  {0,1,-1},  {-1,1,0},  {-1,0,1},  {0,-1,1},  {1,-1,0}  }; 
@@ -76,14 +80,16 @@ void loop(void * parameter) {
 DRAM_ATTR int isr2CurrentCounter= 0;
 DRAM_ATTR int isr2CurrentTime= 0;
 DRAM_ATTR bool isr2CurrentCounterCounted= 0;
+#define data_length 2
 uint8_t getSectorNumber() {
   //as5600 is default increasing on clockwise.
   //set DIR high to invert 
-  #define data_length 2
+#ifdef getSensorValue
   if(!(isr2CurrentCounter++%16)){ //just in case, should never happen
-    /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
+    // /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
     isr2CurrentCounterCounted =true;
   }
+#endif
   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle,
     &as5600TargetRegister, 
     as5600WriteSize,
@@ -99,13 +105,13 @@ uint8_t getSectorNumber() {
 
 
     #ifdef as5600DirPinHigh
-    uint16_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) 
-    + as5600CalibratedOffset;
+    uint16_t rotorAngle = ((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) + as5600CalibratedOffset;
     #else
-    uint16_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-    + as5600CalibratedOffset;
+    uint16_t rotorAngle = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]) + as5600CalibratedOffset;
     #endif
+    #ifdef getSensorValue
     esp_rom_printf("I2C data: %d\n", rotorAngle);
+    #endif
     
     #define bitsPerSector (4096.0 / (electricalCycles*6))
   return (static_cast<uint8_t>(rotorAngle/bitsPerSector) % 6); //0- bitsPerSector --> smaller sector

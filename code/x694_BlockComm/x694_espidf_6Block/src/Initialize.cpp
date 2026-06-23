@@ -30,6 +30,8 @@ void initialize(){
    initializeGPIO( );
    lastTime =  esp_timer_get_time();
    blockNumber = 0;
+
+   ESP_LOGW("init.cpp:init", "Higher ADC Read (more CW from the top) == Higher Frequency & RPS. \n CCW(+Z) is slower rotation ");
    //starting delay for user to react + setup
    ESP_LOGI("I2C",
          "SDA=%d SCL=%d \n \n \n ",
