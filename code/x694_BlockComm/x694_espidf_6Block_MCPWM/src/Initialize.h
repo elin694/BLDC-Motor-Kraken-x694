@@ -8,7 +8,6 @@ void initialize(void *parameter);
 void initializeGPIO();
 
 void as5600initialize();
-void initAnalogReadOnce();
 
 void runOnMCPWMIntr(void *returnValue);
 void getSectorNumber(void *returnValue);

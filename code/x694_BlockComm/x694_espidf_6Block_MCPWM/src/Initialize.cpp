@@ -7,7 +7,9 @@ BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
 void initialize(void * parameter){   
    pinSetup();
-   initAnalogReadOnce();
+   ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
+   ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
+   //run pwm at f ~40-50kHz for adjustable torque control
    #ifndef debug_testOnLED
       readPotOnce(NULL);
    #endif
@@ -38,8 +40,7 @@ void initialize(void * parameter){
    #ifdef debug_readPotRepeat
    xTaskCreate(readPotRepeat, "readPotRepeat", 10000, NULL, (int)(thisTaskPriority*.5)-2, NULL);
    #endif 
-   
-   #if (defined(debug_spamPrintBlockStatus) || defined(debug_spamPrintCounterStatus) || debug_spamDelay)
+   #if ((defined(debug_spamPrintBlockStatus) || defined(debug_spamPrintCounterStatus)) && debug_spamDelay)
       xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
    #endif
    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, (int)(thisTaskPriority*.5)-3, NULL, 0);
@@ -65,12 +66,6 @@ void pinSetup(){
       gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
    }
 }
-
-void initAnalogReadOnce(){
-  ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
-  ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
-}
-//run pwm at f ~40-50kHz for adjustable torque control
 
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   

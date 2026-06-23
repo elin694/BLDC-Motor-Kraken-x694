@@ -11,16 +11,18 @@ int rawData = 0;
 portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
 void spamSearchCV(void *parameter){
+  #ifdef debug_spamDelay
   for(;;){
     #ifdef debug_spamPrintBlockStatus
       esp_rom_printf(blue "\nb#(%d, %d, %d)|", global.oldSectorTarget, global.sectorTarget, global.rotorVal);
     #endif
-
     #ifdef debug_spamPrintCounterStatus
       getTimerCountNow("");
     #endif
+    
       vTaskDelay(pdMS_TO_TICKS(debug_spamDelay));
   }
+  #endif
 }
   
 void debugLog(void * parameter){
@@ -29,7 +31,7 @@ void debugLog(void * parameter){
     #ifdef debug_printRPS
     // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
     // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
-    // ESP_LOGI("REPORT STATUS",":pot%: %6.4f, RPS: %5.2f, bperiod %d \n",(float)rawData/4096.0f, RPS, global.blockPeriod);
+    ESP_LOGI("STATUS","^pot%: %6.4f, RPS: %5.2f, bperiod %d \n",(float)rawData/4096.0f, RPS, global.blockPeriod);
     // ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
     #else
       #ifdef debug_testOnLED
@@ -39,7 +41,7 @@ void debugLog(void * parameter){
       }
       #endif
     #endif
-    vTaskDelay(pdMS_TO_TICKS(debug_RPS_Periodicity)); 
+    vTaskDelay(pdMS_TO_TICKS(debug_RPSprint_period)); 
   }
 }
   void readPotRepeat(void * parameter){
@@ -65,6 +67,7 @@ void readPotOnce(void * parameter){
    rawData = 0; //higher voltage = higher rps
     ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
     RPS = (fMin+(fMax-fMin)*sqrtf((float)rawData/4096.0f));
+    esp_rom_printf(yellow "p@t: %d", rawData);
     //3 is for the pole pair count per rotation
     //turning towards negative--> longer delay for value --> slower spin
 

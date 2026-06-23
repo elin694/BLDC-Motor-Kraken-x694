@@ -17,7 +17,7 @@
 #include <cinttypes>
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
-#define debug_fastPrints //isr indicator and BLOCK#
+// #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
 // #define debug_readPotRepeat
 #define debug_constBlockPeriod 10000
@@ -27,10 +27,10 @@
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
 // #define debug_spamPrintBlockStatus
-#define debug_spamDelay 20
+// #define debug_spamDelay 20
 // #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve
-#define debug_RPS_Periodicity (int)(1000) //affect mtr sim rate
-#define potReadPeriod (int)(2*debug_RPS_Periodicity+400) //enable rps mtr stalling
+#define debug_RPSprint_period (int)(1000) //affect mtr sim rate
+#define potReadPeriod (int)(2*debug_RPSprint_period+400) //enable rps mtr stalling
 
 inline bool motorStall =false;
 inline bool p_stalled= false;
