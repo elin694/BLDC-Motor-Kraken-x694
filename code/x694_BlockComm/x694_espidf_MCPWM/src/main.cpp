@@ -1,7 +1,7 @@
 #include "headers.h"
 #include "soc/mcpwm_struct.h"
-#define generatorGPIO phaseBHighPort //tx2 = bh= 17
-#define phaseLowGate phaseCLowPort //outwards
+#define generatorGPIO phaseCHighPort //tx2 = bh= 17
+#define phaseLowGate phaseALowPort //outwards
 
 // #define countingFrequency (1048576*64)
 #define countingFrequency (4000000) //2432

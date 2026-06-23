@@ -193,6 +193,7 @@ void getSectorNumber(void *returnValue){
          /*alpha*/100
       ));
       int debug_as5600V = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
+      esp_rom_printf("val: %d\n", debug_as5600V);
       global.rotorVal = getRotorValAdjusted(debug_as5600V);
       global.sectorTarget = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
       #endif

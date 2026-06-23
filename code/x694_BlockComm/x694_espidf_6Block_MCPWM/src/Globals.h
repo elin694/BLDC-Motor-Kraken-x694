@@ -146,7 +146,7 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 
 //assume that calibrated value CHAL at dir Pin low give 2107
 //top view of physical motor has ABC going ccw
-#define as5600CalibrationRawValue (4096)
+#define as5600CalibrationRawValue (3398)
 #define as5600CalibratedOffset static_cast<int>((4096.0)*(38.0/36.0) - (4096-as5600CalibrationRawValue) /*remove mutliples of 1 electrical cycle*/)  
 #ifdef as5600DirPinHigh
 #define getRotorValAdjusted(x) (as5600CalibratedOffset+x)
