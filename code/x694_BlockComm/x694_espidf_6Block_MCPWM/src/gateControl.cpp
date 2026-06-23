@@ -311,7 +311,11 @@ void preloadGates(){
 void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm){
     //normal operating conidtions
     for(int i =0; i<5; i+=2){
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i], true));
+        if(gateLevelCycle[global.sectorTarget][i]==1){
+            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
+        }else{
+            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
+        }
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
     }
 

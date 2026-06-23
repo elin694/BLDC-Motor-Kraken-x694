@@ -96,10 +96,10 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
       { //L TIMER = id1, SO WE USE TIMER 1
          
          #ifdef debug_fastPrints
-         if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "|TEZ");
-         if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "|TEP");
-         if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "|TEA");
-         if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "|TEB");
+         // if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "|TEZ");
+         // if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "|TEP");
+         // if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "|TEA");
+         // if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "|TEB");
          // esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
          #endif
          // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
@@ -168,7 +168,7 @@ void as5600initialize() {
 void getSectorNumber(void *returnValue){
    while(1){
       vTaskSuspend(NULL);
-      #if defined(debug_fastPrints) || defined(debug_spamPrintTimeISR1) 
+      #if (defined(debug_spamPrintTimeISR1) && defined(debug_fastPrints))
       if(!(isr2CurrentCounter++%16)){ //just in case, should never happen
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
@@ -193,12 +193,16 @@ void getSectorNumber(void *returnValue){
          /*alpha*/100
       ));
       int debug_as5600V = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
+      #if defined(debug_fastPrints) && defined(debug_spamPrintTimeISR1)
       esp_rom_printf("val: %d\n", debug_as5600V);
+      #endif
+
       global.rotorVal = getRotorValAdjusted(debug_as5600V);
       global.sectorTarget = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
       #endif
       preloadGates();
-      #if defined(debug_fastPrints) || defined(debug_spamPrintTimeISR1) 
+
+      #if defined(debug_fastPrints) && defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
          isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d\n", isr2CurrentTime);
          isr2CurrentCounterCounted =false;

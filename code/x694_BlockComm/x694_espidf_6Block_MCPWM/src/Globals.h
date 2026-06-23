@@ -17,7 +17,7 @@
 #include <cinttypes>
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
-// #define debug_fastPrints //isr indicator and BLOCK#
+#define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
 // #define debug_readPotRepeat
 #define debug_constBlockPeriod 10000
@@ -28,7 +28,7 @@
 // #define debug_spamPrintCounterStatus
 // #define debug_spamPrintBlockStatus
 #define debug_spamDelay 20
-#define debug_spamPrintTimeISR1 
+// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve
 #define debug_RPS_Periodicity (int)(1000) //affect mtr sim rate
 #define potReadPeriod (int)(2*debug_RPS_Periodicity+400) //enable rps mtr stalling
 
@@ -45,7 +45,7 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define timerResolution  static_cast<uint32_t>(4e6) //125ns , must not simple ratio
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
-    #define startingDuty static_cast<float>(1- .7) //The Duty cycle is 1 - this.Value
+    #define startingDuty static_cast<float>(1- .9) //The Duty cycle is 1 - this.Value
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
