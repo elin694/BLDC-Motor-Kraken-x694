@@ -32,21 +32,22 @@
 #define debug_useLookUpTableADC //commenout out to keep the Bperiod
 
 /*=============================USER SETTING CONTROL PANEL=============================*/
-#define debug_readPotRepeat
+// #define enableRadPotRepeat
+#define SetAs5600PollPeriod 8000
 #define velPotReadPeriod (int)(2*debug_RPSprint_period+400) //set velocity via pot 1
-
+#define preCompStartingTargetSector 2
 inline bool motorStall =false;
 inline bool p_stalled= false;
 inline DRAM_ATTR int isr2CurrentTime =0;
 inline DRAM_ATTR int isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 
-//============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 #define i2cWaitout 3 //in us
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(180)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define timerResolution  static_cast<uint32_t>(4e6) //125ns , must not simple ratio
+#define VTimerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
     #define startingDuty static_cast<float>(1- .9) //The Duty cycle is 1 - this.Value
@@ -107,6 +108,7 @@ DRAM_ATTR inline gVar_t global;
     constexpr int electricalCycles = 3; //constexpr is defineable compile time costant 
     inline mcpwm_timer_handle_t blockTimer=NULL;
     inline mcpwm_timer_handle_t globalLowTimer =NULL;
+    inline mcpwm_timer_handle_t velocityTrackerTimer =NULL;
     #define highSideGroup 1 //used in isr intr_source
     #define lowSideGroup 0
 

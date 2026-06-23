@@ -4,7 +4,7 @@
 
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
-
+volatile DRAM_ATTR uint32_t as5600PollPeriod = SetAs5600PollPeriod;
 void initialize(void * parameter){   
    pinSetup();
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
@@ -32,12 +32,12 @@ void initialize(void * parameter){
       // uxTaskPriorityGet(setupTask)+1  /*priority*/, 
       22,
       &getSectorNumberTask, 1);
-   mcpwmSetup(global.sectorTarget, &global.blockPeriod); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
+   mcpwmSetup(global.sectorTarget, &as5600PollPeriod); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
 
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
    UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
-   #ifdef debug_readPotRepeat
+   #ifdef enableReadPotRepeat
    xTaskCreate(readPotRepeat, "readPotRepeat", 10000, NULL, (int)(thisTaskPriority*.5)-2, NULL);
    #endif 
    #if ((defined(debug_spamPrintBlockStatus) || defined(debug_spamPrintCounterStatus)) && debug_spamDelay)

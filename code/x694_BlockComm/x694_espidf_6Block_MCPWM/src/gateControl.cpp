@@ -34,14 +34,14 @@ void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPerio
     // adding tolerance so we definitely won't trigger ETS_PWM0_INTR_SOURCE and then the phaseSwotch/gitpush ISR
    phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(activePwmPeriod);
    CMRA0Threshold = static_cast<uint32_t>(startingGateCmpValue);
-
    //SET PERIOD TICKS
-    blockTimerSetup.period_ticks =static_cast<uint32_t>(*bPeriod_pass_by_function1); //1 phase every change int
+    I2CReadTimerSetup.period_ticks =static_cast<uint32_t>(*bPeriod_pass_by_function1); //1 phase every change int
     globalTimerSetupLow.period_ticks =static_cast<uint32_t>(*bPeriod_pass_by_function1);
+    velocityTrackerTimerSetup.period_ticks = global.blockPeriod;
 
     tripleHighOnSync.count_value = 0; //Practically does not need to be changed
+    VTimerOnSync.count_value = 0;
     BTimerOnSync.count_value = estimatedI2CReadTimeInTicks; //is the starting phaseOffset
-
     int excess = 0;
     // if (LTimerDir[startingTargetSector] == MCPWM_TIMER_DIRECTION_DOWN){ excess = -3;} else{ excess = 3;}
     // LTimerOnSync.direction = LTimerDir[startingTargetSector];
@@ -56,12 +56,13 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
         motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
     }
     //TIMER 0 = BTimer
-    ESP_ERROR_CHECK(mcpwm_new_timer(&blockTimerSetup, &blockTimer));
-
+    ESP_ERROR_CHECK(mcpwm_new_timer(&I2CReadTimerSetup, &blockTimer));
     //TIMER 1= LTimer
     ESP_ERROR_CHECK(mcpwm_new_timer(&globalTimerSetupLow, &globalLowTimer)); 
-    ESP_LOGW(white "initLG", "2/3 peak: %d, \n BTIMER PERIOD: %u, \n LTIMER_PERIOD %u \n \n",  
-    (int)(threshold_thirds[2]), static_cast<int>(global.blockPeriod),  globalTimerSetupLow.period_ticks);
+    // ESP_ERROR_CHECK(mcpwm_new_timer(&velocityTrackerTimerSetup, &velocityTrackerTimer)); /*^&velocityTrackerTimer */
+    
+    // ESP_LOGW(white "initLG", "2/3 peak: %d, \n BTIMER PERIOD: %u, \n LTIMER_PERIOD %u \n \n",  
+    // (int)(threshold_thirds[2]), static_cast<int>(global.blockPeriod),  globalTimerSetupLow.period_ticks);
     for (int i = 0; i <3; i++){
         //AL op0, BL op1, CL op2
         ESP_ERROR_CHECK(mcpwm_new_operator(&motorL[i].opConfig, &motorL[i].operatorModule));
@@ -302,7 +303,8 @@ void IRAM_ATTR executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mc
         esp_rom_delay_us(ticksToµs+1);
     }
     if(global.sectorTarget == global.oldSectorTarget){
-        esp_rom_printf("S");
+        // esp_rom_printf("ß");//optn s
+        esp_rom_printf("ß");//optn s
     }
     #ifdef debug_fastPrints
         esp_rom_printf(white "|v_b#hl(%d, %s)" red "|L \n", global.sectorTarget, ghgl[global.sectorTarget]);

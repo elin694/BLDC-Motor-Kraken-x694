@@ -32,7 +32,7 @@ mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
     }
 };
 
-mcpwm_timer_config_t blockTimerSetup = { //onces per step/block
+mcpwm_timer_config_t I2CReadTimerSetup = { //onces per step/block
     .group_id = lowSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = timerResolution,
@@ -54,9 +54,18 @@ mcpwm_timer_config_t globalTimerSetupLow = { //Grass with peaks
         .update_period_on_sync = 1 
     }
 };
+mcpwm_timer_config_t velocityTrackerTimerSetup= { //onces per step/block
+    .group_id = lowSideGroup,
+    .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
+    .resolution_hz = VTimerResolution,
+    .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
+    .intr_priority = 1,
+    .flags = {
+        .update_period_on_sync = 1
+    }
+};
 //+===================
-//+===================
-//+===================
+
 //+===================
 const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
     .posedge_delay_ticks = isrTickDeadTime,
@@ -106,16 +115,13 @@ const mcpwm_operator_config_t operatorSetupLow = {
 mcpwm_soft_sync_config_t tripleHighTriggerSetup ={};
 mcpwm_sync_handle_t tripleHighTrigger[3]; //CONTROLS ALL 3 HIGH TIMERS
 mcpwm_timer_sync_phase_config_t tripleHighOnSync = { 
-    .count_value = 10000, 
     .direction = MCPWM_TIMER_DIRECTION_UP,
 };
-
 
 mcpwm_soft_sync_config_t BTimerTriggerSetup = {};
 mcpwm_sync_handle_t BTimerTrigger;
 mcpwm_timer_sync_phase_config_t BTimerOnSync = { 
     .sync_src = BTimerTrigger, //assign to a syn src
-    .count_value = 10000, 
     .direction = MCPWM_TIMER_DIRECTION_UP,
 };//active Btimer sync
 
@@ -123,9 +129,15 @@ mcpwm_soft_sync_config_t LTimerTriggerSetup = {};
 mcpwm_sync_handle_t LTimerTrigger;
 mcpwm_timer_sync_phase_config_t LTimerOnSync = { 
     .sync_src = LTimerTrigger, //assign to a syn src
-    .count_value = 10000, 
     .direction = MCPWM_TIMER_DIRECTION_UP, 
     // Only one that would be modified ^^^^
+};
+
+mcpwm_soft_sync_config_t velocityTrackerTimerTriggerSetup = {};
+mcpwm_sync_handle_t VTimerTrigger;
+mcpwm_timer_sync_phase_config_t VTimerOnSync = { 
+    .sync_src = VTimerTrigger, //assign to a syn src
+    .direction = MCPWM_TIMER_DIRECTION_UP, 
 };
 /*
 Hardware prioriy:
