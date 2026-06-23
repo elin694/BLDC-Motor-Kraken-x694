@@ -76,19 +76,18 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
       #ifdef debug_fastPrints
          esp_rom_printf(blue "B");
       #endif
-
       xHigherPriorityTaskWoken = xTaskResumeFromISR(getSectorNumberTask);
       MCPWMx-> int_clr.val = tempClearR1.val;
       portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
       return;
 
    } else if(
-      tempStatusReg.timer1_tez_int_st || //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
-      tempStatusReg.timer1_tep_int_st || //timer 1= LTimer, (ie change from block 0-1), 2^7 = 128
+      tempStatusReg.timer1_tez_int_st  //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
+      // tempStatusReg.timer1_tep_int_st || //timer 1= LTimer, (ie change from block 0-1), 2^7 = 128
       /*since phaseA_gen_one_third =0 */
-      tempStatusReg.op0_tea_int_st || // op0 = phase A lowside, (ie change from block 5-0 or 1-2), 2^15 = 32765
-      tempStatusReg.op0_teb_int_st) // timer, (ie change from block 2-3 or 4-5), 2^18 = 262144
-      { //L TIMER = id1, SO WE USE TIMER 1
+      // tempStatusReg.op0_tea_int_st || //op0 = phase A lowside, (ie change from block 5-0 or 1-2), 2^15 = 32765
+      // tempStatusReg.op0_teb_int_st
+      ){ /* timer, (ie change from block 2-3 or 4-5), 2^18 = 262144, L TIMER = id1, SO WE USE TIMER 1*/
          
          #ifdef debug_fastPrints
          // if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "|TEZ");
@@ -117,7 +116,7 @@ void as5600initialize() {
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-      /*alpha*/100)
+      /*alpha*/i2cWaitout)
    );
    fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //reset
 
@@ -126,7 +125,7 @@ void as5600initialize() {
       (size_t)2, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-      /*alpha*/100)
+      /*alpha*/i2cWaitout)
    );
    esp_rom_printf(blue "second tr done, ");
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
@@ -134,10 +133,9 @@ void as5600initialize() {
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-      /*alpha*/100)
+      /*alpha*/i2cWaitout)
    );
    esp_rom_printf(blue "first done, ");
-   //max sample time at 150us
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "Read:", "whole thing %d \n", (int)fthRegisterData[0]);
    //===================================GET A STARTING SECTOR VALUE ===================================
@@ -185,7 +183,7 @@ void getSectorNumber(void *returnValue){
          as5600WriteSize,
          as5600RawDataBuf, 
          as5600ReadSize, //ensure 2 bytes is read
-         /*alpha*/100
+         /*alpha*/ i2cWaitout
       ));
       int debug_as5600V = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
       #if defined(debug_fastPrints) && defined(debug_spamPrintTimeISR1)
@@ -193,6 +191,7 @@ void getSectorNumber(void *returnValue){
       #endif
 
       global.rotorVal = getRotorValAdjusted(debug_as5600V);
+      global.oldSectorTarget = global.sectorTarget;
       global.sectorTarget = static_cast<uint32_t>((global.rotorVal * SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
       #endif
       preloadGates();

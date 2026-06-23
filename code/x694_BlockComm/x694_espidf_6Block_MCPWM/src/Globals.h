@@ -20,7 +20,7 @@
 // #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
 // #define debug_readPotRepeat
-#define debug_constBlockPeriod 10000
+#define debug_constBlockPeriod 7980
 // #define debug_useLookUpTableOnBPeriod //commenout out to keep the Bperiod
 
 #define preCompStartingTargetSector 2
@@ -40,6 +40,7 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 
 //============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
+#define i2cWaitout 3 //in us
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(180)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define timerResolution  static_cast<uint32_t>(4e6) //125ns , must not simple ratio
@@ -122,13 +123,13 @@ DRAM_ATTR inline gVar_t global;
         {0, 0, 1, 0, 0, 1}
     };
     //gateLevelCycle[block][2i for high Gate, 2i+1 for lowGate];
-    constexpr mcpwm_timer_direction_t LTimerDir[6] ={
-        MCPWM_TIMER_DIRECTION_UP, 
-        MCPWM_TIMER_DIRECTION_DOWN,  
-        MCPWM_TIMER_DIRECTION_DOWN, 
-        MCPWM_TIMER_DIRECTION_DOWN, 
-        MCPWM_TIMER_DIRECTION_UP,  
-        MCPWM_TIMER_DIRECTION_UP};
+    // constexpr mcpwm_timer_direction_t LTimerDir[6] ={
+    //     MCPWM_TIMER_DIRECTION_UP, 
+    //     MCPWM_TIMER_DIRECTION_DOWN,  
+    //     MCPWM_TIMER_DIRECTION_DOWN, 
+    //     MCPWM_TIMER_DIRECTION_DOWN, 
+    //     MCPWM_TIMER_DIRECTION_UP,  
+    //     MCPWM_TIMER_DIRECTION_UP};
 //===================
 void readPotRepeat(void * parameter);
 void readPotOnce(void * parameter);

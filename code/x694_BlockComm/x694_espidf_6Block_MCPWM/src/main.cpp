@@ -30,16 +30,16 @@ void debugLog(void * parameter){
   for(;;){
     #ifdef debug_printRPS
     // taskENTER_CRITICAL(&counterMux); //300ns for enter and exit
-    // taskEXIT_CRITICAL(&counterMux); //300ns for enter and exit
-    ESP_LOGI("STATUS","^pot%: %6.4f, RPS: %5.2f, bperiod %d \n",(float)rawData/4096.0f, RPS, global.blockPeriod);
-    // ESP_LOGI("Number of","BTimer intr:%7d, LTimer intr: %7d, #intr trigger: %7d ",c1, c2, c3);
+    ESP_LOGI("STATUS","^RPS: %4.1f, bperiod %d \n", (float)60*timerResolution/(18.0f*global.blockPeriod), global.blockPeriod);
+    // ESP_LOGI("STATUS","^pot%: %6.4f, RPS: %5.2f, bperiod %d \n",(float)rawData/4096.0f, RPS, global.blockPeriod);
     #else
-      #ifdef debug_testOnLED
-        if(trakcer %3){
-        motorStall = !motorStall;
-        ESP_LOGW("mtrStl=","%d",motorStall);
-      }
-      #endif
+
+    #ifdef debug_testOnLED
+      if(trakcer %3){
+      motorStall = !motorStall;
+      ESP_LOGW("mtrStl=","%d",motorStall);
+    }
+    #endif
     #endif
     vTaskDelay(pdMS_TO_TICKS(debug_RPSprint_period)); 
   }
