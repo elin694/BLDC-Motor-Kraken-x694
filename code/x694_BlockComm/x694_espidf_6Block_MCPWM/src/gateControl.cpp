@@ -255,7 +255,7 @@ void preloadGates(){
                 //     global.blockPeriod
                 // ));
             */
-                
+                 
             //prepare  so esp32 runs on the start of the previous block at sync
             // global.newPotValue=false;//keep, disable in execute gates
             /*
