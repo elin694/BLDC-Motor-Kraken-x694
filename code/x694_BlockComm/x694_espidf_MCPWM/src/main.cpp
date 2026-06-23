@@ -1,11 +1,10 @@
 #include "headers.h"
 #include "soc/mcpwm_struct.h"
-#define generatorGPIO phaseCHighPort //tx2
-//b HIGH SIDE tx2
-#define phaseLowGate phaseBLowPort //outwards
-// #define phaseLowGate GPIO_NUM_19
+#define generatorGPIO phaseBHighPort //tx2 = bh= 17
+#define phaseLowGate phaseCLowPort //outwards
+// #define phaseLowGate freePort1 //outwards
+
 // #define generatorGPIO GPIO_NUM_2 //b HIGH SIDE tx2
-// #define captureGPIO GPIO_NUM_19 //miso
 
 
 // #define timerPeriod countingFrequency/20000 //2e16

@@ -24,5 +24,7 @@
 #define phaseBLowPort GPIO_NUM_16
 
 #define phaseCHighPort GPIO_NUM_26
-// #define phaseCHighPort GPIO_NUM_19
 #define phaseCLowPort GPIO_NUM_32
+
+#define freePort1 GPIO_NUM_18
+#define freePort2 GPIO_NUM_19

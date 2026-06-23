@@ -16,7 +16,7 @@
 #include <string>
 #include <cinttypes>
 // #define debug_testOnLED 
-#define debug_testBigBreadboardTestPins
+// #define debug_testBigBreadboardTestPins
 // #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_printRPS 
 // #define debug_readPotRepeat
@@ -40,7 +40,7 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 
 //============+CONTROL PANEL, COMMANDS ABOVE TOGGLE THINGS
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(300)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(180)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define timerResolution  static_cast<uint32_t>(4e6) //125ns , must not simple ratio
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
@@ -65,19 +65,12 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
         #define phaseCHighPort GPIO_NUM_33
         #define phaseCLowPort GPIO_NUM_32
     #else //real PCB
-        // #define phaseAHighPort GPIO_NUM_33
-        // #define phaseALowPort GPIO_NUM_14
-        // #define phaseBHighPort GPIO_NUM_17
-        // #define phaseBLowPort GPIO_NUM_16
-        // #define phaseCHighPort GPIO_NUM_26
-        // #define phaseCLowPort GPIO_NUM_32
-                #define phaseAHighPort GPIO_NUM_2
-        #define phaseALowPort GPIO_NUM_4
-        #define phaseBHighPort GPIO_NUM_16
-        #define phaseBLowPort GPIO_NUM_17
-        #define phaseCHighPort GPIO_NUM_18
-        #define phaseCLowPort GPIO_NUM_19
-
+        #define phaseAHighPort GPIO_NUM_33
+        #define phaseALowPort GPIO_NUM_14
+        #define phaseBHighPort GPIO_NUM_17
+        #define phaseBLowPort GPIO_NUM_16
+        #define phaseCHighPort GPIO_NUM_26
+        #define phaseCLowPort GPIO_NUM_32
 
     //CHANGE ASSOCIATED PORT SET AND CLEAR
     // // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
