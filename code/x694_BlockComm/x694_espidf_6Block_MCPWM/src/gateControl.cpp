@@ -66,11 +66,11 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
 
     velocityTrackerTimerSetup.resolution_hz = timerResolution;
     ESP_ERROR_CHECK(mcpwm_new_timer(&velocityTrackerTimerSetup, &velocityTrackerTimer)); 
-    int g_prescale =4;
-    MCPWM0.clk_cfg.clk_prescale = g_prescale;
-    MCPWM0.timer[0].timer_cfg0.timer_prescale= timerResolution/g_prescale;
-    MCPWM0.timer[1].timer_cfg0.timer_prescale= timerResolution/g_prescale;
-    MCPWM0.timer[2].timer_cfg0.timer_prescale= VTimerResolution/g_prescale;
+    MCPWM0.clk_cfg.clk_prescale = mcpwm_lowSideGroupPrescale-1;
+    MCPWM0.timer[0].timer_cfg0.timer_prescale= 160e6/timerResolution/mcpwm_lowSideGroupPrescale-1;
+    MCPWM0.timer[1].timer_cfg0.timer_prescale= 160e6/timerResolution/mcpwm_lowSideGroupPrescale -1;
+    MCPWM0.timer[2].timer_cfg0.timer_prescale= 160e6/VTimerResolution/mcpwm_lowSideGroupPrescale-1;
+    ESP_LOGW("GC timerPrescalers", "%d %d %d", MCPWM0.timer[0].timer_cfg0.timer_prescale,MCPWM0.timer[1].timer_cfg0.timer_prescale,MCPWM0.timer[2].timer_cfg0.timer_prescale);
     
 
     // ESP_LOGW(white "initLG", "2/3 peak: %d, \n BTIMER PERIOD: %u, \n LTIMER_PERIOD %u \n \n",  

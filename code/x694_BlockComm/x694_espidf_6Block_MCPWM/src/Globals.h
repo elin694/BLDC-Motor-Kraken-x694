@@ -36,6 +36,11 @@
 #define SetAs5600PollPeriod 8000
 #define velPotReadPeriod (int)(2*debug_RPSprint_period+400) //set velocity via pot 1
 #define preCompStartingTargetSector 2
+#define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
+#define VTimerResolution  static_cast<uint32_t>(16e7/4000) //125ns , must not simple ratio
+/*ALSO CHANGE HARD CODED PRESCALERS*/
+#define mcpwm_lowSideGroupPrescale 40
+
 inline bool motorStall =false;
 inline bool p_stalled= false;
 inline DRAM_ATTR int isr2CurrentTime =0;
@@ -49,8 +54,6 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define i2cWaitout 2//in us
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(160)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-#define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
-#define VTimerResolution  static_cast<uint32_t>(8e7/2000) //125ns , must not simple ratio
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
     #define startingDuty static_cast<float>(1- .9) //The Duty cycle is 1 - this.Value

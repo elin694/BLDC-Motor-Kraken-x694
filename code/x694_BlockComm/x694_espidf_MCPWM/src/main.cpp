@@ -4,16 +4,16 @@
 #define phaseLowGate phaseALowPort //outwards
 
 // #define countingFrequency (1048576*64)
-#define countingFrequency (4000000) //2432
+#define countingFrequency (4e6) //2432
 
 // #define timerPeriod countingFrequency/20000 //2e16
 // #define timerPeriod 4000 //2e16
 #define timerPeriod (countingFrequency/20000)
 
-#define dutyCycle (float)(1-(.9))
+#define dutyCycle (float)(1-(.7))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
-int id =  1;
+int id =  0;
 
 void groundSetup(){
     gpio_num_t gateArray[6]= {
@@ -117,6 +117,9 @@ void setupMCPWM(){
     ESP_LOGE("DEBUG2easd", "resol: %d", timerSetup.resolution_hz);
     ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
     ESP_ERROR_CHECK(mcpwm_new_timer(&timerSetup, &timerHandle));
+    // int g_prescale =100; //gives current toal rpescaler
+    // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;
+    // MCPWM0.timer[0].timer_cfg0.timer_prescale= (16e7/countingFrequency)*5-1;
     ESP_ERROR_CHECK(mcpwm_new_operator(&operatorSetup, &operatorHandle));
     ESP_LOGE("DEBUG2easd", "cmpvalue ");
     ESP_ERROR_CHECK(mcpwm_new_comparator(operatorHandle, &comparatorSetup, &comparatorHandle));
