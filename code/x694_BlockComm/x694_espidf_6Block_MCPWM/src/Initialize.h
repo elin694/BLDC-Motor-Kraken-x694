@@ -14,11 +14,8 @@ void getSectorNumber(void *returnValue);
 void debugLog(void * parameter);
 int mod6(int value);
 
-#if (lowSideGroup == 1)
-   #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
-#elif (lowSideGroup == 0)
-   #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
-#endif
+#define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
+
 inline mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
 //+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++
 inline i2c_master_bus_config_t busSetup = { 
@@ -56,14 +53,17 @@ constexpr adc_oneshot_chan_cfg_t adcChannelSetup = {
    .atten =  ADC_ATTEN_DB_12,
    .bitwidth = ADC_BITWIDTH_12,
 };
-DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR1 = { 
+constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR1 = { 
    .timer0_tez_int_clr =1,
 };
-DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR2 = { 
+constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR2 = { 
    .timer1_tez_int_clr =1,
-   .timer1_tep_int_clr =1,
-   .op0_tea_int_clr = 1,
-   .op0_teb_int_clr = 1
+   // .timer1_tep_int_clr =1,
+   // .op0_tea_int_clr = 1,
+   // .op0_teb_int_clr = 1
+};
+constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR3 = { 
+   .timer2_tez_int_clr =1
 };
 
 //======================================================

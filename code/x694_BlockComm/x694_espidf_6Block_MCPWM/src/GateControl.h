@@ -37,17 +37,17 @@ typedef struct {
 } phaseMcpwm;
 
 //initialization functions
-void mcpwmSetup(int targetSectorNumber, volatile  uint32_t * blockPeriod_f);
-void initializeHighGate(int startingTargetSector, uint32_t blockPeriod_f);
+void mcpwmSetup(int targetSectorNumber);
+void initializeHighGate(int startingTargetSector,  uint32_t comparatorOff_Duty);
 void initializeLowGate(int startingTargetSector, float threshold_thirds[]);
 void configureLowGateEvents();
-void initializeTimer(int startingTargetSector, uint32_t blockPeriod_f);
-void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTargetSector, uint32_t blockPeriod_f);
+void initializeTimer(int startingTargetSector);
+void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTargetSector);
 void initializeISR();
 
 //Loop
 void preloadGates();
-void executeGates(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm);
+void executeGates(mcpwm_dev_t * mcpwm);
 
 #if (lowSideGroup == 1)
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)

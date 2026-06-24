@@ -18,21 +18,21 @@
 /*=============================DEBUG CONTROL PANEL=============================*/
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
-// #define debug_fastPrints //isr indicator and BLOCK#
-#define debug_printRPS 
+#define debug_fastPrints //isr indicator and BLOCK#
+// #define debug_printRPS 
 
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
-// #define debug_spamPrintBlockStatus
-// #define debug_spamDelay 20
+// #define debug_spamDelay 2
 // #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve
+
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
-#define debug_constBlockPeriod 8000
-// #define debug_useLookUpTableOnBPeriod //commenout out to keep the Bperiod
+#define debug_dontReadVelocityPot 8000
 #define debug_useLookUpTableADC //commenout out to keep the Bperiod
+// #define debug_useLookUpTableOnBPeriod //commenout out to keep the Bperiod
 
 /*=============================USER SETTING CONTROL PANEL=============================*/
-// #define enableRadPotRepeat
+// #define enableReadPotRepeat
 #define SetAs5600PollPeriod 8000
 #define velPotReadPeriod (int)(2*debug_RPSprint_period+400) //set velocity via pot 1
 #define preCompStartingTargetSector 2
@@ -41,13 +41,16 @@ inline bool p_stalled= false;
 inline DRAM_ATTR int isr2CurrentTime =0;
 inline DRAM_ATTR int isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
+/*minimum and maximum RPS */
+#define fMin static_cast<float>(VTimerResolution/(18.0f*65535)) 
+#define fMax static_cast<float>(VTimerResolution/(18.0f*200))
 
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define i2cWaitout 3 //in us
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(180)
+#define i2cWaitout 2//in us
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(160)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
-#define timerResolution  static_cast<uint32_t>(4e6) //125ns , must not simple ratio
-#define VTimerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
+#define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
+#define VTimerResolution  static_cast<uint32_t>(8e7/2000) //125ns , must not simple ratio
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
     #define startingDuty static_cast<float>(1- .9) //The Duty cycle is 1 - this.Value
@@ -92,8 +95,9 @@ typedef struct{
     volatile int sectorTarget =5 ; //for stator current vector
     // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
     // volatile uint32_t blockPeriod= static_cast<uint32_t>(((131072)/2)/6); 
-    volatile uint32_t blockPeriod= static_cast<uint32_t>(debug_constBlockPeriod); 
+    volatile uint32_t blockPeriod = 8000;
     volatile bool newVelPotValue = false;
+    volatile bool newPhaseSwitchFlag = false;
     volatile uint32_t rotorVal =0;
 } gVar_t;
 extern adc_oneshot_unit_handle_t adcHandle;
@@ -185,9 +189,6 @@ DRAM_ATTR constexpr const char * ghgl[6] = {"BAu2","CAd3","CBd2","ABd1","ACu0","
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
 
-
-#define fMin static_cast<float>(.5) //119/in hertz
-#define fMax static_cast<float>(25)
 #define black "\033[30m"
 #define red "\033[31m"
 #define green "\033[32m"

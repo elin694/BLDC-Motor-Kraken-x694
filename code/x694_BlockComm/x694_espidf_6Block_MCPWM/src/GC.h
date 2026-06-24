@@ -16,7 +16,7 @@ inline phaseMcpwm motorL[3];
 
 void initializeSyncs();
 void initializeInterruptEnablePin();
-void setCountValueAndPeriod(int startingTargetSector, volatile uint32_t * bPeriod_pass_by_function1);
+void setCountValueAndPeriod(int startingTargetSector);
 void synchr(mcpwm_sync_handle_t handle, std::string name);
 void synchrISR(mcpwm_sync_handle_t handle, const char* name);
 
@@ -47,7 +47,7 @@ mcpwm_timer_config_t globalTimerSetupLow = { //Grass with peaks
     .group_id = lowSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = timerResolution,
-    .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
+    .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
     .intr_priority = 2,
     .flags = {
         .update_period_on_empty = 0,
@@ -59,7 +59,6 @@ mcpwm_timer_config_t velocityTrackerTimerSetup= { //onces per step/block
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = VTimerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-    .intr_priority = 1,
     .flags = {
         .update_period_on_sync = 1
     }
@@ -133,7 +132,7 @@ mcpwm_timer_sync_phase_config_t LTimerOnSync = {
     // Only one that would be modified ^^^^
 };
 
-mcpwm_soft_sync_config_t velocityTrackerTimerTriggerSetup = {};
+mcpwm_soft_sync_config_t VTimerTriggerSetup = {};
 mcpwm_sync_handle_t VTimerTrigger;
 mcpwm_timer_sync_phase_config_t VTimerOnSync = { 
     .sync_src = VTimerTrigger, //assign to a syn src

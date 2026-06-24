@@ -4,24 +4,16 @@
 
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
-volatile DRAM_ATTR uint32_t as5600PollPeriod = SetAs5600PollPeriod;
 void initialize(void * parameter){   
    pinSetup();
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
-   //run pwm at f ~40-50kHz for adjustable torque control
    #ifndef debug_testOnLED
       readPotOnce(NULL);
+      ESP_LOGW("init.cpp","readPotOnce set VelBlockPeriod %d, and global.newVelPotValue %d", global.blockPeriod, global.newVelPotValue);
    #endif
-
-   for(int i = 0; i<4; i++){
-      global.CMR_value_3[i] = global.blockPeriod*i;
-      ESP_LOGI(blue "C_3 thirds", "%f", global.CMR_value_3[i]);
-   };
-
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
-   // vTaskDelay(pdMS_TO_TICKS(10000000)); //wait for i2c to be ready, otherwise first few reads might be wrong, which can cause wrong block commutation and motor stall
    #ifdef debug_testOnLED 
       global.sectorTarget = preCompStartingTargetSector;
       global.oldSectorTarget = global.sectorTarget;
@@ -32,20 +24,26 @@ void initialize(void * parameter){
       // uxTaskPriorityGet(setupTask)+1  /*priority*/, 
       22,
       &getSectorNumberTask, 1);
-   mcpwmSetup(global.sectorTarget, &as5600PollPeriod); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
-
+      
+   mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
+   ESP_LOGW("maincpp"," maximum RPs; %6.3f, minimum RPS: %6.3f",fMin, fMax);
    /*no bidirection compatability yet
     pull Low high to prime Bootstrap cap?  */
    UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
    #ifdef enableReadPotRepeat
    xTaskCreate(readPotRepeat, "readPotRepeat", 10000, NULL, (int)(thisTaskPriority*.5)-2, NULL);
+   ESP_LOGW("init.cpp", "VelPot in Loop");
    #endif 
-   #if ((defined(debug_spamPrintBlockStatus) || defined(debug_spamPrintCounterStatus)) && debug_spamDelay)
-      xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
+   #if ((defined(debug_spamPrintCounterStatus)) && debug_spamDelay)
+   xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
    #endif
    xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, (int)(thisTaskPriority*.5)-3, NULL, 0);
    vTaskDelete(NULL);
 }
+
+
+
+
 
 int mod6 (int value){ //for single add
     if(value > 5){
@@ -70,37 +68,38 @@ void pinSetup(){
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
    if(tempStatusReg.val){ //in case of ghost interrupts
-      // getTimerCountNow("@");
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
-      //as5600 is default increasing on clockwise. set DIR high to invert 
-      #ifdef debug_fastPrints
-         esp_rom_printf(blue "B");
-      #endif
-      xHigherPriorityTaskWoken = xTaskResumeFromISR(getSectorNumberTask);
-      MCPWMx-> int_clr.val = tempClearR1.val;
-      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-      return;
-
-   } else if(
-      tempStatusReg.timer1_tez_int_st  //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
-      // tempStatusReg.timer1_tep_int_st || //timer 1= LTimer, (ie change from block 0-1), 2^7 = 128
-      /*since phaseA_gen_one_third =0 */
-      // tempStatusReg.op0_tea_int_st || //op0 = phase A lowside, (ie change from block 5-0 or 1-2), 2^15 = 32765
-      // tempStatusReg.op0_teb_int_st
-      ){ /* timer, (ie change from block 2-3 or 4-5), 2^18 = 262144, L TIMER = id1, SO WE USE TIMER 1*/
-         
-         #ifdef debug_fastPrints
-         // if(tempStatusReg.timer1_tez_int_st) esp_rom_printf(magenta "|TEZ");
-         // if(tempStatusReg.timer1_tep_int_st) esp_rom_printf(magenta "|TEP");
-         // if(tempStatusReg.op0_tea_int_st)    esp_rom_printf(magenta "|TEA");
-         // if(tempStatusReg.op0_teb_int_st)    esp_rom_printf(magenta "|TEB");
-         // esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
-         #endif
-         // esp_rom_printf(green "s %d, %d",global.oldSectorTarget , global.sectorTarget );
-         
-         // 32768, 128, 32768, 262144, 16, 262144
-         executeGates(&tempClearR2, MCPWMx);
+         // getTimerCountNow("<");
+         if(global.newPhaseSwitchFlag){
+            #ifdef debug_fastPrints
+            esp_rom_printf(blue "B");
+            // getTimerCountNow("readAs56");
+            #endif
+            xHigherPriorityTaskWoken = xTaskResumeFromISR(getSectorNumberTask);
+            MCPWMx-> int_clr.val = tempClearR1.val;
+            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+         }else{
+            MCPWMx-> int_clr.val = tempClearR1.val;
+         }
          return;
+
+
+      } else if(tempStatusReg.timer1_tez_int_st){ /* timer, (ie change from block 2-3 or 4-5), 2^18 = 262144, L TIMER = id1, SO WE USE TIMER 1*/
+         // getTimerCountNow(">");
+         if(global.newPhaseSwitchFlag){
+            #ifdef debug_fastPrints
+            // esp_rom_printf(white "| b# ^ %d, n# %d", global.oldSectorTarget, global.sectorTarget);
+            #endif
+            executeGates(MCPWMx);
+         } 
+         MCPWMx->int_clr.val = (tempClearR2.val | tempClearR3.val);
+         return;
+
+
+      } else if(tempStatusReg.timer2_tez_int_st){
+         // getTimerCountNow("?");
+         global.newPhaseSwitchFlag= true;
+         MCPWMx-> int_clr.val = tempClearR3.val;
       }
    }
 }
@@ -169,13 +168,13 @@ void getSectorNumber(void *returnValue){
       #endif
 
       #ifdef debug_testOnLED
-       esp_rom_delay_us(210);
+       esp_rom_delay_us(estimatedI2CReadTimeInMicros);
       if (motorStall){
          global.oldSectorTarget= global.sectorTarget;
       } else{
          global.oldSectorTarget = global.sectorTarget;
          global.sectorTarget = mod6(global.sectorTarget+1);
-         esp_rom_printf(white "GSNon(%d, %d)", global.oldSectorTarget, global.sectorTarget);
+         // esp_rom_printf(white "GSNon(%d, %d)", global.oldSectorTarget, global.sectorTarget);
       }
       #else
       ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
