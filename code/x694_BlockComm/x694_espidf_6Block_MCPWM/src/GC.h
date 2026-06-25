@@ -4,7 +4,6 @@
 
 #define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.9) //isr 700ns responds time
 #define relativeDeadTime 5
-#define syncTickBeforeCMPRThreshold -2
 
 // gpio 19- miso, b High side is tx2
 

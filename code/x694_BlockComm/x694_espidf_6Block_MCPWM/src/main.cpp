@@ -15,7 +15,6 @@ void spamSearchCV(void *parameter){
     #ifdef debug_spamPrintCounterStatus
       getTimerCountNow("");
     #endif
-    
       vTaskDelay(pdMS_TO_TICKS(debug_spamDelay));
   }
   #endif
@@ -26,9 +25,8 @@ void debugLog(void * parameter){
   for(;;){
     #ifdef debug_printRPS
     // ESP_LOGI("STATUS","^RPS: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
-    ESP_LOGI("STATUS","^pot%: %6.4f, RPS: %5.2f, bperiod %d \n",(float)rawData/4096.0f, RPS, global.blockPeriod);
+    ESP_LOGI("a∂c","%6.4f|RPS: %5.2f|BPeriod %d|AS5600: %4d",(float)rawData/4096.0f, RPS, global.blockPeriod, global.rotorVal);
     #else
-
     // #ifdef debug_testOnLED
     //   if(tracker++ %3){
     //   motorStall = !motorStall;
@@ -36,7 +34,7 @@ void debugLog(void * parameter){
     // }
     // #endif
     #endif
-    vTaskDelay(pdMS_TO_TICKS(debug_RPSprint_period)); 
+    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
   }
 }
 
@@ -49,17 +47,11 @@ void debugLog(void * parameter){
 /*
 https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=
 */
-const int debug_bPeriodLookUpTable[] = {
-  10000, 300,400,500,600,700,800,900, //dont include stuff that is smaller than the wait time
-  1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
-  9000, 8000, 7000,6000,5000,4000,3000,2000, 1000,
-};
 int lookUpTableIndex = 0;
 
 const int debug_adcReadLookUpTable[31] = {4094,0, 4094,0, 100, 200, 300,400,500,600,700,800,900,1000, 2000,3000,4000,4095,4000,3000,2000,1000,900,800,700,600,500,400,300,200, 100};
 
 void readPotOnce(void * parameter){
-   rawData = 1234; //higher voltage = higher rps
     ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
     #ifdef debug_dontReadVelocityPot
       #ifdef debug_useLookUpTableADC
@@ -69,31 +61,23 @@ void readPotOnce(void * parameter){
         };
         // lookUpTableIndex++;
         esp_rom_printf(red "p@t raw: %d, %d, index%d\n", rawData,debug_adcReadLookUpTable[lookUpTableIndex],lookUpTableIndex);
-      #elif (defined(debug_useLookUpTableOnBPeriod))
-        uint32_t bPeriod_temp = debug_bPeriodLookUpTable[lookUpTableIndex];
-        lookUpTableIndex++;
       #else
         uint32_t bPeriod_temp = debug_dontReadVelocityPot;
       #endif
     #endif
-    
     #if (!defined(debug_dontReadVelocityPot) || defined(debug_useLookUpTableADC))
     RPS = (fMin+(fMax-fMin)*(float)rawData/4096);
     uint32_t bPeriod_temp= (uint32_t)(VTimerResolution/(RPS*(electricalCycles*6)));
     #endif
     //This bottom part needs to be instantaneous assignment 
-
-    // ESP_LOGE("main.cpp BlockPd(o,n)", "(%d,%d), RPS: %5.2f", (int)global.blockPeriod, (int )bPeriod_temp, RPS);
-    // * µsToTicks; //mcpwm timer icks per block when spinnig
-    // ESP_LOGW("redPotonce", "bPeriod_temp :%" PRIu32 ", RPS: %f, rawData: %d", bPeriod_temp, RPS, rawData);
     if(global.blockPeriod != bPeriod_temp){
       taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
       global.blockPeriod = bPeriod_temp;
       global.newVelPotValue =true;
-        /*ISR checks this constatnly. If true, it runs code to update the CMRA trheshold. might be useless */
       taskEXIT_CRITICAL(&stepPeriodMux);
     }
 }
+
 extern "C"{
   void app_main(){
     xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 12, &setupTask, 1); 

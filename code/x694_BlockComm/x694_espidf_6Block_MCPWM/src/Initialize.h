@@ -32,8 +32,8 @@ inline i2c_master_bus_handle_t busHandle;
 constexpr i2c_device_config_t as5600Setup = {
    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
    .device_address = as5600Address,
-   .scl_speed_hz= 900000, //need fast enough  to avoid invalid state
-   .scl_wait_us = 30,
+   .scl_speed_hz= i2cClockSpeed, //need fast enough  to avoid invalid state
+   .scl_wait_us = 50,
    .flags = {.disable_ack_check = false}
 };
 inline i2c_master_dev_handle_t as5600Handle;
@@ -43,7 +43,6 @@ constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
 constexpr DRAM_ATTR size_t as5600WriteSize = 1;
 inline uint8_t as5600RawDataBuf[2];
 constexpr size_t as5600ReadSize = 2;
-// #define as5600DirPinHigh
 
 constexpr adc_oneshot_unit_init_cfg_t adcSetup= {
    .unit_id = ADC_UNIT_1,
@@ -65,44 +64,3 @@ constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR2 = {
 constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR3 = { 
    .timer2_tez_int_clr =1
 };
-
-//======================================================
-// static void initAnalogReadContinuous(void *parameter){
-//   // Initialize the ADC Continuous Mode Driver
-//   adc_continuous_handle_cfg_t dmaHandleSetup = {
-//     .max_store_buf_size = 1024,
-//     .conv_frame_size= 128,
-//   };
-//   ESP_ERROR_CHECK( adc_continuous_new_handle(&dmaHandleSetup,&dmaHandle) );
-//   //adc io pin config 
-//   // *dereferencing - get thing at this addr
-//   // & referncing give addr of thing
-//   adc_digi_pattern_config_t dmaChannelSetup = {
-//     .atten = ADC_ATTEN_DB_12,
-//     .channel = adcChannel,
-//     .unit = ADC_UNIT_1,
-//     .bit_width = ADC_BITWIDTH_12,
-//     // .bit_width = ADC_BITWIDTH_12,
-//   };
-//   adc_continuous_config_t dmaSetup = {
-//     .pattern_num = 1,
-//     .adc_pattern = &dmaChannelSetup,
-//     .sample_freq_hz = 20000,
-//     .conv_mode = ADC_CONV_SINGLE_UNIT_1,
-//     .format = ADC_DIGI_OUTPUT_FORMAT_TYPE1, //12 bit
-//   };
-//   ESP_ERROR_CHECK(adc_continuous_config(dmaHandle, &dmaSetup)); //hndle, config
-
-//   adc_continuous_evt_cbs_t dmaCallbackSetup = {
-//     .on_conv_done = finishedConversionResult, // pass function
-//     .on_pool_ovf = NULL,
-//   };
-//   ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(dmaHandle,&dmaCallbackSetup,NULL));
-// }
-//
-//   static bool IRAM_ATTR finishedConversionResult(
-//     adc_continuous_handle_t handle,
-//     const adc_continuous_evt_data_t *edata,
-//     void *user_data){
-//     return true;
-//   }

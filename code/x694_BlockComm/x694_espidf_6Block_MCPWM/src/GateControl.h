@@ -4,7 +4,7 @@
 inline mcpwm_comparator_config_t phaseComparatorSetup = {
     // .intr_priority = 0,
     .flags ={
-        .update_cmp_on_tez = 0,
+        .update_cmp_on_tez = 1,
         .update_cmp_on_tep = 0,
         .update_cmp_on_sync = 1
     }
@@ -16,7 +16,7 @@ inline mcpwm_generator_config_t phasePwmSetup = {
         .io_loop_back = 0,
         .io_od_mode = 0, //pull low or float only
         .pull_up = 0,
-        .pull_down= 0
+        .pull_down= 1
     }
 };
 typedef struct {
@@ -39,7 +39,7 @@ typedef struct {
 //initialization functions
 void mcpwmSetup(int targetSectorNumber);
 void initializeHighGate(int startingTargetSector,  uint32_t comparatorOff_Duty);
-void initializeLowGate(int startingTargetSector, float threshold_thirds[]);
+void initializeLowGate(int startingTargetSector);
 void configureLowGateEvents();
 void initializeTimer(int startingTargetSector);
 void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTargetSector);
