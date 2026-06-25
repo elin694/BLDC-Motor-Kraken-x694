@@ -18,28 +18,28 @@
 /*=============================DEBUG CONTROL PANEL=============================*/
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
-#define debug_fastPrints //isr indicator and BLOCK#
-// #define debug_printRPS 
+// #define debug_fastPrints //isr indicator and BLOCK#
+#define debug_printRPS 
 
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
 // #define debug_spamDelay 2
-// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve
+// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
-#define debug_dontReadVelocityPot 8000
-#define debug_useLookUpTableADC //commenout out to keep the Bperiod
+// #define debug_dontReadVelocityPot 8000
+// #define debug_useLookUpTableADC //commenout out to keep the Bperiod
 // #define debug_useLookUpTableOnBPeriod //commenout out to keep the Bperiod
 
 /*=============================USER SETTING CONTROL PANEL=============================*/
-// #define enableReadPotRepeat
+#define enableReadPotRepeat
+#define velPotReadPeriod (int)(128) //set velocity via pot 1
 #define SetAs5600PollPeriod 8000
-#define velPotReadPeriod (int)(2*debug_RPSprint_period+400) //set velocity via pot 1
-#define preCompStartingTargetSector 2
-#define timerResolution  static_cast<uint32_t>(4e5) //125ns , must not simple ratio
-#define VTimerResolution  static_cast<uint32_t>(16e7/4000) //125ns , must not simple ratio
+#define preCompStartingTargetSector 1
+#define timerResolution  static_cast<uint32_t>(16e7/40) //125ns , must not simple ratio
+#define VTimerResolution  static_cast<uint32_t>(16e7/400) //125ns , must not simple ratio
 /*ALSO CHANGE HARD CODED PRESCALERS*/
-#define mcpwm_lowSideGroupPrescale 40
+#define mcpwm_lowSideGroupPrescaler 40
 
 inline bool motorStall =false;
 inline bool p_stalled= false;
@@ -52,11 +52,11 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 #define i2cWaitout 2//in us
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(160)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
     //greater than timerPeriod when HighGate is in off state =========no longer true for v3.14
-    #define startingDuty static_cast<float>(1- .9) //The Duty cycle is 1 - this.Value
+    #define startingDuty static_cast<float>(1- .3) //The Duty cycle is 1 - this.Value
     #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     //edit phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(); in gateControlCpp 
@@ -98,21 +98,20 @@ typedef struct{
     volatile int sectorTarget =5 ; //for stator current vector
     // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
     // volatile uint32_t blockPeriod= static_cast<uint32_t>(((131072)/2)/6); 
-    volatile uint32_t blockPeriod = 8000;
+    volatile uint32_t blockPeriod = 65535;
     volatile bool newVelPotValue = false;
     volatile bool newPhaseSwitchFlag = false;
+    volatile bool readAS5600 = false;
     volatile uint32_t rotorVal =0;
 } gVar_t;
 extern adc_oneshot_unit_handle_t adcHandle;
-inline float duty = .5;
 inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
 // timer rez = ticks per period * periods/second 
-
 DRAM_ATTR inline gVar_t global;
 
 
     /*DO NOT CHANGE VALUE*/
-    constexpr int electricalCycles = 3; //constexpr is defineable compile time costant 
+    #define electricalCycles 3 //constexpr is defineable compile time costant 
     inline mcpwm_timer_handle_t blockTimer=NULL;
     inline mcpwm_timer_handle_t globalLowTimer =NULL;
     inline mcpwm_timer_handle_t velocityTrackerTimer =NULL;
@@ -170,18 +169,6 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
  inline int dir = 1; 
 #endif
 
-/*
-#else
-   global.rotorVal = 4096-((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1])
-      + as5600CalibratedOffset;
-   #endif
-   
-   int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+2*dir)%6; //0- bitsPerSector --> smaller sector
-
-
-
-
-*/
 //====================FUNCTION DECLARATION =======================
 inline uint32_t BT_time = 0;
 inline uint32_t LT_time = 0;

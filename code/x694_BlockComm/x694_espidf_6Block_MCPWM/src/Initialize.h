@@ -16,7 +16,7 @@ int mod6(int value);
 
 #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
 
-inline mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
+inline DRAM_ATTR mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
 //+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++
 inline i2c_master_bus_config_t busSetup = { 
     .i2c_port = -1,

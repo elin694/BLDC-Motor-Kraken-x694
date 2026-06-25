@@ -29,6 +29,7 @@ void mcpwmSetup(int startingTargetSector){
     
     esp_rom_delay_us(ticksToµs); //Vtimer tick may not have passed
     initializeInterruptEnablePin(); //after isr init  and L sync 
+    ESP_LOGW("mcwpmSetup finished ","\n\n");
 }
 
 void setCountValueAndPeriod(int startingTargetSector){
@@ -43,15 +44,12 @@ void setCountValueAndPeriod(int startingTargetSector){
 
     tripleHighOnSync.count_value = 0; //Practically does not need to be changed
     int excess = 0;
-    // if (LTimerDir[startingTargetSector] == MCPWM_TIMER_DIRECTION_DOWN){ excess = -3;} else{ excess = 3;}
-    // LTimerOnSync.direction = LTimerDir[startingTargetSector];
-    // LTimerOnSync.count_value = static_cast<uint32_t>((*SetAs5600PollPeriod) + excess);
     VTimerOnSync.count_value = 0;
     BTimerOnSync.count_value = estimatedI2CReadTimeInTicks; //is the starting phaseOffset
-    LTimerOnSync.count_value = static_cast<uint32_t>(0 + excess);
+    LTimerOnSync.count_value = excess;
 
-    ESP_LOGW(white "GC 1.5 ON_SYNC_VALUES-setCountValueAndPeriod", "\n BTIMER_CV_OS: %d\n LTIMER_CV_OS %d\nVTIMER_CV_OS %d\n excess: %d\n", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value, (int)VTimerOnSync.count_value, excess);
-    ESP_LOGW("GC 1.75 PERIODS-setCountValueAndPeriod", "\n BTIMER: %d\n LTIMER %d\nVTIMER %d\n", (int)I2CReadTimerSetup.period_ticks, (int)globalTimerSetupLow.period_ticks, (int)velocityTrackerTimerSetup.period_ticks);
+    ESP_LOGW(white "GC 1.5 ON_SYNC_VALUES-setCountValueAndPeriod", "\n BTIMER_CV_OS: %d\n LTIMER_CV_OS %d\n VTIMER_CV_OS %d\n excess: %d", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value, (int)VTimerOnSync.count_value, excess);
+    ESP_LOGW("GC 1.75 PERIODS-setCountValueAndPeriod", "\n BTIMER: %d\n LTIMER %d\n VTIMER %d\n", (int)I2CReadTimerSetup.period_ticks, (int)globalTimerSetupLow.period_ticks, (int)velocityTrackerTimerSetup.period_ticks);
 }
 
 void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
@@ -66,12 +64,12 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
 
     velocityTrackerTimerSetup.resolution_hz = timerResolution;
     ESP_ERROR_CHECK(mcpwm_new_timer(&velocityTrackerTimerSetup, &velocityTrackerTimer)); 
-    MCPWM0.clk_cfg.clk_prescale = mcpwm_lowSideGroupPrescale-1;
-    MCPWM0.timer[0].timer_cfg0.timer_prescale= 160e6/timerResolution/mcpwm_lowSideGroupPrescale-1;
-    MCPWM0.timer[1].timer_cfg0.timer_prescale= 160e6/timerResolution/mcpwm_lowSideGroupPrescale -1;
-    MCPWM0.timer[2].timer_cfg0.timer_prescale= 160e6/VTimerResolution/mcpwm_lowSideGroupPrescale-1;
-    ESP_LOGW("GC timerPrescalers", "%d %d %d", MCPWM0.timer[0].timer_cfg0.timer_prescale,MCPWM0.timer[1].timer_cfg0.timer_prescale,MCPWM0.timer[2].timer_cfg0.timer_prescale);
-    
+    MCPWM0.clk_cfg.clk_prescale = mcpwm_lowSideGroupPrescaler-1;
+    MCPWM0.timer[0].timer_cfg0.timer_prescale= 160e6/timerResolution/mcpwm_lowSideGroupPrescaler-1;
+    MCPWM0.timer[1].timer_cfg0.timer_prescale= 160e6/timerResolution/mcpwm_lowSideGroupPrescaler -1;
+    MCPWM0.timer[2].timer_cfg0.timer_prescale= 160e6/VTimerResolution/mcpwm_lowSideGroupPrescaler-1;
+    ESP_LOGW("GC timerPrescalers", "%d %d %d| GroupPrescaler %d", MCPWM0.timer[0].timer_cfg0.timer_prescale,MCPWM0.timer[1].timer_cfg0.timer_prescale,MCPWM0.timer[2].timer_cfg0.timer_prescale,mcpwm_lowSideGroupPrescaler);
+
 
     // ESP_LOGW(white "initLG", "2/3 peak: %d, \n BTIMER PERIOD: %u, \n LTIMER_PERIOD %u \n \n",  
     // (int)(threshold_thirds[2]), static_cast<int>(global.blockPeriod),  globalTimerSetupLow.period_ticks);
@@ -91,7 +89,7 @@ void initializeLowGate(int startingTargetSector, float threshold_thirds[]){
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
     }
     #define phaseA_gen_one_third 0
-    ESP_LOGW("GC3", "=====block + LTimer started. all LOW waves have tocgd. Operator cnnct to timer. C0's set to 2/3 Block period, o0c1 to 1/3.===== ");
+    ESP_LOGW("GC3", "=====Linked all Low timer Submodules===== ");
 }
 
 void configureLowGateEvents(){
@@ -138,7 +136,6 @@ void initializeHighGate(int staartingTargetSector, uint32_t comparatorOff_Duty){
             )
         );
     }
-    ESP_LOGI("======high waves component linked to handles. C0 and T_low set action onto G0", " ");
 }
 
 void initializeISR(){
@@ -164,7 +161,6 @@ void initializeISR(){
     ));
     MCPWMx->int_ena.val = 0x00000000;
     MCPWMx->int_clr.val=  clearReg.val;
-    ESP_LOGI("======esp_alloc_intr used to allocate ISR line before flushing all related intr_ena bits", " ");
 }
 
 void initializeInterruptEnablePin(){
@@ -180,7 +176,6 @@ void initializeInterruptEnablePin(){
 
     MCPWMx->int_ena.timer2_tez_int_ena = 1; // //timer 0= BTimer
     ESP_ERROR_CHECK(esp_intr_enable(oneBlockISR)); //Starting AS5600 read ISR
-    ESP_LOGI("======CLEARing INTR REGISTER AND PUSHing INTR_ENABLE BITS", "\n\n\n ");
 }
 
 void initializeSyncs(){
@@ -198,7 +193,6 @@ void initializeSyncs(){
         tripleHighOnSync.sync_src = tripleHighTrigger[i]; 
         ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(motorH[i].timer, &tripleHighOnSync));
     }
-    ESP_LOGI(white "initSyncs", "\n BTIMER Count Val: %d",(int)(BTimerOnSync.count_value));
     ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(globalLowTimer, &LTimerOnSync));
     ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(blockTimer, &BTimerOnSync));
     ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(velocityTrackerTimer, &VTimerOnSync));
@@ -235,7 +229,6 @@ void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTar
 }
 
 void synchr(mcpwm_sync_handle_t handle, std::string name){
-    ESP_LOGI(white "              ", "syncing %s", name.c_str());
     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle));
 }
 
@@ -257,10 +250,10 @@ void preloadGates(){
     // if (global.sectorTarget == global.oldSectorTarget || global.newVelPotValue) { //Motor stalling case
         if(global.newVelPotValue){
             //change period of all timers and the compare values
-            ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, static_cast<uint32_t>(global.blockPeriod) ));
-            ESP_ERROR_CHECK(mcpwm_timer_set_period(blockTimer, static_cast<uint32_t>(global.blockPeriod) ));
-            // ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, static_cast<uint32_t>(global.blockPeriod) ));
-
+            // ESP_ERROR_CHECK(mcpwm_timer_set_period(globalLowTimer, static_cast<uint32_t>(global.blockPeriod) ));
+            // ESP_ERROR_CHECK(mcpwm_timer_set_period(blockTimer, static_cast<uint32_t>(global.blockPeriod) ));
+            ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, static_cast<uint32_t>(global.blockPeriod) ));
+            esp_rom_printf(green "PG gate set V. ");
             /*
                 // for(int i =0; i<3; i++){
                 //     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorL[i].comparator0, 
@@ -303,8 +296,8 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
             }
             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
         }
+        // getTimerCountNow("");
         global.newPhaseSwitchFlag = false;
-        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles. 
         // esp_rom_printf("lcoked int loop1");
     }
 
@@ -312,12 +305,12 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         // for(int i=0; i<3; i++){
         //     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(tripleHighTrigger[i])); //push new duty cycles
         // }
-        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); //push new duty cycles
-        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger)); //push new duty cycles. 
+        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
+        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles. 
         global.newVelPotValue=false;
         esp_rom_delay_us(ticksToµs+1);
-        esp_rom_printf("lcoked int loop2");
+        esp_rom_printf("set new Pot value\n");
     }
     // if(global.sectorTarget == global.oldSectorTarget){
     //     esp_rom_printf("&tall");
