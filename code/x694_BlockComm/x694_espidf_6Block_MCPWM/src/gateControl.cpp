@@ -224,14 +224,23 @@ void IRAM_ATTR getTimerCountNow(const char* str){
 
 /*==============================================================================================*/
 void preloadGates(){
-        if(global.newVelPotValue){
-            ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, static_cast<uint32_t>(global.blockPeriod) ));
+    if(global.newVelPotValue){
+        /*
+        ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, static_cast<uint32_t>(global.blockPeriod)));
+        */
+
+        if(global.blockPeriod <minf_HTimerPeriod){ 
+            ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, static_cast<uint32_t>(global.blockPeriod)));
+        }else{ //case when bp is bigger than mcpwm can allow, aka too slow Frequency
+            ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, minf_HTimerPeriod));
+            global.dir= 0;
         }
+    }
 }
 
 void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
     //normal operating conidtions, suppresss the right pins
-    if(global.newPhaseSwitchFlag){
+    if(global.newPhaseSwitchFlag && global.dir != 0){ 
         for(int i =0; i<5; i+=2){
             if(gateLevelCycle[global.sectorTarget][i]==1){
                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
@@ -244,10 +253,16 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         global.newPhaseSwitchFlag = false;
     }
 
-    if(global.newVelPotValue){ 
+    if(global.newVelPotValue){  //potentiometer  moved (ie motor velocity target changed)
         // for(int i=0; i<3; i++){
         //     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(tripleHighTrigger[i])); //push new duty cycles
         // }
+        if(global.dir ==0){
+            for(int i =2; i>-1; i--){
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
+            }
+        }
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles. 

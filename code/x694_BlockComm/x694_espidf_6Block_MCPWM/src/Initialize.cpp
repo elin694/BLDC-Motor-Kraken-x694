@@ -7,6 +7,7 @@ BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
 void initialize(void * parameter){   
    pinSetup();
+   vTaskDelay(pdMS_TO_TICKS(20)); //To let gate driver setup
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
@@ -88,10 +89,8 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
 
 void as5600initialize() {
    #define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
-   //sets fth and sf , also reduces
    uint8_t fthRegisterData[1] = {0x00};
    uint8_t fthRegister[2] = {0x07, 0x00};
-   
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)1, //write 1 byte's woth from fthRegister
@@ -101,7 +100,6 @@ void as5600initialize() {
    );
    fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //rese
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister,(size_t)2, fthRegisterData, (size_t)1, /*alpha*/i2cWaitout));
-   //final read to confirm
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, (size_t)1, fthRegisterData, (size_t)1, /*alpha*/i2cWaitout));
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "init.cpp", "as5600 Fast Fillter Threshold Set: %d \n", (int)fthRegisterData[0]);
@@ -111,7 +109,7 @@ void as5600initialize() {
    t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d\n", t1);
 
    global.rotorVal = getRotorValAdjusted((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]);
-   int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+2*dir)%6; //0- bitsPerSector --> smaller sector
+   int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
    global.oldSectorTarget = newBNumber; 
    global.sectorTarget = newBNumber;
 }
@@ -136,16 +134,20 @@ void getSectorNumber(void *returnValue){
          // esp_rom_printf(white "GSNon(%d, %d)", global.oldSectorTarget, global.sectorTarget);
       }
       #else
-      ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
+      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, 
          &as5600TargetRegister, 
          as5600WriteSize,
          as5600RawDataBuf, 
          as5600ReadSize, 
          /*alpha*/ i2cWaitout
-      ));
-      global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
-      global.oldSectorTarget = global.sectorTarget;
-      global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+2*dir) % 6; //0- bitsPerSector --> smaller sector
+      );
+      if(valRequestStatus != ESP_ERR_INVALID_STATE){
+         global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
+         global.oldSectorTarget = global.sectorTarget;
+         global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
+      } else{
+         global.oldSectorTarget=global.sectorTarget;
+      }
       #endif
       preloadGates();
       global.readAS5600 = true;

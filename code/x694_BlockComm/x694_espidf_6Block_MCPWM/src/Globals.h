@@ -34,8 +34,9 @@
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
 #define toggleTurnCW
-#define i2cClockSpeed 800'000
-#define velPotReadPeriod (int)(128) //set velocity via pot 1
+#define startingDuty static_cast<float>(1- .8   ) //The Duty cycle is 1 - this.Value
+#define i2cClockSpeed 500'000
+#define velPotReadPeriod (int)(100) //set velocity via pot 1
 #define SetAs5600PollPeriod 8000
 #define preCompStartingTargetSector 1
 #define timerResolution  static_cast<uint32_t>(16e7/40) //125ns , must not simple ratio
@@ -48,16 +49,17 @@ inline DRAM_ATTR int isr2CurrentTime =0;
 inline DRAM_ATTR int isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 /*minimum and maximum RPS */
-#define fMin static_cast<float>(VTimerResolution/(18.0f*65535)) 
-#define fMax static_cast<float>(VTimerResolution/(18.0f*200))
-
+#define maxf_HTimerPeriod 400 //200--> 111.11rps
+#define minf_HTimerPeriod (int)(65535/2)
+#define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
+// #define fMin static_cast<float>(VTimerResolution/(18.0f*minf_HTimerPeriod))
+#define fMax static_cast<float>(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 #define i2cWaitout 15//in ms
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(250)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
-    #define startingDuty static_cast<float>(1- .3) //The Duty cycle is 1 - this.Value
-    #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
+#define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
     #ifdef debug_testBigBreadboardTestPins
         #define phaseAHighPort GPIO_NUM_2
@@ -91,22 +93,22 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 
 //+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
 typedef struct{
-    // ^^^^^^^^^^^^^^^^^^^^^
-    volatile uint32_t oldSectorTarget = preCompStartingTargetSector;
-    volatile int sectorTarget =preCompStartingTargetSector; ; //for stator current vector
-    // BLOCK CYCLING: / 0-RS, 1 BS, 2 RS, 3 RF), 4: BF, 5: RF
-    // volatile uint32_t blockPeriod= static_cast<uint32_t>(((131072)/2)/6); 
-    volatile uint32_t blockPeriod = 65535;
-    volatile bool newVelPotValue = false;
-    volatile bool newPhaseSwitchFlag = false;
-    volatile bool readAS5600 = false;
-    volatile uint32_t rotorVal =0;
+    uint32_t oldSectorTarget = preCompStartingTargetSector;
+    int sectorTarget =preCompStartingTargetSector; ; //for stator current vector
+    uint32_t blockPeriod = 65535;
+    bool newVelPotValue = false;
+    bool newPhaseSwitchFlag = false;
+    bool readAS5600 = false;
+    uint32_t rotorVal =0;
+#ifdef toggleTurnCW
+    int dir = 4; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
+#else
+    inline int dir = 2; 
+#endif
 } gVar_t;
 extern adc_oneshot_unit_handle_t adcHandle;
 inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
-// timer rez = ticks per period * periods/second 
-DRAM_ATTR inline gVar_t global;
-
+volatile DRAM_ATTR inline gVar_t global;
 
     /*DO NOT CHANGE VALUE*/
     #define electricalCycles 3 //constexpr is defineable compile time costant 
@@ -154,15 +156,10 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 #else
 #define getRotorValAdjusted(x) ((4096-x)+as5600CalibratedOffset)
 #endif
-#ifdef toggleTurnCW
-inline int dir = 5; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
-#else
-inline int dir = 1; 
-#endif
 //====================FUNCTION DECLARATION =======================
 inline TaskHandle_t setupTask= NULL;
 inline TaskHandle_t getSectorNumberTask= NULL;
-DRAM_ATTR constexpr const char * ghgl[6] = {"BAu2","CAd3","CBd2","ABd1","ACu0","BCu1"};
+DRAM_ATTR constexpr const char * ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick

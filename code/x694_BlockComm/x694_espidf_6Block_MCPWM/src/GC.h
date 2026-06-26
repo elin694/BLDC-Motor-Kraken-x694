@@ -2,7 +2,7 @@
 #include "Globals.h"
 #include "driver/gpio.h"
 
-#define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.9) //isr 700ns responds time
+#define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.5) //isr 700ns responds time
 #define relativeDeadTime 5
 
 // gpio 19- miso, b High side is tx2

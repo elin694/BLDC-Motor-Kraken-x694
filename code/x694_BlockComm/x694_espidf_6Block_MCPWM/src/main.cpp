@@ -25,7 +25,7 @@ void debugLog(void * parameter){
   for(;;){
     #ifdef debug_printRPS
     // ESP_LOGI("STATUS","^RPS: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
-    ESP_LOGI("a∂c","%6.4f|RPS: %5.2f|BPeriod %d|AS5600: %4d",(float)rawData/4096.0f, RPS, global.blockPeriod, global.rotorVal);
+    esp_rom_printf("a∂c: %4d|" cyan "RPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(RPS*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
     #else
     // #ifdef debug_testOnLED
     //   if(tracker++ %3){
@@ -38,19 +38,16 @@ void debugLog(void * parameter){
   }
 }
 
-  void readPotRepeat(void * parameter){
-    for(;;){
-      readPotOnce(parameter);
-      vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
-    }
+void readPotRepeat(void * parameter){
+  for(;;){
+    readPotOnce(parameter);
+    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
+  }
 }
-/*
-https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=
-*/
+/*https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=*/
 int lookUpTableIndex = 0;
-
+DRAM_ATTR uint32_t vbPeriod_temp;
 const int debug_adcReadLookUpTable[31] = {4094,0, 4094,0, 100, 200, 300,400,500,600,700,800,900,1000, 2000,3000,4000,4095,4000,3000,2000,1000,900,800,700,600,500,400,300,200, 100};
-
 void readPotOnce(void * parameter){
     ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
     #ifdef debug_dontReadVelocityPot
@@ -61,18 +58,25 @@ void readPotOnce(void * parameter){
         };
         // lookUpTableIndex++;
         esp_rom_printf(red "p@t raw: %d, %d, index%d\n", rawData,debug_adcReadLookUpTable[lookUpTableIndex],lookUpTableIndex);
-      #else
-        uint32_t bPeriod_temp = debug_dontReadVelocityPot;
+      #else //hold it constant
+        vbPeriod_temp = debug_dontReadVelocityPot;
       #endif
     #endif
+
     #if (!defined(debug_dontReadVelocityPot) || defined(debug_useLookUpTableADC))
-    RPS = (fMin+(fMax-fMin)*(float)rawData/4096);
-    uint32_t bPeriod_temp= (uint32_t)(VTimerResolution/(RPS*(electricalCycles*6)));
+        RPS = (fMin+(fMax-fMin)*(float)rawData/4096);
+        (RPS < 0) ? (global.dir = 4) : (global.dir = 2);
+        vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(RPS*(electricalCycles*6)));
+        if(vbPeriod_temp >>16 != 0){
+          ESP_LOGE("main.cpp","motor Stall v/ pot");
+          global.dir =0;
+          vbPeriod_temp =minf_HTimerPeriod;
+        }
     #endif
-    //This bottom part needs to be instantaneous assignment 
-    if(global.blockPeriod != bPeriod_temp){
+
+    if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
       taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
-      global.blockPeriod = bPeriod_temp;
+      global.blockPeriod = vbPeriod_temp;
       global.newVelPotValue =true;
       taskEXIT_CRITICAL(&stepPeriodMux);
     }
