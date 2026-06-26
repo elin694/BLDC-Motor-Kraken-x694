@@ -56,7 +56,7 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define fMax static_cast<float>(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 #define i2cWaitout 15//in ms
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(250)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
 #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
