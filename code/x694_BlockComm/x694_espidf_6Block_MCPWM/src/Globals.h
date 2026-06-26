@@ -35,7 +35,7 @@
 // #define as5600DirPinHigh
 #define toggleTurnCW
 #define startingDuty static_cast<float>(1- .8   ) //The Duty cycle is 1 - this.Value
-#define i2cClockSpeed 500'000
+#define i2cClockSpeed 800'000
 #define velPotReadPeriod (int)(100) //set velocity via pot 1
 #define SetAs5600PollPeriod 8000
 #define preCompStartingTargetSector 1
