@@ -6,7 +6,6 @@
 
 adc_oneshot_unit_handle_t adcHandle = NULL;
 uint32_t potBuffer[128];
-float RPS= 0 ;
 int rawData = 0;
 portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 void spamSearchCV(void *parameter){
@@ -24,8 +23,8 @@ void debugLog(void * parameter){
   int tracker = 0;
   for(;;){
     #ifdef debug_printRPS
-    // ESP_LOGI("STATUS","^RPS: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
-    esp_rom_printf("a∂c: %4d|" cyan "RPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(RPS*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
+    // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
+    esp_rom_printf("a∂c: %4d|" cyan "RPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
     #else
     // #ifdef debug_testOnLED
     //   if(tracker++ %3){
@@ -64,14 +63,20 @@ void readPotOnce(void * parameter){
     #endif
 
     #if (!defined(debug_dontReadVelocityPot) || defined(debug_useLookUpTableADC))
-        RPS = (fMin+(fMax-fMin)*(float)rawData/4096);
-        (RPS < 0) ? (global.dir = 4) : (global.dir = 2);
-        vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(RPS*(electricalCycles*6)));
+    if(global.controlMethod == VELOCITY_CONTROL){
+        global.targetVelocity = (fMin+(fMax-fMin)*(float)rawData/4096);
+        (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
+        vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
         if(vbPeriod_temp >>16 != 0){
-          ESP_LOGE("main.cpp","motor Stall v/ pot");
           global.dir =0;
           vbPeriod_temp =minf_HTimerPeriod;
         }
+      }else if(global.controlMethod == TORQUE_CONTROL){
+        global.targetAcceleration = (aMin+(aMax-aMin)*(float)rawData/4096);
+      /*conside case from motor stall - to fMIn*/
+      }else if(global.controlMethod == POSITION_CONTROL){
+       global.targetPosition = (pMin+(pMax-pMin)*(float)rawData/4096);
+      }
     #endif
 
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 

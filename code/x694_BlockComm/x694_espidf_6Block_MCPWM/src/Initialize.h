@@ -13,6 +13,7 @@ void runOnMCPWMIntr(void *returnValue);
 void getSectorNumber(void *returnValue);
 void debugLog(void * parameter);
 int mod6(int value);
+void mathItOut(void *parameter);
 
 #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
 

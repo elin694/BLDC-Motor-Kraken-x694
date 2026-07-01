@@ -54,6 +54,13 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
 // #define fMin static_cast<float>(VTimerResolution/(18.0f*minf_HTimerPeriod))
 #define fMax static_cast<float>(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
+
+#define aMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
+#define aMax static_cast<float>(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
+
+#define pMin static_cast<float>(0)
+#define pMax static_cast<float>(3*3.141592653/2)
+
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 #define i2cWaitout 15//in ms
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
@@ -92,6 +99,17 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
     #endif
 
 //+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
+typedef enum {
+    POSITION_CONTROL,
+    VELOCITY_CONTROL,
+    TORQUE_CONTROL
+} control_type;
+float kPID[3][3] = {
+    { 1, 1, 1 }, /*Position*/
+    { 1.1, 1.1, 1.1 }, /*Velocity {kp, ki, kd}*/
+    { 1, 1, 1 } /*Acceleration*/
+};
+
 typedef struct{
     uint32_t oldSectorTarget = preCompStartingTargetSector;
     int sectorTarget =preCompStartingTargetSector; ; //for stator current vector
@@ -99,16 +117,25 @@ typedef struct{
     bool newVelPotValue = false;
     bool newPhaseSwitchFlag = false;
     bool readAS5600 = false;
+    float targetPosition =0; //target RPS
+    float targetVelocity =0; //target RPS
+    float targetAcceleration =0; //target RPS
+    /*Measured Values*/
     uint32_t rotorVal =0;
+    uint32_t measuredPositions[3] ={0,0,0}; //recent values at the front
+    float measureVelocities[2] ={0,0};
+    float measureAccelerations[1] ={0};
+    control_type controlMethod = VELOCITY_CONTROL;
+
 #ifdef toggleTurnCW
     int dir = 4; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
 #else
     inline int dir = 2; 
 #endif
 } gVar_t;
+volatile DRAM_ATTR inline gVar_t global;
 extern adc_oneshot_unit_handle_t adcHandle;
 inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
-volatile DRAM_ATTR inline gVar_t global;
 
     /*DO NOT CHANGE VALUE*/
     #define electricalCycles 3 //constexpr is defineable compile time costant 

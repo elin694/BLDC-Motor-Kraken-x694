@@ -1,6 +1,7 @@
 #include "Initialize.h"
 #include "GateControl.h"
 #include <bitset> 
+#include <array>
 
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
@@ -22,7 +23,7 @@ void initialize(void * parameter){
       22,
    &getSectorNumberTask, 1);
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
-   ESP_LOGW("init.cpp"," maximum RPs; %6.3f, minimum RPS: %6.3f",fMin, fMax);
+   ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
 
    #ifdef enableReadPotRepeat
    xTaskCreate(readPotRepeat, "readPotRepeat", 10000, NULL, (int)(thisTaskPriority*.5)-2, NULL);
@@ -31,7 +32,8 @@ void initialize(void * parameter){
    #if ((defined(debug_spamPrintCounterStatus)) && debug_spamDelay)
    xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
    #endif
-   xTaskCreatePinnedToCore(debugLog, "debugLog", 10000, NULL, (int)(thisTaskPriority*.5)-3, NULL, 0);
+   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, (int)(thisTaskPriority*.5)-3, NULL, 0);
+   xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
    vTaskDelete(NULL);
 }
 
@@ -143,6 +145,7 @@ void getSectorNumber(void *returnValue){
       );
       if(valRequestStatus != ESP_ERR_INVALID_STATE){
          global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
+
          global.oldSectorTarget = global.sectorTarget;
          global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
       } else{
@@ -158,5 +161,45 @@ void getSectorNumber(void *returnValue){
          isr2CurrentCounterCounted =false;
       }
       #endif
+   }
+}
+
+void mathItOut(void *parameter){
+   for(;;){
+      if(global.rotorVal != -1){ //if a new position is recorded
+         /* +error = ahead of target ccw*/
+         uint32_t newThetas[3] = {global.rotorVal, global.measuredPositions[0], global.measuredPositions[1]};
+         float newOmegas[2] = {
+            (newThetas[0] - newThetas[1])/(float)(SetAs5600PollPeriod*timerResolution),
+            (newThetas[1] - newThetas[2])/((float)SetAs5600PollPeriod*timerResolution),
+         };
+         float newAlphas[1] = {(newOmegas[0] - newOmegas[1])/((float)SetAs5600PollPeriod*timerResolution)};
+         
+         if(global.controlMethod == VELOCITY_CONTROL){
+            float errorVel =global.targetVelocity- global.measureVelocities[0];
+            float prevArea =1;
+            float prevError =1;
+            float dt = SetAs5600PollPeriod/timerResolution;
+            float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
+            /*Conditation
+            if error area = 0;  the result is 0
+            f(previous area, error, dt)*/
+            float errorI = kPID[VELOCITY_CONTROL][1]*(dt * errorVel +prevArea); /*-area*k, */
+            float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
+            /*finally changes set cmpVal*/
+            float errorTotal  = errorP +errorI+errorD; //⍺
+            //error can theoretically go from 0 to infinity for 1 direction. ->
+         }
+         /*
+         measure 1, target 4| measure 2, target 5
+         if + error --> error = 3 = k, 
+         measure + error = target
+
+         */
+         // global.measuredPositions = newThetas;
+         // global.measureVelocities = newOmegas;
+         // global.measureAccelerations = newAlphas;
+         global.rotorVal = -1;
+      }
    }
 }
