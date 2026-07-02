@@ -18,13 +18,12 @@ void initialize(void * parameter){
       ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| newVelPotValue %d", global.blockPeriod, global.newVelPotValue);
       as5600initialize(); 
    #endif
-   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  
-      // uxTaskPriorityGet(setupTask)+1  /*priority*/, 
-      22,
-   &getSectorNumberTask, 1);
+   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  22, &getSectorNumberTask, 1);
+   xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
+   ulTaskNotifyValueClear(getSectorNumberTask ,0);
+
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
-
    #ifdef enableReadPotRepeat
    xTaskCreate(readPotRepeat, "readPotRepeat", 10000, NULL, (int)(thisTaskPriority*.5)-2, NULL);
    ESP_LOGW("init.cpp", "nableReadPotRepeat");
@@ -33,11 +32,9 @@ void initialize(void * parameter){
    xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
    #endif
    xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, (int)(thisTaskPriority*.5)-3, NULL, 0);
-   xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
+   // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
    vTaskDelete(NULL);
 }
-
-
 
 int mod6 (int value){ //for single add
     if(value > 5){
@@ -66,9 +63,12 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
             #ifdef debug_fastPrints
             esp_rom_printf(blue "B");
             #endif
-            xHigherPriorityTaskWoken = xTaskResumeFromISR(getSectorNumberTask);
             MCPWMx-> int_clr.val = tempClearR1.val;
-            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+            // xHigherPriorityTaskWoken = xTaskResumeFromISR(getSectorNumberTask);
+            vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
+            if(xHigherPriorityTaskWoken==pdTRUE){
+               portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+            }
          }else{
             MCPWMx-> int_clr.val = tempClearR1.val;
          }
@@ -93,34 +93,45 @@ void as5600initialize() {
    #define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
    uint8_t fthRegisterData[1] = {0x00};
    uint8_t fthRegister[2] = {0x07, 0x00};
+   isr2CurrentTime =esp_timer_get_time();
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-      /*alpha*/i2cWaitout)
+      /*alpha*/5*i2cWaitout)
    );
+   isr2CurrentTime2 =esp_timer_get_time()-isr2CurrentTime;
+   
    fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //rese
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister,(size_t)2, fthRegisterData, (size_t)1, /*alpha*/i2cWaitout));
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, (size_t)1, fthRegisterData, (size_t)1, /*alpha*/i2cWaitout));
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister,(size_t)2, fthRegisterData, (size_t)1, /*alpha*/5*i2cWaitout));
+   isr2CurrentTime =esp_timer_get_time()-isr2CurrentTime;
+   
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, (size_t)1, fthRegisterData, (size_t)1, /*alpha*/5*i2cWaitout));
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "init.cpp", "as5600 Fast Fillter Threshold Set: %d \n", (int)fthRegisterData[0]);
    //===================================GET A STARTING SECTOR VALUE ===================================
    /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/i2cWaitout));
-   t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d\n", t1);
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/5*i2cWaitout));
+   t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d,%d,%d\n", isr2CurrentTime2, isr2CurrentTime,t1);
 
    global.rotorVal = getRotorValAdjusted((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]);
    int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
    global.oldSectorTarget = newBNumber; 
    global.sectorTarget = newBNumber;
 }
-
-void getSectorNumber(void *returnValue){
+//    #include "esp_private/pm_impl.h"
+// #include "esp_pm.h"
+// #include "esp_private/esp_clk.h"
+void IRAM_ATTR getSectorNumber(void *returnValue){
+   uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
+   vTaskDelay(pdMS_TO_TICKS(100));
    while(1){
-      vTaskSuspend(NULL);
+      // vTaskSuspend(NULL);
+      file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1000));
+      // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
-      if(!(isr2CurrentCounter++%16)){ 
+         if(!(isr2CurrentCounter++%16)){ 
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
       }
@@ -143,6 +154,11 @@ void getSectorNumber(void *returnValue){
          as5600ReadSize, 
          /*alpha*/ i2cWaitout
       );
+      #if defined(debug_spamPrintTimeISR1)
+      if(isr2CurrentCounterCounted){
+         isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
+      }
+      #endif
       if(valRequestStatus != ESP_ERR_INVALID_STATE){
          global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
 
@@ -150,6 +166,7 @@ void getSectorNumber(void *returnValue){
          global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
       } else{
          global.oldSectorTarget=global.sectorTarget;
+         global.dir = 0;
       }
       #endif
       preloadGates();
@@ -157,7 +174,7 @@ void getSectorNumber(void *returnValue){
 
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
-         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d\n", isr2CurrentTime);
+         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d+%d,%d\n", isr2CurrentTime2,isr2CurrentTime,file1);
          isr2CurrentCounterCounted =false;
       }
       #endif
@@ -200,6 +217,7 @@ void mathItOut(void *parameter){
          // global.measureVelocities = newOmegas;
          // global.measureAccelerations = newAlphas;
          global.rotorVal = -1;
+         
       }
    }
 }

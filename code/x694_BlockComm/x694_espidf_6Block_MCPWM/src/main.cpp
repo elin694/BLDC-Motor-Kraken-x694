@@ -24,7 +24,8 @@ void debugLog(void * parameter){
   for(;;){
     #ifdef debug_printRPS
     // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
-    esp_rom_printf("a∂c: %4d|" cyan "RPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
+    // esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
+    esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
     #else
     // #ifdef debug_testOnLED
     //   if(tracker++ %3){
@@ -89,7 +90,7 @@ void readPotOnce(void * parameter){
 
 extern "C"{
   void app_main(){
-    xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 12, &setupTask, 1); 
+    xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 12, &setupTask, 0); 
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
   }
 }

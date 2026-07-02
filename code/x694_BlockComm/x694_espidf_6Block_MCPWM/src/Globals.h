@@ -24,18 +24,22 @@
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
 // #define debug_spamDelay 2
-// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
+#define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
 // #define debug_dontReadVelocityPot 8000
 // #define debug_useLookUpTableADC //commenout out to keep the Bperiod
+/*Current loop: 
 
+initialize --> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] ... --> isr3
+
+*/
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
 #define toggleTurnCW
 #define startingDuty static_cast<float>(1- .8   ) //The Duty cycle is 1 - this.Value
-#define i2cClockSpeed 800'000
+#define i2cClockSpeed 900000
 #define velPotReadPeriod (int)(100) //set velocity via pot 1
 #define SetAs5600PollPeriod 8000
 #define preCompStartingTargetSector 1
@@ -43,9 +47,11 @@
 #define VTimerResolution  static_cast<uint32_t>(16e7/400) //125ns , must not simple ratio
 /*ALSO CHANGE HARD CODED PRESCALERS*/
 #define mcpwm_lowSideGroupPrescaler 40
+// inline DRAM_ATTR int t1 = 0;
 
 inline bool motorStall =false;
-inline DRAM_ATTR int isr2CurrentTime =0;
+inline DRAM_ATTR int isr2CurrentTime =0; //t1
+inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
 inline DRAM_ATTR int isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 /*minimum and maximum RPS */
@@ -62,8 +68,8 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define pMax static_cast<float>(3*3.141592653/2)
 
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define i2cWaitout 15//in ms
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200)
+#define i2cWaitout 1//in ms
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200+1)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
 #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
@@ -104,9 +110,9 @@ typedef enum {
     VELOCITY_CONTROL,
     TORQUE_CONTROL
 } control_type;
-float kPID[3][3] = {
+constexpr float kPID[3][3] = {
     { 1, 1, 1 }, /*Position*/
-    { 1.1, 1.1, 1.1 }, /*Velocity {kp, ki, kd}*/
+    { 1.1, 0,0 }, /*Velocity {kp, ki, kd}*/
     { 1, 1, 1 } /*Acceleration*/
 };
 

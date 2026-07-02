@@ -266,8 +266,8 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles. 
-        global.newVelPotValue=false;
-        esp_rom_delay_us(ticksToµs+1);
+        global.newVelPotValue=false;  
+        // esp_rom_delay_us(ticksToµs+1);
     }
     // if(global.sectorTarget == global.oldSectorTarget){
     //     esp_rom_printf("&tall");
