@@ -11,6 +11,7 @@
 #include "soc/gpio_struct.h"
 #include "driver/gpio.h"
 #include "esp_err.h"
+#include <esp_rom_sys.h> 
 
 #include "driver/mcpwm_prelude.h"
 
@@ -24,3 +25,6 @@
 
 #define phaseCHighPort GPIO_NUM_26
 #define phaseCLowPort GPIO_NUM_32
+
+#define freePort1 GPIO_NUM_18
+#define freePort2 GPIO_NUM_19

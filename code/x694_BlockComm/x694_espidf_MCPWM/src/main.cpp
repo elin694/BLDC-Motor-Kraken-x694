@@ -1,21 +1,21 @@
 #include "headers.h"
-#define generatorGPIO phaseBHighPort
-//b HIGH SIDE tx2
-#define phaseLowGate phaseCLowPort
-// #define generatorGPIO GPIO_NUM_2 //b HIGH SIDE tx2
-#define captureGPIO GPIO_NUM_19 //miso
+#include "soc/mcpwm_struct.h"
+#define generatorGPIO phaseCHighPort //tx2 = bh= 17
+#define phaseLowGate phaseALowPort //outwards
 
+// #define countingFrequency (1048576*64)
+#define countingFrequency (4e6) //2432
 
-//in
-#define timerPeriod 65535 //2e16
-// #define timerPeriod (65535+1)/16 //2e16
-#define countingFrequency (1048576*64)
-#define dutyCycle 50
+// #define timerPeriod countingFrequency/20000 //2e16
+// #define timerPeriod 4000 //2e16
+#define timerPeriod (countingFrequency/20000)
 
-uint32_t compareValue = dutyCycle*.01*timerPeriod;
-int id =  SOC_MCPWM_GROUPS-1;
+#define dutyCycle (float)(1-(.7))
 
-extern void groundSetup(){
+uint32_t compareValue = dutyCycle*.5*timerPeriod;
+int id =  0;
+
+void groundSetup(){
     gpio_num_t gateArray[6]= {
       phaseAHighPort,
       phaseALowPort,
@@ -27,8 +27,8 @@ extern void groundSetup(){
    for(gpio_num_t gate : gateArray){
       gpio_reset_pin(gate);
       gpio_set_direction(gate,GPIO_MODE_OUTPUT);
-      ets_delay_us(1000);
-      gpio_set_pull_mode(gate, GPIO_PULLUP_ONLY);
+      ets_delay_us(10);
+      gpio_set_pull_mode(gate, GPIO_PULLDOWN_ONLY);
       gpio_set_level(gate, 0);
    }
     gpio_reset_pin(phaseLowGate);
@@ -40,20 +40,20 @@ mcpwm_timer_config_t timerSetup = {
     .group_id = id,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = static_cast<uint32_t>(countingFrequency),
-    .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
+    .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     .period_ticks =static_cast<uint32_t>(timerPeriod),//
     // .intr_priority = 1,
-    // .flags = {
-    //     .update_period_on_empty = 1,
-    //     .update_period_on_sync = 0 //these 2 determine when set_period takes effect
-    // }
+    .flags = {
+        .update_period_on_empty = 1,
+        .update_period_on_sync = 0 //these 2 determine when set_period takes effect
+    }
 };
 static mcpwm_timer_handle_t timerHandle;
 //Register Timer Event Callbacks
 
 mcpwm_operator_config_t operatorSetup = {
     .group_id = id,
-    .intr_priority = 0,
+    // .intr_priority = 0,
     .flags = {
         .update_gen_action_on_tez = 1,
         .update_gen_action_on_tep = 0,
@@ -87,39 +87,45 @@ mcpwm_generator_config_t genSetup = {
 };
 mcpwm_gen_handle_t genHandle;
 
-mcpwm_capture_timer_config_t triggerSetup = {
-    .group_id = id,
-    .clk_src = MCPWM_CAPTURE_CLK_SRC_DEFAULT,
-    .resolution_hz = 1052631,
-};
-mcpwm_cap_timer_handle_t triggerHandle;
+// mcpwm_capture_timer_config_t triggerSetup = {
+//     .group_id = id,
+//     .clk_src = MCPWM_CAPTURE_CLK_SRC_DEFAULT,
+//     .resolution_hz = 1052631,
+// };
+// mcpwm_cap_timer_handle_t triggerHandle;
 
-mcpwm_capture_channel_config_t triggerChannelSetup = {
-    .gpio_num = captureGPIO,
-    .intr_priority = 0,
-    .prescale = 2,
-    .flags = {
-        .pos_edge = 1,
-        .neg_edge = 0,
-        .pull_up = 1,
-        .pull_down = 0,
-        .invert_cap_signal = 0,
-        .io_loop_back = 0 ,
-        .keep_io_conf_at_exit =1,
-    }
-};
-mcpwm_cap_channel_handle_t triggerChannelHandle;
+// mcpwm_capture_channel_config_t triggerChannelSetup = {
+//     .gpio_num = captureGPIO,
+//     .intr_priority = 0,
+//     .prescale = 2,
+//     .flags = {
+//         .pos_edge = 1,
+//         .neg_edge = 0,
+//         .pull_up = 1,
+//         .pull_down = 0,
+//         .invert_cap_signal = 0,
+//         .io_loop_back = 0 ,
+//         .keep_io_conf_at_exit =1,
+//     }
+// };
+// mcpwm_cap_channel_handle_t triggerChannelHandle;
 
-extern void setupMCPWM(){
+void setupMCPWM(){
     ets_delay_us(10000);
     groundSetup();
+    ESP_LOGE("DEBUG2easd", "period ticks %d", timerSetup.period_ticks);
+    ESP_LOGE("DEBUG2easd", "resol: %d", timerSetup.resolution_hz);
+    ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
     ESP_ERROR_CHECK(mcpwm_new_timer(&timerSetup, &timerHandle));
+    // int g_prescale =100; //gives current toal rpescaler
+    // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;
+    // MCPWM0.timer[0].timer_cfg0.timer_prescale= (16e7/countingFrequency)*5-1;
     ESP_ERROR_CHECK(mcpwm_new_operator(&operatorSetup, &operatorHandle));
+    ESP_LOGE("DEBUG2easd", "cmpvalue ");
     ESP_ERROR_CHECK(mcpwm_new_comparator(operatorHandle, &comparatorSetup, &comparatorHandle));
     ESP_ERROR_CHECK(mcpwm_new_generator(operatorHandle, &genSetup, &genHandle));
-    ESP_ERROR_CHECK(mcpwm_new_capture_timer(&triggerSetup, &triggerHandle));
-    ESP_ERROR_CHECK(mcpwm_new_capture_channel(triggerHandle, &triggerChannelSetup, &triggerChannelHandle));
-    ets_delay_us(100000);
+    // ESP_ERROR_CHECK(mcpwm_new_capture_timer(&triggerSetup, &triggerHandle));
+    // ESP_ERROR_CHECK(mcpwm_new_capture_channel(triggerHandle, &triggerChannelSetup, &triggerChannelHandle));
 }
 
 extern "C" {
@@ -129,7 +135,9 @@ extern "C" {
         /*RUNTIME FUNCTIONS*/
         // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(genHandle, 0, true)); // Force low until ready
         ESP_ERROR_CHECK(mcpwm_operator_connect_timer(operatorHandle, timerHandle)); //--
+        ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparatorHandle,compareValue)); 
+
         
         ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(genHandle,
             MCPWM_GEN_COMPARE_EVENT_ACTION(
@@ -137,62 +145,27 @@ extern "C" {
                 comparatorHandle,
                 MCPWM_GEN_ACTION_HIGH
             ),
-            MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-        ));
-        ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event(genHandle,
-            MCPWM_GEN_TIMER_EVENT_ACTION(
-                MCPWM_TIMER_DIRECTION_UP,
-                MCPWM_TIMER_EVENT_EMPTY,
+              MCPWM_GEN_COMPARE_EVENT_ACTION(
+                MCPWM_TIMER_DIRECTION_DOWN,
+                comparatorHandle,
                 MCPWM_GEN_ACTION_LOW
             ),
-            MCPWM_GEN_TIMER_EVENT_ACTION_END()
+            MCPWM_GEN_COMPARE_EVENT_ACTION_END()
         ));
+        // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event(genHandle,
+        //     MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_EVENT_FULL, MCPWM_GEN_ACTION_HIGH),
+        //     MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_LOW),
+        //     MCPWM_GEN_TIMER_EVENT_ACTION_END())
+        // );
 
-        
         ESP_ERROR_CHECK(mcpwm_timer_enable(timerHandle));
         ESP_ERROR_CHECK(mcpwm_timer_start_stop(timerHandle, MCPWM_TIMER_START_NO_STOP));
+        int bt1= 0;
         for(;;){
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
-        /*
-        mcpwm_timer_set_period() 
-        
-        mcpwm_comparator_register_event_callbacks()-- comparator can be used to trigger event when comparator reaches threshold
-        
-        - update time  set by Config: update_cmp_on_tez, update_cmp_on_tep, or update_cmp
-
-        mcpwm_generator_set_actions_on_timer_event()- One generator can set multiple actions on different timer events
-            - EX: when generator a's timer has a rising edge that reaches 0, set generator A output low
-                // mcpwm_generator_set_action_on_timer_event(gena, 
-                //     MCPWM_GEN_TIMER_EVENT_ACTION(
-                //         //direction, event, action
-                //         MCPWM_TIMER_DIRECTION_UP, //up or down
-                //         MCPWM_TIMER_EVENT_EMPTY, // timer to 0, peak, or timer invalid event
-                //         MCPWM_GEN_ACTION_HIGH // set to same level, low/high level, or toggle
-                //     )
-                // );
-        mcpwm_generator_set_actions_on_compare_event()
-            - EX:When genA's timer has a rising edge that meets cmpa's threshold, set genA output high,
-                    then low on the falling edge
-                // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(gena,
-                // MCPWM_GEN_COMPARE_EVENT_ACTION(
-                //     MCPWM_TIMER_DIRECTION_UP,  //dir - up or down
-                //     cmpa,
-                //     MCPWM_GEN_ACTION_HIGH        // action - // set to same level, low/high level, or toggle
-                // ),
-                // MCPWM_GEN_COMPARE_EVENT_ACTION(
-                //     MCPWM_TIMER_DIRECTION_DOWN,
-                //     cmpa,
-                //     MCPWM_GEN_ACTION_LOW
-                // ), 
-                // MCPWM_GEN_COMPARE_EVENT_ACTION_END(
-                // )));
-        mcpwm_generator_set_action_on_sync_event()- sync base trigger event,  MCPWM_GEN_SYNC_EVENT_ACTION
-            - doesn't have variadic function 
-
-            mcpwm_generator_set_dead_time()
-        */
-       
+            bt1 = MCPWM1.timer[0].timer_status.timer_value;
+            // esp_rom_printf("%d\n", bt1);
+            vTaskDelay(pdMS_TO_TICKS(5));
+        }       
     } 
 } 
     //timer - clock

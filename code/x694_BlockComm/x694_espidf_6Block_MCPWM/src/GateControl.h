@@ -4,7 +4,7 @@
 inline mcpwm_comparator_config_t phaseComparatorSetup = {
     // .intr_priority = 0,
     .flags ={
-        .update_cmp_on_tez = 0,
+        .update_cmp_on_tez = 1,
         .update_cmp_on_tep = 0,
         .update_cmp_on_sync = 1
     }
@@ -37,20 +37,23 @@ typedef struct {
 } phaseMcpwm;
 
 //initialization functions
-void mcpwmSetup(int targetSectorNumber, volatile  uint32_t * blockPeriod_f);
-void initializeHighGate(int startingTargetSector, uint32_t blockPeriod_f);
-void initializeLowGate(int startingTargetSector, float threshold_thirds[]);
+void mcpwmSetup(int targetSectorNumber);
+void initializeHighGate(int startingTargetSector,  uint32_t comparatorOff_Duty);
+void initializeLowGate(int startingTargetSector);
 void configureLowGateEvents();
-void initializeTimer(int startingTargetSector, uint32_t blockPeriod_f);
-void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTargetSector, uint32_t blockPeriod_f);
-void initializeISRsAndSyncs();
+void initializeTimer(int startingTargetSector);
+void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTargetSector);
+void initializeISR();
 
 //Loop
-void preloadGates(phaseMcpwm * highSide, phaseMcpwm * lowSide,  int previousState, int nextState, uint32_t blockPeriod_f);
-void phaseSwitching(mcpwm_int_clr_reg_t* clearRegister, mcpwm_dev_t * mcpwm);
-void executeGates(mcpwm_sync_handle_t * triggers, size_t arraySize);
-int mod6(int value);
+void preloadGates();
+void executeGates(mcpwm_dev_t * mcpwm);
 
+#if (lowSideGroup == 1)
+   #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
+#elif (lowSideGroup == 0)
+   #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
+#endif
 /*
 Hardware prioriy:
 - Fault/Brake
