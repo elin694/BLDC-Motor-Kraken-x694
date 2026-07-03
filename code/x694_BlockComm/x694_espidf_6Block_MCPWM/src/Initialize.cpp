@@ -36,28 +36,6 @@ void initialize(void * parameter){
    vTaskDelete(NULL);
 }
 
-<<<<<<< HEAD
-
-i2c_master_bus_config_t busSetup = { 
-   .i2c_port = -1,
-   .sda_io_num= dataPin,
-   .scl_io_num= clockPin,
-   .clk_source = I2C_CLK_SRC_APB,
-   .glitch_ignore_cnt = 7,
-   // .intr_priority = 1,
-   .flags={.enable_internal_pullup = true}
-};
-i2c_master_bus_handle_t busHandle;
-
-i2c_device_config_t as5600Setup = {
-   .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-   .device_address = as5600Address,
-   .scl_speed_hz= 390000, //need fast enough  to avoid invalid state
-   .scl_wait_us = 30,
-   .flags = {.disable_ack_check = false}
-};
-i2c_master_dev_handle_t as5600Handle;
-=======
 int mod6 (int value){ //for single add
     if(value > 5){
         value -= 6;
@@ -66,7 +44,6 @@ int mod6 (int value){ //for single add
     }
     return value;
 }
->>>>>>> 5timer_with_isr_no_action
 
 void pinSetup(){
    gpio_reset_pin(clockPin);
