@@ -240,23 +240,22 @@ void preloadGates(){
 
 void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
     //normal operating conidtions, suppresss the right pins
-    if(global.newPhaseSwitchFlag && global.dir != 0){ 
-        for(int i =0; i<5; i+=2){
-            if(gateLevelCycle[global.sectorTarget][i]==1){
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
-            }else{
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
+    if(global.newPhaseSwitchFlag){ 
+        if(global.dir != 0){
+            for(int i =0; i<5; i+=2){
+                if(gateLevelCycle[global.sectorTarget][i]==1){
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
+                }else{
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
+                }
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
             }
-            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
         }
+            global.newPhaseSwitchFlag = false;
         // getTimerCountNow("");
-        global.newPhaseSwitchFlag = false;
     }
 
     if(global.newVelPotValue){  //potentiometer  moved (ie motor velocity target changed)
-        // for(int i=0; i<3; i++){
-        //     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(tripleHighTrigger[i])); //push new duty cycles
-        // }
         if(global.dir ==0){
             for(int i =2; i>-1; i--){
                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
@@ -273,6 +272,6 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
     //     esp_rom_printf("&tall");
     // }
     #ifdef debug_fastPrints
-        esp_rom_printf(white "|%d,%s" red "|L\n", global.sectorTarget, ghgl[global.sectorTarget]);
+        esp_rom_printf(white "|%d,%s,%d" red "|L\n", global.sectorTarget, ghgl[global.sectorTarget],global.dir);
     #endif
 }

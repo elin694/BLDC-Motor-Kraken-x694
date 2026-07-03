@@ -18,20 +18,20 @@ void initialize(void * parameter){
       ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| newVelPotValue %d", global.blockPeriod, global.newVelPotValue);
       as5600initialize(); 
    #endif
-   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  22, &getSectorNumberTask, 1);
+   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  24, &getSectorNumberTask, 1);
    xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
    ulTaskNotifyValueClear(getSectorNumberTask ,0);
 
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
    #ifdef enableReadPotRepeat
-   xTaskCreate(readPotRepeat, "readPotRepeat", 10000, NULL, (int)(thisTaskPriority*.5)-2, NULL);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 10, NULL,0);
    ESP_LOGW("init.cpp", "nableReadPotRepeat");
    #endif 
    #if ((defined(debug_spamPrintCounterStatus)) && debug_spamDelay)
    xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
    #endif
-   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, (int)(thisTaskPriority*.5)-3, NULL, 0);
+   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, 5, NULL, 0);
    // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
    vTaskDelete(NULL);
 }
@@ -99,20 +99,20 @@ void as5600initialize() {
       (size_t)1, //write 1 byte's woth from fthRegister
       fthRegisterData, //where to save the read data
       (size_t)1, //read 1 byte
-      /*alpha*/5*i2cWaitout)
+      /*alpha*/20*i2cWaitout)
    );
    isr2CurrentTime2 =esp_timer_get_time()-isr2CurrentTime;
    
    fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //rese
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister,(size_t)2, fthRegisterData, (size_t)1, /*alpha*/5*i2cWaitout));
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister,(size_t)2, fthRegisterData, (size_t)1, /*alpha*/20*i2cWaitout));
    isr2CurrentTime =esp_timer_get_time()-isr2CurrentTime;
    
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, (size_t)1, fthRegisterData, (size_t)1, /*alpha*/5*i2cWaitout));
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, (size_t)1, fthRegisterData, (size_t)1, /*alpha*/20*i2cWaitout));
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "init.cpp", "as5600 Fast Fillter Threshold Set: %d \n", (int)fthRegisterData[0]);
    //===================================GET A STARTING SECTOR VALUE ===================================
    /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/5*i2cWaitout));
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/20*i2cWaitout));
    t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d,%d,%d\n", isr2CurrentTime2, isr2CurrentTime,t1);
 
    global.rotorVal = getRotorValAdjusted((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]);

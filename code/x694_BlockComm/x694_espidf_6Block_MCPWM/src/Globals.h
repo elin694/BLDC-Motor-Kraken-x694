@@ -31,7 +31,7 @@
 // #define debug_useLookUpTableADC //commenout out to keep the Bperiod
 /*Current loop: 
 
-initialize --> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] ... --> isr3
+initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] 
 
 */
 /*=============================USER SETTING CONTROL PANEL=============================*/
@@ -39,7 +39,9 @@ initialize --> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minima
 // #define as5600DirPinHigh
 #define toggleTurnCW
 #define startingDuty static_cast<float>(1- .8   ) //The Duty cycle is 1 - this.Value
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(239)
 #define i2cClockSpeed 900000
+#define i2cWaitout 1 //in ms
 #define velPotReadPeriod (int)(100) //set velocity via pot 1
 #define SetAs5600PollPeriod 8000
 #define preCompStartingTargetSector 1
@@ -47,7 +49,6 @@ initialize --> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minima
 #define VTimerResolution  static_cast<uint32_t>(16e7/400) //125ns , must not simple ratio
 /*ALSO CHANGE HARD CODED PRESCALERS*/
 #define mcpwm_lowSideGroupPrescaler 40
-// inline DRAM_ATTR int t1 = 0;
 
 inline bool motorStall =false;
 inline DRAM_ATTR int isr2CurrentTime =0; //t1
@@ -55,7 +56,7 @@ inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
 inline DRAM_ATTR int isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 /*minimum and maximum RPS */
-#define maxf_HTimerPeriod 400 //200--> 111.11rps
+#define maxf_HTimerPeriod 800 //200--> 111.11rps
 #define minf_HTimerPeriod (int)(65535/2)
 #define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
 // #define fMin static_cast<float>(VTimerResolution/(18.0f*minf_HTimerPeriod))
@@ -68,8 +69,6 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define pMax static_cast<float>(3*3.141592653/2)
 
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define i2cWaitout 1//in ms
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(200+1)
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
 #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
@@ -184,7 +183,7 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 //top view of physical motor has ABC going ccw
 #define as5600CalibrationRawValue (3388)
 #define as5600CalibratedOffset static_cast<int>((4096.0)*(38.0/36.0) - (4096-as5600CalibrationRawValue) /*remove mutliples of 1 electrical cycle*/)  
-#ifdef as5600DirPinHigh
+#ifdef as5600DirPinHigh //not during calibration
 #define getRotorValAdjusted(x) (as5600CalibratedOffset+x)
 #else
 #define getRotorValAdjusted(x) ((4096-x)+as5600CalibratedOffset)
