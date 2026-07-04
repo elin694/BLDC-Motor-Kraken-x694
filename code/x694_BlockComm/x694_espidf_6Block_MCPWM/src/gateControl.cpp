@@ -77,7 +77,7 @@ void initializeLowGate(int startingTargetSector){
 }
 
 void configureLowGateEvents(){
-    mcpwm_timer_direction_t dir[2] = {MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_DIRECTION_UP};
+    mcpwm_timer_direction_t dzir[2] = {MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_DIRECTION_UP};
     mcpwm_generator_action_t action[2] = {MCPWM_GEN_ACTION_LOW, MCPWM_GEN_ACTION_HIGH} ;
     mcpwm_timer_event_t timerEmpty =  MCPWM_TIMER_EVENT_EMPTY;
     int index1 =0;
@@ -264,7 +264,7 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         #elif defined(debug_hyperFastPrints)
         darray[dindex[0].fetch_add(1)]= green "EgPh ";
         #endif
-        //when motor is off (dir=0), nPSF still runs, but no changes are made
+        //when motor is off (freespinnig), nPSF still runs, but no changes are made
         if(!global.setMotorFreeSpin){ //not freespinning = active control
             for(int i =0; i<5; i+=2){
                 if(gateLevelCycle[global.sectorTarget][i]==1){

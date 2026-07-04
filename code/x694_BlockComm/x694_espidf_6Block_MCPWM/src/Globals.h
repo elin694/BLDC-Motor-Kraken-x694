@@ -44,7 +44,7 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
-#define startingDuty static_cast<float>(1- .8 ) //The Duty cycle is 1 - this.Value, normally .8
+#define startingDuty static_cast<float>(1- .2 ) //The Duty cycle is 1 - this.Value, normally .8
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(185)
 #define i2cClockSpeed 900000
 #define i2cWaitout 1 //in ms

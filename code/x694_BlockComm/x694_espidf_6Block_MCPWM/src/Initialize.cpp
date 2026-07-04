@@ -14,8 +14,10 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    #ifndef debug_testOnLED
+   int k = global.dir;
       readPotOnce(NULL);
-      ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| newVelPotValue %d", global.blockPeriod, global.newVelPotValue);
+      int k2 = global.dir;
+      ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| newVelPotValue %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);
       as5600initialize(); 
    #endif
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  24, &getSectorNumberTask, 1);
@@ -227,7 +229,7 @@ void mathItOut(void *parameter){
             float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
             /*finally changes set cmpVal*/
             float errorTotal  = errorP +errorI+errorD; //⍺
-            //error can theoretically go from 0 to infinity for 1 direction. ->
+            //error can theoretically go from 0 to infinity for 1 c. ->
          }
          /*
          measure 1, target 4| measure 2, target 5
