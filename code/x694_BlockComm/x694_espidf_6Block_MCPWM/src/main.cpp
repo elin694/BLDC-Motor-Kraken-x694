@@ -26,7 +26,7 @@ void debugLog(void * parameter){
     #ifdef debug_printRPS
     // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
     // esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
-    esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| G:%s, t: %d\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
+    esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| G:%s\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
     #endif
     // #endif
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
@@ -46,7 +46,8 @@ int lookUpTableIndex = 0;
 DRAM_ATTR uint32_t vbPeriod_temp;
 const int debug_adcReadLookUpTable[31] = {4094,0, 4094,0, 100, 200, 300,400,500,600,700,800,900,1000, 2000,3000,4000,4095,4000,3000,2000,1000,900,800,700,600,500,400,300,200, 100};
 void readPotOnce(void * parameter){
-    ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
+  ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
+  rawData = (rawData/2)*2;
     #ifdef debug_dontReadVelocityPot
       #ifdef debug_useLookUpTableADC
         rawData = debug_adcReadLookUpTable[lookUpTableIndex];
@@ -57,9 +58,10 @@ void readPotOnce(void * parameter){
         esp_rom_printf(red "p@t raw: %d, %d, index%d\n", rawData,debug_adcReadLookUpTable[lookUpTableIndex],lookUpTableIndex);
       #else //hold it constant
         vbPeriod_temp = debug_dontReadVelocityPot;
-        if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+        if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment
+          esp_rom_printf("ENTIRNG CRITICAL"); 
           global.targetVelocity=VTimerResolution/(18.0f* vbPeriod_temp);
-          // (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
+          (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
           taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
           global.blockPeriod = vbPeriod_temp;
           global.newVelPotValue =true;
