@@ -20,7 +20,7 @@
 // #define debug_testBigBreadboardTestPins
 // #define debug_fastPrints //isr indicator and BLOCK#
 #define debug_hyperFastPrints
-#define debug_hyperFastPrintsWithPot
+#define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 inline DRAM_ATTR const char* darray[10000];
 inline DRAM_ATTR uint32_t dindex[]={0,0}; //new, old
 
