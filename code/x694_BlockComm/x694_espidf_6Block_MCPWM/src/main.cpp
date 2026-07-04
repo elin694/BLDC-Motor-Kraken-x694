@@ -22,18 +22,13 @@ void spamSearchCV(void *parameter){
 void debugLog(void * parameter){
   int tracker = 0;
   for(;;){
+    // #if (!defined(debug_hyperFastPrints) && !defined(debug_hyperFastPrintsWithPot))
     #ifdef debug_printRPS
     // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
     // esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
     esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
-    #else
-    // #ifdef debug_testOnLED
-    //   if(tracker++ %3){
-    //   motorStall = !motorStall;
-    //   ESP_LOGW("mtrStl=","%d",motorStall);
-    // }
-    // #endif
     #endif
+    // #endif
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
   }
 }
@@ -81,6 +76,7 @@ void readPotOnce(void * parameter){
     #endif
 
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+      
       taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
       global.blockPeriod = vbPeriod_temp;
       global.newVelPotValue =true;

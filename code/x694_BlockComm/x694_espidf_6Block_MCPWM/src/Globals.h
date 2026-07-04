@@ -19,12 +19,19 @@
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
 // #define debug_fastPrints //isr indicator and BLOCK#
+#define debug_hyperFastPrints
+#define debug_hyperFastPrintsWithPot
+inline DRAM_ATTR const char* darray[10000];
+inline DRAM_ATTR uint32_t dindex[]={0,0}; //new, old
+
 #define debug_printRPS 
+#define velPotReadPeriod (int)(500) //set velocity via pot 1
 
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
 // #define debug_spamDelay 2
-#define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
+// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
+
 
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
 // #define debug_dontReadVelocityPot 8000
@@ -39,25 +46,22 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 // #define as5600DirPinHigh
 #define toggleTurnCW
 #define startingDuty static_cast<float>(1- .8   ) //The Duty cycle is 1 - this.Value
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(239)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(180)
 #define i2cClockSpeed 900000
 #define i2cWaitout 1 //in ms
-#define velPotReadPeriod (int)(100) //set velocity via pot 1
-#define SetAs5600PollPeriod 8000
+#define SetAs5600PollPeriod 1000 //period ticks
+#if (estimatedI2CReadTimeInTicks > SetAs5600PollPeriod)
+#warnings "SetAs5600PollPeriod too brief; shorter than i2c read time"
+#endif
 #define preCompStartingTargetSector 1
-#define timerResolution  static_cast<uint32_t>(16e7/40) //125ns , must not simple ratio
-#define VTimerResolution  static_cast<uint32_t>(16e7/400) //125ns , must not simple ratio
 /*ALSO CHANGE HARD CODED PRESCALERS*/
 #define mcpwm_lowSideGroupPrescaler 40
+#define timerResolution  static_cast<uint32_t>(16e7/mcpwm_lowSideGroupPrescaler) //125ns , must not simple ratio
+#define VTimerResolution  static_cast<uint32_t>(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
-inline bool motorStall =false;
-inline DRAM_ATTR int isr2CurrentTime =0; //t1
-inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
-inline DRAM_ATTR int isr2CurrentCounter =0;
-inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 /*minimum and maximum RPS */
-#define maxf_HTimerPeriod 800 //200--> 111.11rps
-#define minf_HTimerPeriod (int)(65535/2)
+#define maxf_HTimerPeriod 2222 //200--> 111.11rps
+#define minf_HTimerPeriod (uint32_t)(65535/2)
 #define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
 // #define fMin static_cast<float>(VTimerResolution/(18.0f*minf_HTimerPeriod))
 #define fMax static_cast<float>(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
@@ -68,6 +72,12 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define pMin static_cast<float>(0)
 #define pMax static_cast<float>(3*3.141592653/2)
 
+
+inline bool motorStall =false;
+inline DRAM_ATTR int isr2CurrentTime =0; //t1
+inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
+inline DRAM_ATTR int isr2CurrentCounter =0;
+inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
@@ -109,6 +119,7 @@ typedef enum {
     VELOCITY_CONTROL,
     TORQUE_CONTROL
 } control_type;
+
 constexpr float kPID[3][3] = {
     { 1, 1, 1 }, /*Position*/
     { 1.1, 0,0 }, /*Velocity {kp, ki, kd}*/
@@ -131,14 +142,14 @@ typedef struct{
     float measureVelocities[2] ={0,0};
     float measureAccelerations[1] ={0};
     control_type controlMethod = VELOCITY_CONTROL;
-
 #ifdef toggleTurnCW
     int dir = 4; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
 #else
-    inline int dir = 2; 
+inline int dir = 2; 
 #endif
 } gVar_t;
 volatile DRAM_ATTR inline gVar_t global;
+inline uint32_t file1 =0;
 extern adc_oneshot_unit_handle_t adcHandle;
 inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -191,7 +202,11 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 //====================FUNCTION DECLARATION =======================
 inline TaskHandle_t setupTask= NULL;
 inline TaskHandle_t getSectorNumberTask= NULL;
-DRAM_ATTR constexpr const char * ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};
+// DRAM_ATTR constexpr const char* ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};
+DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "};
+#ifdef debug_hyperFastPrints
+DRAM_ATTR constexpr const char* dgdir[6] = {"D0","D?","D2","D","D4","D?"};
+#endif
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick

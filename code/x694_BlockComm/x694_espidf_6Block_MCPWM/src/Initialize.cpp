@@ -58,22 +58,26 @@ void pinSetup(){
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
    if(tempStatusReg.val){ //in case of ghost interrupts
+
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
          if(global.newPhaseSwitchFlag){
             #ifdef debug_fastPrints
             esp_rom_printf(blue "B");
+            #elif defined(debug_hyperFastPrints)
+            darray[dindex[0]++]= blue "B ";
             #endif
-            MCPWMx-> int_clr.val = tempClearR1.val;
-            // xHigherPriorityTaskWoken = xTaskResumeFromISR(getSectorNumberTask);
+            
+            xHigherPriorityTaskWoken =pdFALSE;
             vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
-            if(xHigherPriorityTaskWoken==pdTRUE){
+            MCPWMx-> int_clr.val = tempClearR1.val;
+            if(xHigherPriorityTaskWoken == pdTRUE){
                portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
             }
          }else{
             MCPWMx-> int_clr.val = tempClearR1.val;
          }
          return;
-
+         /*CASE 1 ABOVE*/
       } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
          if(global.newPhaseSwitchFlag && global.readAS5600){
             executeGates(MCPWMx);
@@ -81,12 +85,18 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          } 
          MCPWMx->int_clr.val = (tempClearR2.val | tempClearR3.val);
          return;
-
+         /*CASE 2 ABOVE*/
       } else if(tempStatusReg.timer2_tez_int_st){
+         #ifdef debug_fastPrints
+         esp_rom_printf(magenta "V");
+         #elif defined(debug_hyperFastPrints)
+         darray[dindex[0]++] = magenta "V";
+         #endif
          global.newPhaseSwitchFlag= true;
          MCPWMx-> int_clr.val = tempClearR3.val;
+         /*CASE 3 ABOVE*/
       }
-   }
+   }  
 }
 
 void as5600initialize() {
@@ -120,15 +130,21 @@ void as5600initialize() {
    global.oldSectorTarget = newBNumber; 
    global.sectorTarget = newBNumber;
 }
+
 //    #include "esp_private/pm_impl.h"
 // #include "esp_pm.h"
 // #include "esp_private/esp_clk.h"
 void IRAM_ATTR getSectorNumber(void *returnValue){
-   uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
+   // uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
    vTaskDelay(pdMS_TO_TICKS(100));
    while(1){
       // vTaskSuspend(NULL);
       file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1000));
+      #ifdef debug_fastPrints
+      // esp_rom_printf("GSN");
+      #elif defined(debug_hyperFastPrints)
+      darray[dindex[0]++]= "GSN ";
+      #endif
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
          if(!(isr2CurrentCounter++%16)){ 
@@ -167,6 +183,10 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
       } else{
          global.oldSectorTarget=global.sectorTarget;
          global.dir = 0;
+
+         #if defined(debug_hyperFastPrints)
+            darray[dindex[0]++]= "I2cF& ";
+         #endif
       }
       #endif
       preloadGates();
