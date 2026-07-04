@@ -64,7 +64,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
             #ifdef debug_fastPrints
             esp_rom_printf(blue "B");
             #elif defined(debug_hyperFastPrints)
-            darray[dindex[0]++]= blue "B ";
+            darray[dindex[0].fetch_add(1)]= blue "B ";
             #endif
             
             xHigherPriorityTaskWoken =pdFALSE;
@@ -90,7 +90,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          #ifdef debug_fastPrints
          esp_rom_printf(magenta "V");
          #elif defined(debug_hyperFastPrints)
-         darray[dindex[0]++] = magenta "V";
+         darray[dindex[0].fetch_add(1)] = magenta "V";
          #endif
          global.newPhaseSwitchFlag= true;
          MCPWMx-> int_clr.val = tempClearR3.val;
@@ -125,8 +125,8 @@ void as5600initialize() {
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/20*i2cWaitout));
    t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d,%d,%d\n", isr2CurrentTime2, isr2CurrentTime,t1);
 
-   global.rotorVal = getRotorValAdjusted((as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]);
-   int newBNumber = (int)((global.rotorVal * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
+   global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
+   int newBNumber = (int)((getRotorValAdjusted(global.rotorVal) * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
    global.oldSectorTarget = newBNumber; 
    global.sectorTarget = newBNumber;
 }
@@ -136,14 +136,14 @@ void as5600initialize() {
 // #include "esp_private/esp_clk.h"
 void IRAM_ATTR getSectorNumber(void *returnValue){
    // uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
-   vTaskDelay(pdMS_TO_TICKS(100));
+   vTaskDelay(pdMS_TO_TICKS(20));
    while(1){
       // vTaskSuspend(NULL);
       file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1000));
       #ifdef debug_fastPrints
       // esp_rom_printf("GSN");
       #elif defined(debug_hyperFastPrints)
-      darray[dindex[0]++]= "GSN ";
+      darray[dindex[0].fetch_add(1)]= "GSN ";
       #endif
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
@@ -180,13 +180,14 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
 
          global.oldSectorTarget = global.sectorTarget;
          global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
+         int as5600location = (int)(getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)%6;
+         as5600BfieldVectorSector.store(as5600location);
       } else{
          global.oldSectorTarget=global.sectorTarget;
-         // global.dir = 0;
          global.setMotorFreeSpin =true;
 
          #if defined(debug_hyperFastPrints)
-            darray[dindex[0]++]= "I2cF& ";
+            darray[dindex[0].fetch_add(1)]= "I2cF& ";
          #endif
       }
       #endif

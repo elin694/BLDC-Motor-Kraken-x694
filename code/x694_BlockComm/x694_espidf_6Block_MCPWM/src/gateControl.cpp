@@ -230,7 +230,7 @@ void preloadGates(){
        #ifdef debug_fastPrints
         esp_rom_printf("PgV ");
         #elif defined(debug_hyperFastPrints)
-        darray[dindex[0]++]= yellow "PgV ";
+        darray[dindex[0].fetch_add(1)]= yellow "PgV ";
         #endif
         if(global.blockPeriod <minf_HTimerPeriod){ 
             ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
@@ -248,7 +248,7 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         #ifdef debug_fastPrints
         esp_rom_printf("EgV ");
         #elif defined(debug_hyperFastPrints)
-        darray[dindex[0]++]= "EgV ";
+        darray[dindex[0].fetch_add(1)]= "EgV ";
         #endif
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
         ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
@@ -262,7 +262,7 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         #ifdef debug_fastPrints
         esp_rom_printf("EgPh ");
         #elif defined(debug_hyperFastPrints)
-        darray[dindex[0]++]= green "EgPh ";
+        darray[dindex[0].fetch_add(1)]= green "EgPh ";
         #endif
         //when motor is off (dir=0), nPSF still runs, but no changes are made
         if(!global.setMotorFreeSpin){ //not freespinning = active control
@@ -282,7 +282,7 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         #ifdef debug_fastPrints
         esp_rom_printf("EgPh ");
         #elif defined(debug_hyperFastPrints)
-        darray[dindex[0]++]= cyan "EgFree ";
+        darray[dindex[0].fetch_add(1)]= cyan "EgFree ";
         #endif
         for(int i =2; i>-1; i--){
             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
@@ -297,20 +297,23 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
     esp_rom_printf(white "|%d,%s,%d" red "|L\n", global.sectorTarget, ghgl[global.sectorTarget],global.dir);
     #elif defined(debug_hyperFastPrints)
     // int t1= esp_timer_get_time();
-    darray[dindex[0]++] = red;
-    darray[dindex[0]++] = ghgl[global.sectorTarget];
-    darray[dindex[0]++] = dgdir[global.dir];
+    darray[dindex[0].fetch_add(1)] = red;
+    darray[dindex[0].fetch_add(1)] = ghgl[global.sectorTarget];
+    darray[dindex[0].fetch_add(1)] = dgdir[global.dir];
     
     for(int hfp = dindex[1];hfp<dindex[0];hfp++ ){
         esp_rom_printf("%s",darray[hfp]);
     }
     #ifdef debug_hyperFastPrintsWithPot
     int bp = global.blockPeriod;
-    esp_rom_printf(" p%d\n", bp );
+    int as56 = as5600BfieldVectorSector.load();
+    int tas56 = global.sectorTarget;
+    esp_rom_printf(" p%d,%d+%d\n", bp,as56,tas56);
     #endif
     
     // t1= esp_timer_get_time() - t1;esp_rom_printf("T1: %d\n",t1);
-    dindex[1]=dindex[0]=0;
+    dindex[1].fetch_and(0x00);
+    dindex[0].fetch_and(0x00);
     #endif
     
 }

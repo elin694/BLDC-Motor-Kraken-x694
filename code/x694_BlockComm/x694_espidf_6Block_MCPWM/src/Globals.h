@@ -15,25 +15,26 @@
 #include "esp_adc/adc_oneshot.h"
 #include <string>
 #include <cinttypes>
+#include <atomic>
 /*=============================DEBUG CONTROL PANEL=============================*/
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
 // #define debug_fastPrints //isr indicator and BLOCK#
-#define debug_hyperFastPrints
-#define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
-inline DRAM_ATTR const char* darray[10000];
-inline DRAM_ATTR uint32_t dindex[]={0,0}; //new, old
+// #define debug_hyperFastPrints
+// #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
+volatile inline DRAM_ATTR const char* darray[10000];
+volatile inline DRAM_ATTR std::atomic<uint32_t> dindex[]={0,0}; //new, old
+volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 
 #define debug_printRPS 
-#define velPotReadPeriod (int)(500) //set velocity via pot 1
-
+#define velPotReadPeriod (int)(1000) //set velocity via pot 1
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
 // #define debug_spamDelay 2
 // #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
-#define debug_dontReadVelocityPot 4000
+#define debug_dontReadVelocityPot 24000 //affect block period
 // #define debug_useLookUpTableADC //commenout out to keep the Bperiod
 /*Current loop: 
 
@@ -43,8 +44,8 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
-#define startingDuty static_cast<float>(1- .8   ) //The Duty cycle is 1 - this.Value
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(180)
+#define startingDuty static_cast<float>(1- .8 ) //The Duty cycle is 1 - this.Value, normally .8
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(185)
 #define i2cClockSpeed 900000
 #define i2cWaitout 1 //in ms
 #define SetAs5600PollPeriod 1000 //period ticks
@@ -71,7 +72,7 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 #define pMax static_cast<float>(3*3.141592653/2)
 
 
-inline bool motorStall =false;
+// inline bool motorStall =false;
 inline DRAM_ATTR int isr2CurrentTime =0; //t1
 inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
 inline DRAM_ATTR int isr2CurrentCounter =0;
@@ -141,7 +142,7 @@ typedef struct{
     float measureVelocities[2] ={0,0};
     float measureAccelerations[1] ={0};
     control_type controlMethod = VELOCITY_CONTROL;
-    int dir = 4; // 4=cw (-), 2 for ccw(+) (2 for half working AS5600)
+    int dir = -2888889; // 4=cw (-), 2 for ccw(+) (2 for half working AS5600)
 } gVar_t;
 volatile DRAM_ATTR inline gVar_t global;
 inline uint32_t file1 =0;
@@ -185,9 +186,9 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 // #define adcChannel 34
 #define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
 
-//assume that calibrated value CHAL at dir Pin low give 2107
-//top view of physical motor has ABC going ccw
-#define as5600CalibrationRawValue (3388)
+//calibrated value CHAL at dir Pin low give 3388
+//top view of physical motor has ABC going ccw, [-30 degrees, 30 degrees) = block 0
+#define as5600CalibrationRawValue (3388) //38 not 37 because +0.5 and trucnate = round up,30degrees to sector_per_bits is only .5, not 1.
 #define as5600CalibratedOffset static_cast<int>((4096.0)*(38.0/36.0) - (4096-as5600CalibrationRawValue) /*remove mutliples of 1 electrical cycle*/)  
 #ifdef as5600DirPinHigh //not during calibration
 #define getRotorValAdjusted(x) (as5600CalibratedOffset+x)
@@ -198,7 +199,7 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 inline TaskHandle_t setupTask= NULL;
 inline TaskHandle_t getSectorNumberTask= NULL;
 // DRAM_ATTR constexpr const char* ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};
-DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "};
+DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "}; //[-30,30) = block 0
 #ifdef debug_hyperFastPrints
 DRAM_ATTR constexpr const char* dgdir[6] = {"∅","D?","+","D","-","D?"};
 #endif

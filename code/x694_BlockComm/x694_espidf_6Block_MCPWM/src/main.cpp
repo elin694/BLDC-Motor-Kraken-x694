@@ -26,7 +26,8 @@ void debugLog(void * parameter){
     #ifdef debug_printRPS
     // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
     // esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
-    esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
+    int tea =global.dir;
+    esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| G:%s, t: %d\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
     #endif
     // #endif
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
@@ -56,6 +57,7 @@ void readPotOnce(void * parameter){
       #else //hold it constant
         vbPeriod_temp = debug_dontReadVelocityPot;
         if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+          global.targetVelocity=VTimerResolution/(18.0f* vbPeriod_temp);
           taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
           global.blockPeriod = vbPeriod_temp;
           global.newVelPotValue =true;
@@ -71,7 +73,6 @@ void readPotOnce(void * parameter){
         (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
         vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
         if(vbPeriod_temp >>16 != 0){
-          // global.dir =0;
           global.setMotorFreeSpin = true;
           vbPeriod_temp =minf_HTimerPeriod;
         }
