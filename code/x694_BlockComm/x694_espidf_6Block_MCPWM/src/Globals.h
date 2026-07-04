@@ -32,9 +32,8 @@ inline DRAM_ATTR uint32_t dindex[]={0,0}; //new, old
 // #define debug_spamDelay 2
 // #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 
-
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
-// #define debug_dontReadVelocityPot 8000
+#define debug_dontReadVelocityPot 4000
 // #define debug_useLookUpTableADC //commenout out to keep the Bperiod
 /*Current loop: 
 
@@ -44,7 +43,6 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
-#define toggleTurnCW
 #define startingDuty static_cast<float>(1- .8   ) //The Duty cycle is 1 - this.Value
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(180)
 #define i2cClockSpeed 900000
@@ -133,6 +131,7 @@ typedef struct{
     bool newVelPotValue = false;
     bool newPhaseSwitchFlag = false;
     bool readAS5600 = false;
+    bool setMotorFreeSpin = false;
     float targetPosition =0; //target RPS
     float targetVelocity =0; //target RPS
     float targetAcceleration =0; //target RPS
@@ -142,11 +141,7 @@ typedef struct{
     float measureVelocities[2] ={0,0};
     float measureAccelerations[1] ={0};
     control_type controlMethod = VELOCITY_CONTROL;
-#ifdef toggleTurnCW
-    int dir = 4; //or 5 to go in reverse (preload dep on 5) (1 for half working AS5600)
-#else
-inline int dir = 2; 
-#endif
+    int dir = 4; // 4=cw (-), 2 for ccw(+) (2 for half working AS5600)
 } gVar_t;
 volatile DRAM_ATTR inline gVar_t global;
 inline uint32_t file1 =0;
@@ -205,7 +200,7 @@ inline TaskHandle_t getSectorNumberTask= NULL;
 // DRAM_ATTR constexpr const char* ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};
 DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "};
 #ifdef debug_hyperFastPrints
-DRAM_ATTR constexpr const char* dgdir[6] = {"D0","D?","D2","D","D4","D?"};
+DRAM_ATTR constexpr const char* dgdir[6] = {"∅","D?","+","D","-","D?"};
 #endif
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8

@@ -55,6 +55,13 @@ void readPotOnce(void * parameter){
         esp_rom_printf(red "p@t raw: %d, %d, index%d\n", rawData,debug_adcReadLookUpTable[lookUpTableIndex],lookUpTableIndex);
       #else //hold it constant
         vbPeriod_temp = debug_dontReadVelocityPot;
+        if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+          taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
+          global.blockPeriod = vbPeriod_temp;
+          global.newVelPotValue =true;
+          taskEXIT_CRITICAL(&stepPeriodMux);
+        }
+
       #endif
     #endif
 
@@ -64,8 +71,16 @@ void readPotOnce(void * parameter){
         (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
         vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
         if(vbPeriod_temp >>16 != 0){
-          global.dir =0;
+          // global.dir =0;
+          global.setMotorFreeSpin = true;
           vbPeriod_temp =minf_HTimerPeriod;
+        }
+
+        if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+          taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
+          global.blockPeriod = vbPeriod_temp;
+          global.newVelPotValue =true;
+          taskEXIT_CRITICAL(&stepPeriodMux);
         }
 
       }else if(global.controlMethod == TORQUE_CONTROL){
@@ -76,14 +91,6 @@ void readPotOnce(void * parameter){
        global.targetPosition = (pMin+(pMax-pMin)*(float)rawData/4096);
       }
     #endif
-
-    if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-
-      taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
-      global.blockPeriod = vbPeriod_temp;
-      global.newVelPotValue =true;
-      taskEXIT_CRITICAL(&stepPeriodMux);
-    }
 }
 
 extern "C"{

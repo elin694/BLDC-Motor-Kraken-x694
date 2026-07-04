@@ -182,7 +182,8 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
          global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
       } else{
          global.oldSectorTarget=global.sectorTarget;
-         global.dir = 0;
+         // global.dir = 0;
+         global.setMotorFreeSpin =true;
 
          #if defined(debug_hyperFastPrints)
             darray[dindex[0]++]= "I2cF& ";
