@@ -230,7 +230,7 @@ void preloadGates(){
        #ifdef debug_fastPrints
         esp_rom_printf("PgV ");
         #elif defined(debug_hyperFastPrints)
-        darray[dindex[0]++]= "PgV ";
+        darray[dindex[0]++]= yellow "PgV ";
         #endif
         if(global.blockPeriod <minf_HTimerPeriod){ 
             ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
@@ -266,7 +266,7 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         #ifdef debug_fastPrints
         esp_rom_printf("EgPh ");
         #elif defined(debug_hyperFastPrints)
-        darray[dindex[0]++]= "EgPh ";
+        darray[dindex[0]++]= green "EgPh ";
         #endif
         //when motor is off (dir=0), nPSF still runs, but no changes are made
         if(global.dir != 0){

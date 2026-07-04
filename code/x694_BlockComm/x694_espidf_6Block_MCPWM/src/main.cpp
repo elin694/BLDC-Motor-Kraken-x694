@@ -67,16 +67,18 @@ void readPotOnce(void * parameter){
           global.dir =0;
           vbPeriod_temp =minf_HTimerPeriod;
         }
+
       }else if(global.controlMethod == TORQUE_CONTROL){
         global.targetAcceleration = (aMin+(aMax-aMin)*(float)rawData/4096);
       /*conside case from motor stall - to fMIn*/
+      
       }else if(global.controlMethod == POSITION_CONTROL){
        global.targetPosition = (pMin+(pMax-pMin)*(float)rawData/4096);
       }
     #endif
 
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-      
+
       taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
       global.blockPeriod = vbPeriod_temp;
       global.newVelPotValue =true;
