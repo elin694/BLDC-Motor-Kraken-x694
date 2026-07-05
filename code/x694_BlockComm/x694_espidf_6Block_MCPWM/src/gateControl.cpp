@@ -237,7 +237,6 @@ void IRAM_ATTR preloadGates(){
             // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
         }else{ //case when bp is bigger than mcpwm can allow, aka too slow Frequency
             ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, minf_HTimerPeriod));
-            global.setMotorFreeSpin.exchange(true);
             // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
             // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
             // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
@@ -260,7 +259,7 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
     // }
 
 
-    if(global.setMotorFreeSpin.exchange(false)){
+    if(global.setMotorFreeTemporarily.load() ||global.setMotorFreeSpin.load()){ //don't esrase these valeus
         #ifdef debug_fastPrints
         esp_rom_printf("EgPh ");
         #elif defined(debug_hyperFastPrints)

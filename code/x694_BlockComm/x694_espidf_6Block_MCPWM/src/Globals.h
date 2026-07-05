@@ -27,7 +27,7 @@ volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex[]={0,0}; //new, old
 volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 
-// #define debug_printRPS 
+#define debug_printRPS 
 #define velPotReadPeriod (int)(100) //set velocity via pot 1
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
@@ -62,7 +62,7 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 #define VTimerResolution  static_cast<uint32_t>(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
 /*minimum and maximum RPS */
-#define maxf_HTimerPeriod (1111/2) //200--> 111.11rps
+#define maxf_HTimerPeriod (1111) //200--> 111.11rps
 #define minf_HTimerPeriod (uint32_t)(65535/2)
 #define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
 // #define fMin static_cast<float>(VTimerResolution/(18.0f*minf_HTimerPeriod))
@@ -136,6 +136,7 @@ typedef struct{
     std::atomic<bool> newPhaseSwitchFlag = false;
     std::atomic<bool> readAS5600 = false;
     std::atomic<bool> setMotorFreeSpin = false;
+    std::atomic<bool> setMotorFreeTemporarily = false;
     float targetPosition =0; //target RPS
     float targetVelocity =0; //target RPS
     float targetAcceleration =0; //target RPS

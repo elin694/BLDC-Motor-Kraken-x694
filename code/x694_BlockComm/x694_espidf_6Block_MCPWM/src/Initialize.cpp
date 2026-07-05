@@ -80,12 +80,12 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
             if(xHigherPriorityTaskWoken == pdTRUE){
                portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
             }
-
          }else{
             MCPWMx-> int_clr.val = tempClearR1.val;
          }
          return;
          /*CASE 1 ABOVE*/
+
       } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
          if(global.newPhaseSwitchFlag.load() && global.readAS5600.exchange(false)){
             //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
@@ -94,6 +94,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          MCPWMx->int_clr.val = (tempClearR2.val | tempClearR3.val);
          return;
          /*CASE 2 ABOVE*/
+
       } else if(tempStatusReg.timer2_tez_int_st){
          #ifdef debug_fastPrints
          esp_rom_printf(magenta "V");
@@ -194,9 +195,10 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
          global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
          int as5600location = (int)(getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)%6;
          as5600BfieldVectorSector.store(as5600location);
+         global.setMotorFreeTemporarily.store(false);
       } else{
+         global.setMotorFreeTemporarily.store(true);
          global.oldSectorTarget=global.sectorTarget;
-         global.setMotorFreeSpin =true;
          #if defined(debug_hyperFastPrints)
             darray[dindex[0].fetch_add(1)]= "I2cF& ";
          #endif

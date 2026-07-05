@@ -68,15 +68,18 @@ void readPotOnce(void * parameter){
     global.targetVelocity = (fMin+(fMax-fMin)*(float)rawData/4096);
     vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
     
-    bool notlegal = vbPeriod_temp >>16 != 0;
-    
+    bool notlegal = vbPeriod_temp >minf_HTimerPeriod;
+    if(notlegal){
+      // ESP_LOGI("F","SPIN");
+    }
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
       taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
       (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
       if(notlegal){
-        global.setMotorFreeSpin = true; //spinlock
+        global.setMotorFreeSpin.store(true); //spinlock
         global.blockPeriod  =minf_HTimerPeriod; //spinlock
       }else{
+        global.setMotorFreeSpin.store(false);
         global.blockPeriod = vbPeriod_temp;
       }
         global.newVelPotValue =true; //spinlock
