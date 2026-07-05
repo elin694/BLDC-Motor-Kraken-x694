@@ -74,13 +74,13 @@ void readPotOnce(void * parameter){
       taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
       (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
       if(notlegal){
-        global.setMotorFreeSpin = true;
-        global.blockPeriod  =minf_HTimerPeriod;
+        global.setMotorFreeSpin = true; //spinlock
+        global.blockPeriod  =minf_HTimerPeriod; //spinlock
       }else{
         global.blockPeriod = vbPeriod_temp;
       }
-        global.newVelPotValue =true;
-      taskEXIT_CRITICAL(&stepPeriodMux);
+        global.newVelPotValue =true; //spinlock
+      taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
     }
 
     }else if(global.controlMethod == TORQUE_CONTROL){

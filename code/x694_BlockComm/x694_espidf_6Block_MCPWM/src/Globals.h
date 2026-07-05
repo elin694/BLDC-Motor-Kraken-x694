@@ -44,9 +44,11 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
-#define startingDuty static_cast<float>(1- .8 ) //The Duty cycle is 1 - this.Value, normally .8
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(160)
+#define startingDuty static_cast<float>(1- .9 ) //The Duty cycle is 1 - this.Value, normally .8
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(170)
+// #define i2cClockSpeed 950000
 #define i2cClockSpeed 1000000
+// #define i2cClockSpeed 90000
 #define i2cWaitout 1 //in ms
 #define SetAs5600PollPeriod 1000 //period ticks
 #if (estimatedI2CReadTimeInTicks > SetAs5600PollPeriod)
@@ -59,7 +61,7 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 #define VTimerResolution  static_cast<uint32_t>(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
 /*minimum and maximum RPS */
-#define maxf_HTimerPeriod 2222*2 //200--> 111.11rps
+#define maxf_HTimerPeriod (1111/2) //200--> 111.11rps
 #define minf_HTimerPeriod (uint32_t)(65535/2)
 #define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
 // #define fMin static_cast<float>(VTimerResolution/(18.0f*minf_HTimerPeriod))

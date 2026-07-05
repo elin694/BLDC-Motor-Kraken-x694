@@ -119,6 +119,7 @@ void as5600initialize() {
       (size_t)1, //read 1 byte
       /*alpha*/20*i2cWaitout)
    );
+   
    isr2CurrentTime2 =esp_timer_get_time()-isr2CurrentTime;
    
    fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //rese
@@ -206,7 +207,7 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
 
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
-         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d+%d,%d\n", isr2CurrentTime2,isr2CurrentTime,file1);
+         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d+%d,%d \x1b[0K \x1b[1G", isr2CurrentTime2,isr2CurrentTime,file1);
          isr2CurrentCounterCounted =false;
       }
       #endif
