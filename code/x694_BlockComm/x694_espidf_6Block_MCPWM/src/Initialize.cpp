@@ -68,7 +68,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    if(tempStatusReg.val){ //in case of ghost interrupts
 
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
-         if(global.newPhaseSwitchFlag){
+         if(global.newPhaseSwitchFlag.load()){
             #ifdef debug_fastPrints
             esp_rom_printf(blue "B");
             #elif defined(debug_hyperFastPrints)
@@ -87,7 +87,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          return;
          /*CASE 1 ABOVE*/
       } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
-         if(global.newPhaseSwitchFlag && global.readAS5600.exchange(false)){
+         if(global.newPhaseSwitchFlag.load() && global.readAS5600.exchange(false)){
             //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
             executeGates(MCPWMx);
          } 
@@ -100,7 +100,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          #elif defined(debug_hyperFastPrints)
          darray[dindex[0].fetch_add(1)] = magenta "V";
          #endif
-         global.newPhaseSwitchFlag= true;
+         global.newPhaseSwitchFlag.store(true);
          MCPWMx-> int_clr.val = tempClearR3.val;
          /*CASE 3 ABOVE*/
       }

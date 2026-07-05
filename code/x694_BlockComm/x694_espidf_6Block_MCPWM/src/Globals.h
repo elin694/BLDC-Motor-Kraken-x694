@@ -20,13 +20,13 @@
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
 // #define debug_fastPrints //isr indicator and BLOCK#
-#define debug_hyperFastPrints
+// #define debug_hyperFastPrints
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex[]={0,0}; //new, old
 volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 
-#define debug_printRPS 
+// #define debug_printRPS 
 #define velPotReadPeriod (int)(100) //set velocity via pot 1
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
