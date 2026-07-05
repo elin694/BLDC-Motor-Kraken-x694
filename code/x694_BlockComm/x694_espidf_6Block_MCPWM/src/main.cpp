@@ -79,7 +79,7 @@ void readPotOnce(void * parameter){
       }else{
         global.blockPeriod = vbPeriod_temp;
       }
-      //   global.newVelPotValue =true;
+        global.newVelPotValue =true;
       taskEXIT_CRITICAL(&stepPeriodMux);
     }
 
