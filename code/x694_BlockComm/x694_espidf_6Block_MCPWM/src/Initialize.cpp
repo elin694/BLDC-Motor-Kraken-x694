@@ -15,9 +15,15 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    #ifndef debug_testOnLED
    int k = global.dir;
+   #ifdef debug_dontReadVelocityPot
+   global.targetVelocity=VTimerResolution/(18.0f* debug_dontReadVelocityPot);
+   (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
+   global.blockPeriod = debug_dontReadVelocityPot;//does not affect
+   global.newVelPotValue =true; //nti
+   #endif
       readPotOnce(NULL);
       int k2 = global.dir;
-      ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| newVelPotValue %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);
+      ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
       as5600initialize(); 
    #endif
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  24, &getSectorNumberTask, 1);
@@ -25,10 +31,10 @@ void initialize(void * parameter){
    ulTaskNotifyValueClear(getSectorNumberTask ,0);
 
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
-   ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
+   // ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
    #ifdef enableReadPotRepeat
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 10, NULL,0);
-   ESP_LOGW("init.cpp", "nableReadPotRepeat");
+   // ESP_LOGW("init.cpp", "nableReadPotRepeat");
    #endif 
    #if ((defined(debug_spamPrintCounterStatus)) && debug_spamDelay)
    xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
@@ -68,22 +74,22 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
             #elif defined(debug_hyperFastPrints)
             darray[dindex[0].fetch_add(1)]= blue "B ";
             #endif
-            
             xHigherPriorityTaskWoken =pdFALSE;
             vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
             MCPWMx-> int_clr.val = tempClearR1.val;
             if(xHigherPriorityTaskWoken == pdTRUE){
                portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
             }
+
          }else{
             MCPWMx-> int_clr.val = tempClearR1.val;
          }
          return;
          /*CASE 1 ABOVE*/
       } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
-         if(global.newPhaseSwitchFlag && global.readAS5600){
+         if(global.newPhaseSwitchFlag && global.readAS5600.exchange(false)){
+            //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
             executeGates(MCPWMx);
-            global.readAS5600 = false;
          } 
          MCPWMx->int_clr.val = (tempClearR2.val | tempClearR3.val);
          return;
@@ -165,11 +171,14 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
          // esp_rom_printf(white "GSNon(%d, %d)", global.oldSectorTarget, global.sectorTarget);
       }
       #else
+
+      assert(as5600Handle != nullptr);
+      // assert(&as5600TargetRegister != nullptr);
       esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, 
          &as5600TargetRegister, 
-         as5600WriteSize,
-         as5600RawDataBuf, 
-         as5600ReadSize, 
+         1,
+         (uint8_t*)as5600RawDataBuf, 
+         2, 
          /*alpha*/ i2cWaitout
       );
       #if defined(debug_spamPrintTimeISR1)
@@ -187,7 +196,6 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
       } else{
          global.oldSectorTarget=global.sectorTarget;
          global.setMotorFreeSpin =true;
-
          #if defined(debug_hyperFastPrints)
             darray[dindex[0].fetch_add(1)]= "I2cF& ";
          #endif
@@ -245,3 +253,4 @@ void mathItOut(void *parameter){
       }
    }
 }
+   

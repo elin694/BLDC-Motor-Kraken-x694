@@ -26,7 +26,11 @@ void debugLog(void * parameter){
     #ifdef debug_printRPS
     // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
     // esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
-    esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| G:%s\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
+    // bool bearing = global.dir;
+    taskENTER_CRITICAL(&stepPeriodMux);
+    int k = global.dir;
+    taskEXIT_CRITICAL(&stepPeriodMux);
+    esp_rom_printf("a∂c:%4d|" cyan "TRPM:%5d" green "|BPeriod %d|AS5600:%4d| G:%s, \n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
     #endif
     // #endif
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
@@ -42,59 +46,50 @@ void readPotRepeat(void * parameter){
 
 
 /*https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=*/
-int lookUpTableIndex = 0;
 DRAM_ATTR uint32_t vbPeriod_temp;
-const int debug_adcReadLookUpTable[31] = {4094,0, 4094,0, 100, 200, 300,400,500,600,700,800,900,1000, 2000,3000,4000,4095,4000,3000,2000,1000,900,800,700,600,500,400,300,200, 100};
 void readPotOnce(void * parameter){
   ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
   rawData = (rawData/2)*2;
-    #ifdef debug_dontReadVelocityPot
-      #ifdef debug_useLookUpTableADC
-        rawData = debug_adcReadLookUpTable[lookUpTableIndex];
-        if(++lookUpTableIndex >= 31){
-          lookUpTableIndex =0;
-        };
-        // lookUpTableIndex++;
-        esp_rom_printf(red "p@t raw: %d, %d, index%d\n", rawData,debug_adcReadLookUpTable[lookUpTableIndex],lookUpTableIndex);
-      #else //hold it constant
-        vbPeriod_temp = debug_dontReadVelocityPot;
-        if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment
-          esp_rom_printf("ENTIRNG CRITICAL"); 
-          global.targetVelocity=VTimerResolution/(18.0f* vbPeriod_temp);
-          (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
-          taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
-          global.blockPeriod = vbPeriod_temp;
-          global.newVelPotValue =true;
-          taskEXIT_CRITICAL(&stepPeriodMux);
-        }
+  #ifdef debug_dontReadVelocityPot
+  vbPeriod_temp = debug_dontReadVelocityPot;
+  if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment
+    esp_rom_printf("ENTIRNG CRITICAL"); 
+    global.targetVelocity=VTimerResolution/(18.0f* vbPeriod_temp);
+    (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
+    taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
+    global.blockPeriod = vbPeriod_temp;
+    global.newVelPotValue =true;
+    taskEXIT_CRITICAL(&stepPeriodMux);
+  }
+  #endif
 
-      #endif
-    #endif
-
-    #if (!defined(debug_dontReadVelocityPot) || defined(debug_useLookUpTableADC))
-    if(global.controlMethod == VELOCITY_CONTROL){
-        global.targetVelocity = (fMin+(fMax-fMin)*(float)rawData/4096);
-        (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
-        vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
-        if(vbPeriod_temp >>16 != 0){
-          global.setMotorFreeSpin = true;
-          vbPeriod_temp =minf_HTimerPeriod;
-        }
-
-        if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-          taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
-          global.blockPeriod = vbPeriod_temp;
-          global.newVelPotValue =true;
-          taskEXIT_CRITICAL(&stepPeriodMux);
-        }
-
-      }else if(global.controlMethod == TORQUE_CONTROL){
-        global.targetAcceleration = (aMin+(aMax-aMin)*(float)rawData/4096);
-      /*conside case from motor stall - to fMIn*/
-      
-      }else if(global.controlMethod == POSITION_CONTROL){
-       global.targetPosition = (pMin+(pMax-pMin)*(float)rawData/4096);
+  #if (!defined(debug_dontReadVelocityPot))
+  if(global.controlMethod == VELOCITY_CONTROL){
+    global.targetVelocity = (fMin+(fMax-fMin)*(float)rawData/4096);
+    vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
+    
+    bool notlegal = vbPeriod_temp >>16 != 0;
+    
+    if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+      taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
+      (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
+      if(notlegal){
+        global.setMotorFreeSpin = true;
+        global.blockPeriod  =minf_HTimerPeriod;
+      }else{
+        global.blockPeriod = vbPeriod_temp;
       }
+      //   global.newVelPotValue =true;
+      taskEXIT_CRITICAL(&stepPeriodMux);
+    }
+
+    }else if(global.controlMethod == TORQUE_CONTROL){
+      global.targetAcceleration = (aMin+(aMax-aMin)*(float)rawData/4096);
+      /*conside case from motor stall - to fMIn*/
+
+    }else if(global.controlMethod == POSITION_CONTROL){
+      global.targetPosition = (pMin+(pMax-pMin)*(float)rawData/4096);
+    }
     #endif
 }
 

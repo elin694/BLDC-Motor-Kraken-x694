@@ -12,7 +12,7 @@ void mcpwmSetup(int startingTargetSector){
     initializeTimer(startingTargetSector); 
     
     firstPreload(motorH, motorL, startingTargetSector);
-     for(int i =0; i < 3; i++){
+    for(int i =0; i < 3; i++){
         synchr(tripleHighTrigger[i], "triple high triggers");
     }
     synchrISR(BTimerTrigger, ""); //0-1us, Post-intr_ena BTSync
@@ -223,37 +223,35 @@ void IRAM_ATTR getTimerCountNow(const char* str){
 }
 
 /*==============================================================================================*/
-void preloadGates(){
-    if(global.newVelPotValue){
-        /*
-        */
-       #ifdef debug_fastPrints
-        esp_rom_printf("PgV ");
-        #elif defined(debug_hyperFastPrints)
-        darray[dindex[0].fetch_add(1)]= yellow "PgV ";
-        #endif
-        if(global.blockPeriod <minf_HTimerPeriod){ 
-            ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
-        }
-        else{ //case when bp is bigger than mcpwm can allow, aka too slow Frequency
-            ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, minf_HTimerPeriod));
-            global.dir= 0;
-            global.setMotorFreeSpin = true;
-        }
-    }
+void IRAM_ATTR preloadGates(){
+    // if(global.newVelPotValue.load()){
+    //    #ifdef debug_fastPrints
+    //     esp_rom_printf("PgV ");
+    //     #elif defined(debug_hyperFastPrints)
+    //     darray[dindex[0].fetch_add(1)]= yellow "PgV ";
+    //     #endif
+    //     if(global.blockPeriod <minf_HTimerPeriod){ 
+    //         ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
+    //     }
+    //     else{ //case when bp is bigger than mcpwm can allow, aka too slow Frequency
+    //         ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, minf_HTimerPeriod));
+    //         global.setMotorFreeSpin = true;
+    //     }
+    // }
+    ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
 }
 
 void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
-    if(global.newVelPotValue){  //potentiometer  moved (ie motor velocity target changed)
+    if(global.newVelPotValue.load()){  //potentiometer  moved (ie motor velocity target changed)
         #ifdef debug_fastPrints
         esp_rom_printf("EgV ");
         #elif defined(debug_hyperFastPrints)
         darray[dindex[0].fetch_add(1)]= "EgV ";
         #endif
-        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
-        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
-        ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles. 
-        global.newVelPotValue=false;  
+        // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
+        // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
+        // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles. 
+        global.newVelPotValue.store(false);  
         // esp_rom_delay_us(ticksToµs+1);
     }
 
@@ -290,8 +288,65 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
         }
         global.setMotorFreeSpin=false;
     }
+/*
 
+    if(global.readAS5600.exchange(false)){
+        if(global.newVelPotValue.load()){  //potentiometer  moved (ie motor velocity target changed)
+            #ifdef debug_fastPrints
+            esp_rom_printf("EgV ");
+            #elif defined(debug_hyperFastPrints)
+            darray[dindex[0].fetch_add(1)]= "EgV ";
+            #endif
+            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
+            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
+            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles. 
+            global.newVelPotValue.store(false);  
+            // esp_rom_delay_us(ticksToµs+1);
+        }
 
+        //normal operating conidtions, suppresss the right pins
+        if(global.newPhaseSwitchFlag.exchange(false)){ 
+            #ifdef debug_fastPrints
+            esp_rom_printf("EgPh ");
+            #elif defined(debug_hyperFastPrints)
+            darray[dindex[0].fetch_add(1)]= green "EgPh ";
+            #endif
+            //when motor is off (freespinnig), nPSF still runs, but no changes are made
+            if(!global.setMotorFreeSpin){ //not freespinning = active control
+                for(int i =0; i<5; i+=2){
+                    if(gateLevelCycle[global.sectorTarget][i]==1){
+                        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
+                    }else{
+                        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
+                    }
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
+                }
+            }
+        }
+
+        if(global.setMotorFreeSpin.exchange(false)){
+            #ifdef debug_fastPrints
+            esp_rom_printf("EgPh ");
+            #elif defined(debug_hyperFastPrints)
+            darray[dindex[0].fetch_add(1)]= cyan "EgFree ";
+            #endif
+            for(int i =2; i>-1; i--){
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
+            }
+        }
+    }else{
+        #ifdef debug_fastPrints
+        esp_rom_printf("EgPh2 ");
+        #elif defined(debug_hyperFastPrints)
+        darray[dindex[0].fetch_add(1)]= cyan "EgFree2 ";
+        #endif
+        for(int i =2; i>-1; i--){
+            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
+            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
+        }
+    }
+*/
 
     #ifdef debug_fastPrints
     esp_rom_printf(white "|%d,%s,%d" red "|L\n", global.sectorTarget, ghgl[global.sectorTarget],global.dir);
@@ -309,6 +364,8 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
     int as56 = as5600BfieldVectorSector.load();
     int tas56 = global.sectorTarget;
     esp_rom_printf(" p%d,%d+%d\n", bp,as56,tas56);
+    #else
+    esp_rom_printf("\n");
     #endif
     
     // t1= esp_timer_get_time() - t1;esp_rom_printf("T1: %d\n",t1);

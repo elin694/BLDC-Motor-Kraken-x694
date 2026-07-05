@@ -20,22 +20,22 @@
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
 // #define debug_fastPrints //isr indicator and BLOCK#
-// #define debug_hyperFastPrints
-// #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
+#define debug_hyperFastPrints
+#define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex[]={0,0}; //new, old
 volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 
-#define debug_printRPS 
-#define velPotReadPeriod (int)(1000) //set velocity via pot 1
+// #define debug_printRPS 
+#define velPotReadPeriod (int)(100) //set velocity via pot 1
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
 // #define debug_spamDelay 2
 // #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
-#define debug_dontReadVelocityPot 24000 //affect block period
-// #define debug_useLookUpTableADC //commenout out to keep the Bperiod
+// #define debug_dontReadVelocityPot 22133 //affect block period
+// #define debug_useLookUpTableADC //DEPRECATED
 /*Current loop: 
 
 initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] 
@@ -44,7 +44,7 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
-#define startingDuty static_cast<float>(1- .5 ) //The Duty cycle is 1 - this.Value, normally .8
+#define startingDuty static_cast<float>(1- .8 ) //The Duty cycle is 1 - this.Value, normally .8
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(185)
 #define i2cClockSpeed 900000
 #define i2cWaitout 1 //in ms
@@ -129,10 +129,10 @@ typedef struct{
     uint32_t oldSectorTarget = preCompStartingTargetSector;
     int sectorTarget =preCompStartingTargetSector; ; //for stator current vector
     uint32_t blockPeriod = 65535;
-    bool newVelPotValue = false;
-    bool newPhaseSwitchFlag = false;
-    bool readAS5600 = false;
-    bool setMotorFreeSpin = false;
+    std::atomic<bool> newVelPotValue = false;
+    std::atomic<bool> newPhaseSwitchFlag = false;
+    std::atomic<bool> readAS5600 = false;
+    std::atomic<bool> setMotorFreeSpin = false;
     float targetPosition =0; //target RPS
     float targetVelocity =0; //target RPS
     float targetAcceleration =0; //target RPS
@@ -142,7 +142,7 @@ typedef struct{
     float measureVelocities[2] ={0,0};
     float measureAccelerations[1] ={0};
     control_type controlMethod = VELOCITY_CONTROL;
-    int dir = -2888889; // 4=cw (-), 2 for ccw(+) (2 for half working AS5600)
+    int dir = 2; // 4=cw (-), 2 for ccw(+) (2 for half working AS5600)
 } gVar_t;
 volatile DRAM_ATTR inline gVar_t global;
 inline uint32_t file1 =0;
@@ -201,7 +201,7 @@ inline TaskHandle_t getSectorNumberTask= NULL;
 // DRAM_ATTR constexpr const char* ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};
 DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "}; //[-30,30) = block 0
 #ifdef debug_hyperFastPrints
-DRAM_ATTR constexpr const char* dgdir[6] = {"∅","D?","+","D","-","D?"};
+DRAM_ATTR constexpr const char* dgdir[6] = {"∅","D?","+","D?","NOT-","-"};
 #endif
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8

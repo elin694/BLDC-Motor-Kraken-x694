@@ -42,7 +42,7 @@ inline i2c_master_dev_handle_t as5600Handle;
 constexpr DRAM_ATTR uint8_t as5600Set = 0x36;
 constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
 constexpr DRAM_ATTR size_t as5600WriteSize = 1;
-inline uint8_t as5600RawDataBuf[2];
+inline uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 constexpr size_t as5600ReadSize = 2;
 
 constexpr adc_oneshot_unit_init_cfg_t adcSetup= {
