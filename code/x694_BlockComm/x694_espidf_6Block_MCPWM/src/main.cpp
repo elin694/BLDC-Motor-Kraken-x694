@@ -95,7 +95,7 @@ void readPotOnce(void * parameter){
 
 extern "C"{
   void app_main(){
-    xTaskCreatePinnedToCore(initialize, "SETUP", 40000, NULL, 12, &setupTask, 0); 
+    xTaskCreatePinnedToCore(initialize, "SETUP", 30000, NULL, 12, &setupTask, 0); 
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
   }
 }

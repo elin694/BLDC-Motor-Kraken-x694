@@ -207,7 +207,7 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
 
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
-         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d+%d,%d \x1b[0K \x1b[1G", isr2CurrentTime2,isr2CurrentTime,file1);
+         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d+%d,%d" SET_CURSOR_FRONT, isr2CurrentTime2,isr2CurrentTime,file1);
          isr2CurrentCounterCounted =false;
       }
       #endif
