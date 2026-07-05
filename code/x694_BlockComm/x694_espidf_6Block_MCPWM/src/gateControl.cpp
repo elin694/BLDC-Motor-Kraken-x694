@@ -234,13 +234,13 @@ void IRAM_ATTR preloadGates(){
             ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
             // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
             // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
-            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
+            // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
         }else{ //case when bp is bigger than mcpwm can allow, aka too slow Frequency
             ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, minf_HTimerPeriod));
             global.setMotorFreeSpin.exchange(true);
             // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
             // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
-            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
+            // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
         }
     }
     // ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));

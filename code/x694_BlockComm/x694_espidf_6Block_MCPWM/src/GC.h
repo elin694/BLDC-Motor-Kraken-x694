@@ -59,7 +59,8 @@ mcpwm_timer_config_t velocityTrackerTimerSetup= { //onces per step/block
     .resolution_hz = VTimerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
     .flags = {
-        .update_period_on_sync = 1
+        .update_period_on_empty = 1,
+        .update_period_on_sync = 1,
     }
 };
 //+===================
