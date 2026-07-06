@@ -19,10 +19,10 @@ void initialize(void * parameter){
    global.blockPeriod = debug_dontReadVelocityPot;//does not affect
    global.newVelPotValue =true; //nti
    #endif
-      readPotOnce(NULL);
-      int k2 = global.dir;
-      ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
-      as5600initialize(); 
+   readPotOnce(NULL);
+   int k2 = global.dir;
+   ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
+   as5600initialize(); 
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  24, &getSectorNumberTask, 1);
    xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
    ulTaskNotifyValueClear(getSectorNumberTask ,0);
@@ -101,6 +101,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
             esp_rom_printf(blue "B");
             #elif defined(debug_hyperFastPrints)
             darray[dindex[0].fetch_add(1)]= blue "B ";
+            // rA[rindx.fetch_add(1)] = (int)esp_timer_get_time()-rA[0];
             #endif
             xHigherPriorityTaskWoken =pdFALSE;
             vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
@@ -115,7 +116,6 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          /*CASE 1 ABOVE*/
 
       } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
-         
          if(global.readAS5600.exchange(false)){
             if(global.newPhaseSwitchFlag.exchange(false)){
                //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
@@ -180,12 +180,16 @@ void as5600initialize() {
 void IRAM_ATTR getSectorNumber(void *returnValue){
    // uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
    vTaskDelay(pdMS_TO_TICKS(20));
+   TickType_t pxPreviousWakeTime;
+   pxPreviousWakeTime = xTaskGetTickCount();
+   
    while(1){
-      file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1000));
+      vTaskDelayUntil(&pxPreviousWakeTime,pdMS_TO_TICKS(1));
+      // file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1000)/);
       #ifdef debug_fastPrints
       // esp_rom_printf("GSN");
       #elif defined(debug_hyperFastPrints)
-      darray[dindex[0].fetch_add(1)]= "GSN ";
+      // darray[dindex[0].fetch_add(1)]= "GSN ";
       #endif
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
@@ -212,12 +216,12 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
       } else{
          global.setMotorFreeTemporarily.store(true);
          global.oldSectorTarget=global.sectorTarget;
-         #if defined(debug_hyperFastPrints)
+         #if defined(debug_hyperFastPrints) 
             darray[dindex[0].fetch_add(1)]= "I2cF& ";
          #endif
       }
       preloadGates();
-      global.readAS5600 = true;
+      global.readAS5600.store(true);
 
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
@@ -226,6 +230,7 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
       }
       #endif
    }
+   
 }
 
 void mathItOut(void *parameter){
