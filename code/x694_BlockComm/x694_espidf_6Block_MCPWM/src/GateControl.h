@@ -10,7 +10,6 @@ inline mcpwm_comparator_config_t phaseComparatorSetup = {
     }
 };
 inline mcpwm_generator_config_t phasePwmSetup = {
-    // .gen_gpio_num =19;
     .flags = {
         .invert_pwm = false,
         .io_loop_back = 0,

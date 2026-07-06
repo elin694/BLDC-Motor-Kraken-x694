@@ -78,3 +78,13 @@
 // 24-bit true colour
 #define COL_RGB(r, g, b)    "\x1B[38;2;"#r";"#g";"#b"m" // Select RGB foreground color
 #define COL_B_RGB(r, g, b)  "\x1B[48;2;"#r";"#g";"#b"m" // Select RGB background color
+
+#define black "\033[30m"
+#define red "\033[31m"
+#define green "\033[32m"
+#define yellow "\033[33m"
+#define blue "\033[34m"
+#define magenta "\033[35m"
+#define cyan "\033[36m"
+#define white "\033[37m"
+#define esc "\033[0m"

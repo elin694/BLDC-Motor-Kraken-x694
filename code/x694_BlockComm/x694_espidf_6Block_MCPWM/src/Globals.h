@@ -50,8 +50,8 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 /*minimum and maximum RPS */
 #define maxf_HTimerPeriod (1111) //200--> 111.11rps
 #define minf_HTimerPeriod (uint32_t)(65535/2)
-#define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
 // #define fMin static_cast<float>(VTimerResolution/(18.0f*minf_HTimerPeriod))
+#define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
 #define fMax static_cast<float>(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
 
 #define aMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
@@ -75,7 +75,6 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define phaseBLowPort GPIO_NUM_16
 #define phaseCHighPort GPIO_NUM_26
 #define phaseCLowPort GPIO_NUM_32
-
 //CHANGE ASSOCIATED PORT SET AND CLEAR
 // // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
 // // volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
@@ -176,13 +175,3 @@ DRAM_ATTR constexpr const char* dgdir[6] = {"∅","D?","+","D?","NOT-","-"};
 #define ticksToµs static_cast<float>((1e6)/timerResolution)
 #define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
 #define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
-
-#define black "\033[30m"
-#define red "\033[31m"
-#define green "\033[32m"
-#define yellow "\033[33m"
-#define blue "\033[34m"
-#define magenta "\033[35m"
-#define cyan "\033[36m"
-#define white "\033[37m"
-#define esc "\033[0m"

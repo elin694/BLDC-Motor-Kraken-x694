@@ -76,13 +76,6 @@ void initializeLowGate(int startingTargetSector){
     ESP_LOGW("GC3", "=====Linked all Low timer Submodules===== ");
 }
 
-void configureLowGateEvents(){
-    mcpwm_timer_direction_t dzir[2] = {MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_DIRECTION_UP};
-    mcpwm_generator_action_t action[2] = {MCPWM_GEN_ACTION_LOW, MCPWM_GEN_ACTION_HIGH} ;
-    mcpwm_timer_event_t timerEmpty =  MCPWM_TIMER_EVENT_EMPTY;
-    int index1 =0;
-}
-
 void initializeHighGate(int staartingTargetSector, uint32_t comparatorOff_Duty){
     for (int i = 0; i <3 ; i++){
         motorH[i] = {
@@ -201,7 +194,6 @@ void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTar
             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
         }
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
-        // esp_rom_printf("glvl, %d, st: %d, 2i+1: %d, phase: %d \n",gateLevelCycle[global.sectorTarget][i+1], global.sectorTarget, i+1, i/2);
     }
 }
 
@@ -211,7 +203,6 @@ void synchr(mcpwm_sync_handle_t handle, std::string name){
 
 void IRAM_ATTR synchrISR(mcpwm_sync_handle_t handle, const char* name){ 
     //if code only activites sync, execution time <1us
-    // esp_rom_printf(white "         syncing %s \n", name); //109us/2 faster than synchr, still 194us/2
     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle)); //0-1us
 }
 
@@ -232,31 +223,13 @@ void IRAM_ATTR preloadGates(){
         #endif
         if(global.blockPeriod <minf_HTimerPeriod){ 
             ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
-            // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
-            // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
-            // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
         }else{ //case when bp is bigger than mcpwm can allow, aka too slow Frequency
             ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, minf_HTimerPeriod));
-            // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
-            // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
-            // ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
         }
     }
-    // ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
 }
 
 void IRAM_ATTR executeGates(bool freeSpin){
-    // if(global.newVelPotValue.exchange(false)){  //potentiometer  moved (ie motor velocity target changed)
-    //     #ifdef debug_fastPrints
-    //     esp_rom_printf("EgV ");
-    //     #elif defined(debug_hyperFastPrints)
-    //     darray[dindex[0].fetch_add(1)]= "EgV ";
-    //     #endif
-    //     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
-    //     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
-    //     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
-    //     // esp_rom_delay_us(ticksToµs+1);
-    // }
     if(freeSpin){
          #ifdef debug_fastPrints
         esp_rom_printf("EgFR2 ");

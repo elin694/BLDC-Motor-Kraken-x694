@@ -1,7 +1,6 @@
 #include "Initialize.h"
 #include "GateControl.h"
 #include <bitset> 
-#include <array>
 
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
@@ -29,10 +28,10 @@ void initialize(void * parameter){
    ulTaskNotifyValueClear(getSectorNumberTask ,0);
 
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
-   // ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
+   ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
    #ifdef enableReadPotRepeat
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 10, NULL,0);
-   // ESP_LOGW("init.cpp", "nableReadPotRepeat");
+   ESP_LOGW("init.cpp", "nableReadPotRepeat");
    #endif 
    xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, 5, NULL, 0);
    // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
