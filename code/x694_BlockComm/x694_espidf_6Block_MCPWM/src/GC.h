@@ -8,8 +8,7 @@
 // gpio 19- miso, b High side is tx2
 
 uint32_t CMRA0Threshold;
-intr_handle_t sixBlockISR = NULL;
-intr_handle_t oneBlockISR = NULL;
+// intr_handle_t sixBlockISR = NULL;
 phaseMcpwm motorH[3];
 phaseMcpwm motorL[3];
 

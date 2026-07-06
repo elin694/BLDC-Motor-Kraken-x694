@@ -39,7 +39,6 @@ typedef struct {
 void mcpwmSetup(int targetSectorNumber);
 void initializeHighGate(int startingTargetSector,  uint32_t comparatorOff_Duty);
 void initializeLowGate(int startingTargetSector);
-void configureLowGateEvents();
 void initializeTimer(int startingTargetSector);
 void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTargetSector);
 void initializeISR();

@@ -1,5 +1,4 @@
 //============================ 6 step commutation! with ESPIDF ============================
-#include "Initialize.h"
 #include "GateControl.h"
 #include "Globals.h"
 //Ti sinusoidal : https://www.youtube.com/watch?v=-By_vt27Xhs&t=21s

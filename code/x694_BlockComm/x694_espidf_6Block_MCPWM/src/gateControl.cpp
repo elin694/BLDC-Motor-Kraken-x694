@@ -1,11 +1,10 @@
 #include "GateControl.h"
-#include "Initialize.h"
+
 #include "GC.h"
 void mcpwmSetup(int startingTargetSector){
     int tVal[3] ={0,0,0};
     setCountValueAndPeriod(startingTargetSector);
     initializeLowGate(startingTargetSector); // suppress Lgate to OFF
-    configureLowGateEvents();
     initializeHighGate(startingTargetSector, CMRA0Threshold); //suppress Hgate to OFF, CMRA0 NEVER actually used
     initializeSyncs();
     initializeISR();
@@ -113,40 +112,6 @@ void initializeHighGate(int staartingTargetSector, uint32_t comparatorOff_Duty){
             )
         );
     }
-}
-
-void initializeISR(){
-    /*
-        ///Solution2 : using callback evt
-        mcpwm_comparator_register_event_callbacks(comparator, );
-        mcpwm_timer_event_callbacks_t timer_isr = {};
-        mcpwm_comparator_event_callbacks_t = {}
-        mcpwm_compare_event_cb_t
-        mcpwm_compare_event_data_t = {}
-    */
-mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
-    MCPWMx->int_ena.val = 0x00000000;
-    MCPWMx->int_clr.val=  clearReg.val;
-    ESP_ERROR_CHECK(esp_intr_alloc(
-        ETS_PWM0_INTR_SOURCE,
-        ESP_INTR_FLAG_LEVEL3 
-        | ESP_INTR_FLAG_IRAM
-        ,
-        runOnMCPWMIntr,
-        (void *)&global,
-        &oneBlockISR
-    ));
-}
-
-void initializeInterruptEnablePin(){
-    mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
-    MCPWMx->int_clr.val=  clearReg.val;
-    
-    //block timer = 0
-    MCPWMx->int_ena.timer0_tez_int_ena = 1; // //timer 0= BTimer
-    MCPWMx->int_ena.timer1_tez_int_ena = 1; //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
-    MCPWMx->int_ena.timer2_tez_int_ena = 1; // //timer 0= BTimer
-    ESP_ERROR_CHECK(esp_intr_enable(oneBlockISR)); //Starting AS5600 read ISR
 }
 
 void initializeSyncs(){

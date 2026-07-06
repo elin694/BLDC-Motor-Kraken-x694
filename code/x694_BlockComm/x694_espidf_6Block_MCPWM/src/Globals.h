@@ -145,6 +145,7 @@ void readPotRepeat(void * parameter);
 void readPotOnce(void * parameter);
 void getTimerCountNow(const char* str);
 void spamSearchCV(void *parameter);
+void initialize(void *parameter);      
 
 constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
 #define dataPin GPIO_NUM_21 //i2c data yellow, 21 

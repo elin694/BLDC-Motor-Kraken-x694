@@ -57,6 +57,40 @@ void pinSetup(){
    }
 }
 
+void initializeInterruptEnablePin(){
+    mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
+    MCPWMx->int_clr.val=  clearReg.val;
+    
+    //block timer = 0
+    MCPWMx->int_ena.timer0_tez_int_ena = 1; // //timer 0= BTimer
+    MCPWMx->int_ena.timer1_tez_int_ena = 1; //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
+    MCPWMx->int_ena.timer2_tez_int_ena = 1; // //timer 0= BTimer
+    ESP_ERROR_CHECK(esp_intr_enable(oneBlockISR)); //Starting AS5600 read ISR
+}
+
+void initializeISR(){
+    /*
+        ///Solution2 : using callback evt
+        mcpwm_comparator_register_event_callbacks(comparator, );
+        mcpwm_timer_event_callbacks_t timer_isr = {};
+        mcpwm_comparator_event_callbacks_t = {}
+        mcpwm_compare_event_cb_t
+        mcpwm_compare_event_data_t = {}
+    */
+mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
+    MCPWMx->int_ena.val = 0x00000000;
+    MCPWMx->int_clr.val=  clearReg.val;
+    ESP_ERROR_CHECK(esp_intr_alloc(
+        ETS_PWM0_INTR_SOURCE,
+        ESP_INTR_FLAG_LEVEL3 
+        | ESP_INTR_FLAG_IRAM
+        ,
+        runOnMCPWMIntr,
+        (void *)&global,
+        &oneBlockISR
+    ));
+}
+
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
    if(tempStatusReg.val){ //in case of ghost interrupts
@@ -147,7 +181,6 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
    // uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
    vTaskDelay(pdMS_TO_TICKS(20));
    while(1){
-      // vTaskSuspend(NULL);
       file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1000));
       #ifdef debug_fastPrints
       // esp_rom_printf("GSN");
@@ -156,21 +189,14 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
       #endif
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
-         if(!(isr2CurrentCounter++%16)){ 
+      if(!(isr2CurrentCounter++%16)){ 
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
       }
       #endif
 
       assert(as5600Handle != nullptr);
-      // assert(&as5600TargetRegister != nullptr);
-      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, 
-         &as5600TargetRegister, 
-         1,
-         (uint8_t*)as5600RawDataBuf, 
-         2, 
-         /*alpha*/ i2cWaitout
-      );
+      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
@@ -178,7 +204,6 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
       #endif
       if(valRequestStatus != ESP_ERR_INVALID_STATE){
          global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
-
          global.oldSectorTarget = global.sectorTarget;
          global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
          int as5600location = (int)(getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)%6;
