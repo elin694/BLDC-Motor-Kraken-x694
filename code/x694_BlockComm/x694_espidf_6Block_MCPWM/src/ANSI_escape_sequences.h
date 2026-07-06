@@ -1,7 +1,4 @@
-// List of basic Console Virtual Terminal Sequences
-// For more info: https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
 #pragma once
-
 // ----------------------------------------------------------------------------
 //  Operating System Command (OSC) sequences
 // ----------------------------------------------------------------------------
@@ -11,15 +8,34 @@
 //  Control Sequence Introducer (CSI) sequences
 // ----------------------------------------------------------------------------
 #define RST_CUR     "\x1B[1;1H" // Reset cursor position to upper left
-#define CLR_DISP_A  "\x1B[0J"   // Erase in Display (after cursor)
-#define CLR_DISP_B  "\x1B[1J"   // Erase in Display (before cursor)
-#define CLR_DISP    "\x1B[2J"   // Erase in Display (entire)
-#define CLR_LINE_A  "\x1B[0K"   // Erase in Line (after cursor)
-#define CLR_LINE_B  "\x1B[1K"   // Erase in Line (before cursor)
-#define CLR_LINE    "\x1B[2K"   // Erase in Line (entire)
+// ESC[J	erase in display (same as ESC[0J)
+#define CLR_DISP_A  "\x1B[J"   // erase from cursor until end of screen
+#define CLR_DISP_B  "\x1B[1J"   // erase from cursor to beginning of scree
+#define CLR_DISP    "\x1B[2J"   // erase entire display screen
+#define CLR_SAVED  "ESC[3J"	//erase saved lines
+// ESC[K	erase in line (same as ESC[0K)
+#define CLR_LINE_A  "\x1B[K"   // erase from cursor to end of line
+#define CLR_LINE_B  "\x1B[1K"   // erase start of line to the cursor
+#define CLR_LINE    "\x1B[2K"   // erase the entire line
 
-#define SET_CURSOR_FRONT "\x1b[1G" //move the text cursor to the very beginning of the current line
-
+//==================================================================
+#define CURSOR_HOME  "\x1B[H"	//moves cursor to home position (0, 0)
+#define CURSOR(x,y)  "\x1B["#x";"#y"H"	//moves cursor to line #, column #
+#define CURSOR_UP(x)  "\x1B["#x"A"	//moves cursor up # lines
+#define CURSOR_DOWN(x)  "\x1B["#x"B"	//moves cursor down # lines
+#define CURSOR_RIGHT(x)  "\x1B["#x"C"	//moves cursor right # columns
+#define CURSOR_LEFT(x)  "\x1B["#x"D"	//moves cursor left # columns
+#define CURSOR_START_DOWN(x)  "\x1B["#x"E"	//moves cursor to beginning of next line, # lines down
+#define CURSOR_START_UP(x)  "\x1B["#x"F"	//moves cursor to beginning of previous line, # lines up
+#define CURSOR_CLM(x)  "\x1B["#x"G"	//moves cursor to column #
+#define CURSOR_GET_POS  "\x1B[6n"	//request cursor position (reports as ESC[#;#R)
+#define CURSOR_UP1  "\x1B M"	//moves cursor one line up, scrolling if needed
+#define CURSOR_SAVE_POS  "\x1B 7"	//save cursor position (DEC)
+#define CURSOR_RESTORE  "\x1B 8"	//restores the cursor to the last saved position (DEC)
+// #define CURSOR  "\x1B[s"	//save cursor position (SCO)
+// #define CURSOR  "\x1B[u"	//restores the cursor to the last saved position (SCO)
+#define CURSOR_INVIS "\x1B[?25l"	//make cursor invisible
+#define CURSOR_VIS "\x1B[?25h"	//make cursor visible
 // ----------------------------------------------------------------------------
 //  Select Graphic Rendition (SGR) sequences
 // ----------------------------------------------------------------------------
