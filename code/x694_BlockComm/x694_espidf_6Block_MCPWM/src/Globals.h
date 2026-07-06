@@ -17,17 +17,19 @@
 #include <cinttypes>
 #include <atomic>
 #include "ANSI_escape_sequences.h"
-/*=============================DEBUG CONTROL PANEL=============================*/
 // #define debug_fastPrints //isr indicator and BLOCK#
+/*=============================DEBUG CONTROL PANEL=============================*/
+#define debug_printRPS 
 #define debug_hyperFastPrints
+// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 volatile inline DRAM_ATTR const char* darray[10000];
-volatile inline DRAM_ATTR std::atomic<uint32_t> dindex[]={0,0}; //new, old
-volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
+volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
+volatile inline DRAM_ATTR int rA[10000];
+volatile inline DRAM_ATTR std::atomic<int> rindx =0; //new, old
 
-// #define debug_printRPS 
-#define velPotReadPeriod (int)(100) //set velocity via pot 1
-// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
+volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
+#define velPotReadPeriod (int)(200) //set velocity via pot 1
 // #define debug_dontReadVelocityPot 22133 //affect block period
 /*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
@@ -64,6 +66,7 @@ inline DRAM_ATTR int isr2CurrentTime =0; //t1
 inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
 inline DRAM_ATTR int isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
+inline DRAM_ATTR bool isr1CC =0;
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 #define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
@@ -96,7 +99,7 @@ constexpr float kPID[3][3] = {
 typedef struct{
     uint32_t oldSectorTarget = preCompStartingTargetSector;
     int sectorTarget =preCompStartingTargetSector; //for stator current vector
-    uint32_t blockPeriod = 65535;
+    std::atomic<uint32_t> blockPeriod = 65535;
     std::atomic<bool> newVelPotValue = false;
     volatile std::atomic<bool> newPhaseSwitchFlag = false;
     std::atomic<bool> readAS5600 = false;
