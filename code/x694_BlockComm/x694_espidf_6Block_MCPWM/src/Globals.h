@@ -21,7 +21,7 @@
 /*=============================DEBUG CONTROL PANEL=============================*/
 #define debug_printRPS 
 // #define debug_hyperFastPrints
-// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
+#define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 #define useESPTimerLoopOverFreeRTOSLoop
 volatile inline DRAM_ATTR const char* darray[10000];
