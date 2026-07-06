@@ -111,9 +111,6 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
 }
 
 void as5600initialize() {
-   #define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
-   uint8_t fthRegisterData[1] = {0x00};
-   uint8_t fthRegister[2] = {0x07, 0x00};
    isr2CurrentTime =esp_timer_get_time();
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
@@ -223,21 +220,12 @@ void mathItOut(void *parameter){
             float prevError =1;
             float dt = SetAs5600PollPeriod/timerResolution;
             float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
-            /*Conditation
-            if error area = 0;  the result is 0
-            f(previous area, error, dt)*/
             float errorI = kPID[VELOCITY_CONTROL][1]*(dt * errorVel +prevArea); /*-area*k, */
             float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
             /*finally changes set cmpVal*/
             float errorTotal  = errorP +errorI+errorD; //⍺
             //error can theoretically go from 0 to infinity for 1 c. ->
          }
-         /*
-         measure 1, target 4| measure 2, target 5
-         if + error --> error = 3 = k, 
-         measure + error = target
-
-         */
          // global.measuredPositions = newThetas;
          // global.measureVelocities = newOmegas;
          // global.measureAccelerations = newAlphas;

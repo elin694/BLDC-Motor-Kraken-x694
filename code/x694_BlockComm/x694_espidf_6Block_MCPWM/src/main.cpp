@@ -36,7 +36,7 @@ void readPotRepeat(void * parameter){
 
 
 /*https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=*/
-DRAM_ATTR uint32_t vbPeriod_temp;
+uint32_t vbPeriod_temp;
 void readPotOnce(void * parameter){
   ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
   rawData = (rawData/2)*2;

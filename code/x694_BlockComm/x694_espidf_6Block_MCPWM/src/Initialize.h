@@ -65,3 +65,7 @@ constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR2 = {
 constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR3 = { 
    .timer2_tez_int_clr =1
 };
+
+#define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
+uint8_t fthRegisterData[1] = {0x00};
+uint8_t fthRegister[2] = {0x07, 0x00};
