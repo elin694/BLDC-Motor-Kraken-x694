@@ -12,14 +12,13 @@ void debugLog(void * parameter){
   int tracker = 0;
   for(;;){
     #ifdef debug_printRPS
-    // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
-    // esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
-    // taskENTER_CRITICAL(&stepPeriodMux);
+    taskENTER_CRITICAL(&stepPeriodMux);
     // int k = global.dir;
-    // taskEXIT_CRITICAL(&stepPeriodMux);
-    esp_rom_printf("a∂c:%4d " cyan "TRPM:%5d" green " BPeriod %d I2c:%4d G:%s\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
+    int gp = global.blockPeriod;
+    taskEXIT_CRITICAL(&stepPeriodMux);
+    // esp_rom_printf("a∂c","%4d " cyan "TRPM:%5d" green " BPeriod %d I2c:%4d G:%s\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal, ghgl[global.sectorTarget]);
     #endif
-    // #endif
+    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal);
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
   }
   
