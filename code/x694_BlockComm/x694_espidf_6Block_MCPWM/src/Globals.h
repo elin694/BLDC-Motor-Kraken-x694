@@ -18,10 +18,8 @@
 #include <atomic>
 #include "ANSI_escape_sequences.h"
 /*=============================DEBUG CONTROL PANEL=============================*/
-// #define debug_testOnLED 
-// #define debug_testBigBreadboardTestPins
-#define debug_fastPrints //isr indicator and BLOCK#
-// #define debug_hyperFastPrints
+// #define debug_fastPrints //isr indicator and BLOCK#
+#define debug_hyperFastPrints
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex[]={0,0}; //new, old
@@ -29,27 +27,15 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 
 // #define debug_printRPS 
 #define velPotReadPeriod (int)(100) //set velocity via pot 1
-/*IN MAIN.CPP DELAY, MOSTLY SPAM*/
-// #define debug_spamPrintCounterStatus
-// #define debug_spamDelay 2
 // #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
-
-#define debug_RPSprint_period (int)(1000) //affect mtr sim rate
 // #define debug_dontReadVelocityPot 22133 //affect block period
-// #define debug_useLookUpTableADC //DEPRECATED
-/*Current loop: 
-
-initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] 
-
-*/
+/*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
 #define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(170)
-// #define i2cClockSpeed 950000
 #define i2cClockSpeed 1000000
-// #define i2cClockSpeed 90000
 #define i2cWaitout 1 //in ms
 #define SetAs5600PollPeriod 1000 //period ticks
 #if (estimatedI2CReadTimeInTicks > SetAs5600PollPeriod)
@@ -74,8 +60,6 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 #define pMin static_cast<float>(0)
 #define pMax static_cast<float>(3*3.141592653/2)
 
-
-// inline bool motorStall =false;
 inline DRAM_ATTR int isr2CurrentTime =0; //t1
 inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
 inline DRAM_ATTR int isr2CurrentCounter =0;
@@ -85,35 +69,17 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
 #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
-    #ifdef debug_testBigBreadboardTestPins
-        #define phaseAHighPort GPIO_NUM_2
-        #define phaseALowPort GPIO_NUM_4
-        #define phaseBHighPort GPIO_NUM_16
-        #define phaseBLowPort GPIO_NUM_17
-        #define phaseCHighPort GPIO_NUM_18
-        #define phaseCLowPort GPIO_NUM_19
-    #else
-    #if defined(debug_testOnLED)
-        #define phaseAHighPort GPIO_NUM_14
-        #define phaseALowPort GPIO_NUM_13
-        #define phaseBHighPort GPIO_NUM_26
-        #define phaseBLowPort GPIO_NUM_25
-        #define phaseCHighPort GPIO_NUM_33
-        #define phaseCLowPort GPIO_NUM_32
-    #else //real PCB
-        #define phaseAHighPort GPIO_NUM_33
-        #define phaseALowPort GPIO_NUM_14
-        #define phaseBHighPort GPIO_NUM_17
-        #define phaseBLowPort GPIO_NUM_16
-        #define phaseCHighPort GPIO_NUM_26
-        #define phaseCLowPort GPIO_NUM_32
+#define phaseAHighPort GPIO_NUM_33
+#define phaseALowPort GPIO_NUM_14
+#define phaseBHighPort GPIO_NUM_17
+#define phaseBLowPort GPIO_NUM_16
+#define phaseCHighPort GPIO_NUM_26
+#define phaseCLowPort GPIO_NUM_32
 
-    //CHANGE ASSOCIATED PORT SET AND CLEAR
-    // // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
-    // // volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
-    // constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
-    #endif
-    #endif
+//CHANGE ASSOCIATED PORT SET AND CLEAR
+// // volatile uint32_t *const PORT_SET[6]     =  { (volatile uint32_t *)&GPIO.out1_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts, (volatile uint32_t *)&GPIO.out_w1ts };
+// // volatile uint32_t *const PORT_CLEAR[6] =  { (volatile uint32_t *)&GPIO.out1_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc, (volatile uint32_t *)&GPIO.out_w1tc};
+// constexpr uint32_t portShift[6] = { (1<<(phaseAHighPort-32)), (1<<phaseALowPort), (1<<phaseBHighPort), (1<<phaseBLowPort), (1<<phaseCHighPort), (1<<(phaseCLowPort))};
 
 //+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
 typedef enum {
@@ -130,7 +96,7 @@ constexpr float kPID[3][3] = {
 
 typedef struct{
     uint32_t oldSectorTarget = preCompStartingTargetSector;
-    int sectorTarget =preCompStartingTargetSector; ; //for stator current vector
+    int sectorTarget =preCompStartingTargetSector; //for stator current vector
     uint32_t blockPeriod = 65535;
     std::atomic<bool> newVelPotValue = false;
     volatile std::atomic<bool> newPhaseSwitchFlag = false;

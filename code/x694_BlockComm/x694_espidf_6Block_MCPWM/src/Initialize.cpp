@@ -13,7 +13,6 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
-   #ifndef debug_testOnLED
    int k = global.dir;
    #ifdef debug_dontReadVelocityPot
    global.targetVelocity=VTimerResolution/(18.0f* debug_dontReadVelocityPot);
@@ -25,7 +24,6 @@ void initialize(void * parameter){
       int k2 = global.dir;
       ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
       as5600initialize(); 
-   #endif
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  24, &getSectorNumberTask, 1);
    xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
    ulTaskNotifyValueClear(getSectorNumberTask ,0);
@@ -36,9 +34,6 @@ void initialize(void * parameter){
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 10, NULL,0);
    // ESP_LOGW("init.cpp", "nableReadPotRepeat");
    #endif 
-   #if ((defined(debug_spamPrintCounterStatus)) && debug_spamDelay)
-   xTaskCreatePinnedToCore(spamSearchCV, "spamSearchCV", 5047,NULL, (int)(thisTaskPriority*.5)-1, NULL, 0);
-   #endif
    xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, 5, NULL, 0);
    // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
    vTaskDelete(NULL);
@@ -171,17 +166,6 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
       }
       #endif
 
-      #ifdef debug_testOnLED
-       esp_rom_delay_us(estimatedI2CReadTimeInMicros);
-      if (motorStall){
-         global.oldSectorTarget= global.sectorTarget;
-      } else{
-         global.oldSectorTarget = global.sectorTarget;
-         global.sectorTarget = mod6(global.sectorTarget+1);
-         // esp_rom_printf(white "GSNon(%d, %d)", global.oldSectorTarget, global.sectorTarget);
-      }
-      #else
-
       assert(as5600Handle != nullptr);
       // assert(&as5600TargetRegister != nullptr);
       esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, 
@@ -211,7 +195,6 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
             darray[dindex[0].fetch_add(1)]= "I2cF& ";
          #endif
       }
-      #endif
       preloadGates();
       global.readAS5600 = true;
 

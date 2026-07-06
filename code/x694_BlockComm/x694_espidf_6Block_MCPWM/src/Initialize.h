@@ -2,6 +2,7 @@
 #define as5600Address 0x36
 #include "Globals.h"
 #include "driver/i2c_master.h"
+#define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
 
 void pinSetup();
 void initialize(void *parameter);      
@@ -15,7 +16,6 @@ void debugLog(void * parameter);
 int mod6(int value);
 void mathItOut(void *parameter);
 
-#define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
 
 inline DRAM_ATTR mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
 //+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++

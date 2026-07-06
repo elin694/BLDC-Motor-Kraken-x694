@@ -8,16 +8,6 @@ adc_oneshot_unit_handle_t adcHandle = NULL;
 uint32_t potBuffer[128];
 int rawData = 0;
 portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
-void spamSearchCV(void *parameter){
-  #ifdef debug_spamDelay
-  for(;;){
-    #ifdef debug_spamPrintCounterStatus
-      getTimerCountNow("");
-    #endif
-      vTaskDelay(pdMS_TO_TICKS(debug_spamDelay));
-  }
-  #endif
-}
 
 void debugLog(void * parameter){
   int tracker = 0;
