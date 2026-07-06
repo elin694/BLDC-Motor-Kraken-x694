@@ -20,19 +20,19 @@
 /*=============================DEBUG CONTROL PANEL=============================*/
 // #define debug_testOnLED 
 // #define debug_testBigBreadboardTestPins
-// #define debug_fastPrints //isr indicator and BLOCK#
+#define debug_fastPrints //isr indicator and BLOCK#
 // #define debug_hyperFastPrints
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex[]={0,0}; //new, old
 volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 
-#define debug_printRPS 
+// #define debug_printRPS 
 #define velPotReadPeriod (int)(100) //set velocity via pot 1
 /*IN MAIN.CPP DELAY, MOSTLY SPAM*/
 // #define debug_spamPrintCounterStatus
 // #define debug_spamDelay 2
-#define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
+// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 
 #define debug_RPSprint_period (int)(1000) //affect mtr sim rate
 // #define debug_dontReadVelocityPot 22133 //affect block period
@@ -45,7 +45,7 @@ initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> opti
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
-#define startingDuty static_cast<float>(1- .9 ) //The Duty cycle is 1 - this.Value, normally .8
+#define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(170)
 // #define i2cClockSpeed 950000
 #define i2cClockSpeed 1000000
@@ -133,7 +133,7 @@ typedef struct{
     int sectorTarget =preCompStartingTargetSector; ; //for stator current vector
     uint32_t blockPeriod = 65535;
     std::atomic<bool> newVelPotValue = false;
-    std::atomic<bool> newPhaseSwitchFlag = false;
+    volatile std::atomic<bool> newPhaseSwitchFlag = false;
     std::atomic<bool> readAS5600 = false;
     std::atomic<bool> setMotorFreeSpin = false;
     std::atomic<bool> setMotorFreeTemporarily = false;

@@ -10,8 +10,8 @@
 uint32_t CMRA0Threshold;
 intr_handle_t sixBlockISR = NULL;
 intr_handle_t oneBlockISR = NULL;
-inline phaseMcpwm motorH[3];
-inline phaseMcpwm motorL[3];
+phaseMcpwm motorH[3];
+phaseMcpwm motorL[3];
 
 void initializeSyncs();
 void initializeInterruptEnablePin();

@@ -245,7 +245,7 @@ void IRAM_ATTR preloadGates(){
     // ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));
 }
 
-void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
+void IRAM_ATTR executeGates(bool freeSpin){
     // if(global.newVelPotValue.exchange(false)){  //potentiometer  moved (ie motor velocity target changed)
     //     #ifdef debug_fastPrints
     //     esp_rom_printf("EgV ");
@@ -257,94 +257,44 @@ void IRAM_ATTR executeGates(mcpwm_dev_t * mcpwm){
     //     ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles.  
     //     // esp_rom_delay_us(ticksToµs+1);
     // }
-
-
-    if(global.setMotorFreeTemporarily.load() ||global.setMotorFreeSpin.load()){ //don't esrase these valeus
-        #ifdef debug_fastPrints
-        esp_rom_printf("EgPh ");
+    if(freeSpin){
+         #ifdef debug_fastPrints
+        esp_rom_printf("EgFR2 ");
         #elif defined(debug_hyperFastPrints)
-        darray[dindex[0].fetch_add(1)]= cyan "EgFree ";
+        darray[dindex[0].fetch_add(1)]= cyan "EgFREE2 ";
         #endif
         for(int i =2; i>-1; i--){
             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
         }
-    }else if(global.newPhaseSwitchFlag.exchange(false)){  //not freespinning = active control
-        #ifdef debug_fastPrints
-        esp_rom_printf("EgPh ");
-        #elif defined(debug_hyperFastPrints)
-        darray[dindex[0].fetch_add(1)]= green "EgPh ";
-        #endif
-        //when motor is off (freespinnig), nPSF still runs, but no changes are made
-        for(int i =0; i<5; i+=2){
-            if(gateLevelCycle[global.sectorTarget][i]==1){
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
-            }else{
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
-            }
-            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
-        }
-    }
-/*
-
-    if(global.readAS5600.exchange(false)){
-        if(global.newVelPotValue.load()){  //potentiometer  moved (ie motor velocity target changed)
+    }else{
+        if(global.setMotorFreeTemporarily.load() ||global.setMotorFreeSpin.load()){ //don't esrase these valeus
             #ifdef debug_fastPrints
-            esp_rom_printf("EgV ");
+            esp_rom_printf("EgFR ");
             #elif defined(debug_hyperFastPrints)
-            darray[dindex[0].fetch_add(1)]= "EgV ";
+            darray[dindex[0].fetch_add(1)]= cyan "EgFREE ";
             #endif
-            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(BTimerTrigger)); 
-            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(LTimerTrigger));
-            ESP_ERROR_CHECK(mcpwm_soft_sync_activate(VTimerTrigger)); //push new duty cycles. 
-            global.newVelPotValue.store(false);  
-            // esp_rom_delay_us(ticksToµs+1);
-        }
-
-        //normal operating conidtions, suppresss the right pins
-        if(global.newPhaseSwitchFlag.exchange(false)){ 
+            for(int i =2; i>-1; i--){
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
+            }
+        }else {  //not freespinning = active control
             #ifdef debug_fastPrints
             esp_rom_printf("EgPh ");
             #elif defined(debug_hyperFastPrints)
             darray[dindex[0].fetch_add(1)]= green "EgPh ";
             #endif
             //when motor is off (freespinnig), nPSF still runs, but no changes are made
-            if(!global.setMotorFreeSpin){ //not freespinning = active control
-                for(int i =0; i<5; i+=2){
-                    if(gateLevelCycle[global.sectorTarget][i]==1){
-                        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
-                    }else{
-                        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
-                    }
-                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
+            for(int i =0; i<5; i+=2){
+                if(gateLevelCycle[global.sectorTarget][i]==1){
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
+                }else{
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
                 }
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
             }
-        }
-
-        if(global.setMotorFreeSpin.exchange(false)){
-            #ifdef debug_fastPrints
-            esp_rom_printf("EgPh ");
-            #elif defined(debug_hyperFastPrints)
-            darray[dindex[0].fetch_add(1)]= cyan "EgFree ";
-            #endif
-            for(int i =2; i>-1; i--){
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
-            }
-        }
-    }else{
-        #ifdef debug_fastPrints
-        esp_rom_printf("EgPh2 ");
-        #elif defined(debug_hyperFastPrints)
-        darray[dindex[0].fetch_add(1)]= cyan "EgFree2 ";
-        #endif
-        for(int i =2; i>-1; i--){
-            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
-            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
         }
     }
-*/
-
     #ifdef debug_fastPrints
     esp_rom_printf(white "|%d,%s,%d" red "|L\n", global.sectorTarget, ghgl[global.sectorTarget],global.dir);
     #elif defined(debug_hyperFastPrints)

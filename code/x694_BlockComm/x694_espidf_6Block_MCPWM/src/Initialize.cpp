@@ -87,10 +87,18 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          /*CASE 1 ABOVE*/
 
       } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
-         if(global.newPhaseSwitchFlag.load() && global.readAS5600.exchange(false)){
-            //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
-            executeGates(MCPWMx);
-         } 
+         
+         if(global.readAS5600.exchange(false)){
+            if(global.newPhaseSwitchFlag.exchange(false)){
+               //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
+               // global.newPhaseSwitchFlag.exchange(false);
+               executeGates(false);
+            }
+         // } else{
+         //    if(global.newPhaseSwitchFlag.exchange(false)){
+         //       executeGates(true);
+         //    }
+         }
          MCPWMx->int_clr.val = (tempClearR2.val | tempClearR3.val);
          return;
          /*CASE 2 ABOVE*/
@@ -209,7 +217,7 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
 
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
-         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d+%d,%d" SET_CURSOR_FRONT, isr2CurrentTime2,isr2CurrentTime,file1);
+         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d+%d,%d" SET_CURSOR_FRONT  , isr2CurrentTime2,isr2CurrentTime,file1);
          isr2CurrentCounterCounted =false;
       }
       #endif

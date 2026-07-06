@@ -47,7 +47,7 @@ void initializeISR();
 
 //Loop
 void preloadGates();
-void executeGates(mcpwm_dev_t * mcpwm);
+void executeGates(bool freeSpin);
 
 #if (lowSideGroup == 1)
    #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
