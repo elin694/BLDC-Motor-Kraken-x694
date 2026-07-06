@@ -9,6 +9,7 @@ void initializeGPIO();
 
 void as5600initialize();
 
+void runOnESPTimerIntr(void * globe);
 void runOnMCPWMIntr(void *returnValue);
 void getSectorNumber(void *returnValue);
 void debugLog(void * parameter);
@@ -73,6 +74,11 @@ constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR3 = {
 //
 esp_timer_handle_t gsnTimerHandle;
 esp_timer_create_args_t gsnTimerSetup= {
+   .callback=runOnESPTimerIntr,
+   .arg =(void*)&global,
+   .dispatch_method=ESP_TIMER_ISR,
+   .name= "i2ctimer",
+   .skip_unhandled_events = false
    
 }; 
    // esp_timer_cb_t callback;        //!< Callback function to execute when timer expires

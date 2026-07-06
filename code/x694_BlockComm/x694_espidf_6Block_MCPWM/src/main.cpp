@@ -22,6 +22,7 @@ void debugLog(void * parameter){
     // #endif
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
   }
+  
 }
 
 void readPotRepeat(void * parameter){

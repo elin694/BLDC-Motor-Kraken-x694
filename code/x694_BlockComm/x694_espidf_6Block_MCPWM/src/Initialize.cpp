@@ -23,6 +23,11 @@ void initialize(void * parameter){
    int k2 = global.dir;
    ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
    as5600initialize(); 
+   #ifdef useESPTimerLoopOverFreeRTOSLoop
+   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
+   ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTimeInMicros+30));
+   //170+20 for poor quality, 170+30 for ok quality
+   #endif
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  21, &getSectorNumberTask, 1);
    xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
    ulTaskNotifyValueClear(getSectorNumberTask ,0);
@@ -60,9 +65,9 @@ void pinSetup(){
 void initializeInterruptEnablePin(){
     mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     MCPWMx->int_clr.val=  clearReg.val;
-    
-    //block timer = 0
+    #ifndef useESPTimerLoopOverFreeRTOSLoop
     MCPWMx->int_ena.timer0_tez_int_ena = 1; // //timer 0= BTimer
+    #endif
     MCPWMx->int_ena.timer1_tez_int_ena = 1; //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
     MCPWMx->int_ena.timer2_tez_int_ena = 1; // //timer 0= BTimer
     ESP_ERROR_CHECK(esp_intr_enable(oneBlockISR)); //Starting AS5600 read ISR
@@ -91,6 +96,14 @@ mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     ));
 }
 
+void IRAM_ATTR runOnESPTimerIntr(void * globe) {
+   vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
+   MCPWMx-> int_clr.val = tempClearR1.val;
+   if(xHigherPriorityTaskWoken == pdTRUE){
+      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+      xHigherPriorityTaskWoken =pdFALSE;
+   }
+}
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
    if(tempStatusReg.val){ //in case of ghost interrupts
@@ -179,13 +192,16 @@ void as5600initialize() {
 // #include "esp_private/esp_clk.h"
 void IRAM_ATTR getSectorNumber(void *returnValue){
    // uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
-   vTaskDelay(pdMS_TO_TICKS(20));
+   vTaskDelay(pdMS_TO_TICKS(15));
    TickType_t pxPreviousWakeTime;
    pxPreviousWakeTime = xTaskGetTickCount();
    
    while(1){
+      #ifdef useESPTimerLoopOverFreeRTOSLoop
+      file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(100));
+      #else
       vTaskDelayUntil(&pxPreviousWakeTime,pdMS_TO_TICKS(1));
-      // file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1000)/);
+      #endif
       #ifdef debug_fastPrints
       // esp_rom_printf("GSN");
       #elif defined(debug_hyperFastPrints)

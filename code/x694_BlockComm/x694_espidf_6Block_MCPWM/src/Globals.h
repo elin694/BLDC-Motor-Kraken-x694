@@ -21,8 +21,9 @@
 /*=============================DEBUG CONTROL PANEL=============================*/
 #define debug_printRPS 
 // #define debug_hyperFastPrints
-#define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
+// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
+#define useESPTimerLoopOverFreeRTOSLoop
 volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
 volatile inline DRAM_ATTR int rA[10000];
@@ -36,6 +37,7 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 #define enableReadPotRepeat
 // #define as5600DirPinHigh
 #define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
+
 #define estimatedI2CReadTimeInMicros static_cast<uint32_t>(170)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
