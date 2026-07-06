@@ -11,15 +11,13 @@ portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 void debugLog(void * parameter){
   int tracker = 0;
   for(;;){
-    // #if (!defined(debug_hyperFastPrints) && !defined(debug_hyperFastPrintsWithPot))
     #ifdef debug_printRPS
     // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
     // esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
-    // bool bearing = global.dir;
-    taskENTER_CRITICAL(&stepPeriodMux);
-    int k = global.dir;
-    taskEXIT_CRITICAL(&stepPeriodMux);
-    esp_rom_printf("a∂c:%4d|" cyan "TRPM:%5d" green "|BPeriod %d|AS5600:%4d| G:%s, \n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
+    // taskENTER_CRITICAL(&stepPeriodMux);
+    // int k = global.dir;
+    // taskEXIT_CRITICAL(&stepPeriodMux);
+    esp_rom_printf("a∂c:%4d " cyan "TRPM:%5d" green " BPeriod %d I2c:%4d G:%s\n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
     #endif
     // #endif
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 

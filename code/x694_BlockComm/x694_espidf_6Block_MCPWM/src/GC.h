@@ -46,7 +46,6 @@ mcpwm_timer_config_t globalTimerSetupLow = { //Grass with peaks
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-    .intr_priority = 2,
     .flags = {
         .update_period_on_empty = 0,
         .update_period_on_sync = 1 

@@ -41,9 +41,14 @@ inline i2c_master_dev_handle_t as5600Handle;
 
 constexpr DRAM_ATTR uint8_t as5600Set = 0x36;
 constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
-constexpr DRAM_ATTR size_t as5600WriteSize = 1;
+#define as5600WriteSize 1
 inline uint8_t as5600RawDataBuf[2] = {0x0,0x0};
-constexpr size_t as5600ReadSize = 2;
+#define as5600ReadSize  2
+
+#define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
+uint8_t fthRegisterData[1] = {0x00};
+uint8_t fthRegister[2] = {0x07, 0x00};
+//==================+++++++ADC AND MCPWM CLEAR REG
 
 constexpr adc_oneshot_unit_init_cfg_t adcSetup= {
    .unit_id = ADC_UNIT_1,
@@ -65,7 +70,15 @@ constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR2 = {
 constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR3 = { 
    .timer2_tez_int_clr =1
 };
-
-#define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
-uint8_t fthRegisterData[1] = {0x00};
-uint8_t fthRegister[2] = {0x07, 0x00};
+//
+esp_timer_handle_t gsnTimerHandle;
+esp_timer_create_args_t gsnTimerSetup= {
+   
+}; 
+   // esp_timer_cb_t callback;        //!< Callback function to execute when timer expires
+   //  void* arg;                      //!< Argument to pass to callback
+   //  esp_timer_dispatch_t dispatch_method;   //!< Dispatch callback from task or ISR; if not specified, esp_timer task
+   //  //                                !< is used; for ISR to work, also set Kconfig option
+   //  //                                !< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
+   //  const char* name;               //!< Timer name, used in esp_timer_dump() function
+   //  bool skip_unhandled_events;   

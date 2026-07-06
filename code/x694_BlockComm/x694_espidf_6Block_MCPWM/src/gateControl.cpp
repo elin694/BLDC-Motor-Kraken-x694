@@ -248,9 +248,14 @@ void IRAM_ATTR executeGates(bool freeSpin){
     int bp = global.blockPeriod;
     int as56 = as5600BfieldVectorSector.load();
     int tas56 = global.sectorTarget;
-    esp_rom_printf(" p%d,%d+%d\n", bp,as56,tas56);
+    esp_rom_printf(" p%d \n", bp);
+    // esp_rom_printf(" p%d:%d,%d,%d,%d\n", bp,rA[0],rA[1],rA[2],rA[3]);
+    // for(int i=0; i<4;i++){
+    //     rA[i]=0;
+    // }
+    // rindx.store(0);
     #else
-    esp_rom_printf("\n");
+    esp_rom_printf("\n"); 
     #endif
     
     // t1= esp_timer_get_time() - t1;esp_rom_printf("T1: %d\n",t1);

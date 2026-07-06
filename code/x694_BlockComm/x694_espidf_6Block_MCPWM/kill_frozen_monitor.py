@@ -1,6 +1,20 @@
 import os
+import datetime
 import subprocess
 Import("env")
+
+
+def print_bright_green_time():
+    # Fetch the current system time
+    current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    
+    # ANSI Sequences: 
+    # \033[1;32m turns on BOLD BRIGHT GREEN
+    # \033[0m resets formatting back to normal text
+    bright_green = f"\033[1;32m[{current_time}]\033[0m"
+    
+    print(f"{bright_green} Checking serial ports...")
+
 
 def kill_serial_process(source, target, env):
     print("\n--- [Custom Script] Hunting for locked serial ports... ---")
@@ -31,3 +45,6 @@ def kill_serial_process(source, target, env):
 
 # Hook the function to run BEFORE the upload action
 env.AddPreAction("upload", kill_serial_process)
+
+# Example execution call
+print_bright_green_time()

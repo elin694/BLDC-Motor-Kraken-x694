@@ -23,17 +23,17 @@ void initialize(void * parameter){
    int k2 = global.dir;
    ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
    as5600initialize(); 
-   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  24, &getSectorNumberTask, 1);
+   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  21, &getSectorNumberTask, 1);
    xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
    ulTaskNotifyValueClear(getSectorNumberTask ,0);
 
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
    #ifdef enableReadPotRepeat
-   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 10, NULL,0);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 6, NULL,0);
    ESP_LOGW("init.cpp", "nableReadPotRepeat");
    #endif 
-   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, 5, NULL, 0);
+   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, 3, NULL, 0);
    // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
    vTaskDelete(NULL);
 }
