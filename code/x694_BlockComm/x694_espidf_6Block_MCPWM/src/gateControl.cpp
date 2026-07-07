@@ -27,7 +27,7 @@ void mcpwmSetup(int startingTargetSector){
     
     esp_rom_delay_us(ticksToµs); //Vtimer tick may not have passed
     initializeInterruptEnablePin(); //after isr init  and L sync 
-    ESP_LOGW("mcwpmSetup finished ","\n\n");
+    ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f \n\n",fMin, fMax);
 }
 
 void setCountValueAndPeriod(int startingTargetSector){
@@ -35,8 +35,8 @@ void setCountValueAndPeriod(int startingTargetSector){
 
     //SET PERIOD TICKS
    phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(activePwmPeriod);
-    I2CReadTimerSetup.period_ticks =static_cast<uint32_t>(SetAs5600PollPeriod); //1 phase every change int
-    globalTimerSetupLow.period_ticks =static_cast<uint32_t>(SetAs5600PollPeriod);//causes execute gate isr
+    I2CReadTimerSetup.period_ticks =static_cast<uint32_t>(SetLTimerPollPeriod); //1 phase every change int
+    globalTimerSetupLow.period_ticks =static_cast<uint32_t>(SetLTimerPollPeriod);//causes execute gate isr
     velocityTrackerTimerSetup.period_ticks = global.blockPeriod;
 
     tripleHighOnSync.count_value = 0; 

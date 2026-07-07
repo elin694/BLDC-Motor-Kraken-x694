@@ -17,8 +17,8 @@ void debugLog(void * parameter){
     int gp = global.blockPeriod;
     taskEXIT_CRITICAL(&stepPeriodMux);
     // esp_rom_printf("a∂c","%4d " cyan "TRPM:%5d" green " BPeriod %d I2c:%4d G:%s\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal, ghgl[global.sectorTarget]);
+      esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal);
     #endif
-    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal);
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
   }
   

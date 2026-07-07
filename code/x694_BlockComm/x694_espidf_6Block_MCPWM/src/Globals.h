@@ -19,7 +19,7 @@
 #include "ANSI_escape_sequences.h"
 // #define debug_fastPrints //isr indicator and BLOCK#
 /*=============================DEBUG CONTROL PANEL=============================*/
-#define debug_printRPS 
+// #define debug_printRPS 
 // #define debug_hyperFastPrints
 #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
@@ -38,12 +38,12 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 // #define as5600DirPinHigh
 #define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
 
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(170)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(170+30)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
-#define SetAs5600PollPeriod 1000 //period ticks
-#if (estimatedI2CReadTimeInTicks > SetAs5600PollPeriod)
-#warnings "SetAs5600PollPeriod too brief; shorter than i2c read time"
+#define SetLTimerPollPeriod 1000 //period ticks
+#if (estimatedI2CReadTimeInTicks > SetLTimerPollPeriod)
+#warnings "SetLTimerPollPeriod too brief; shorter than i2c read time"
 #endif
 #define preCompStartingTargetSector 1
 /*ALSO CHANGE HARD CODED PRESCALERS*/
@@ -70,7 +70,7 @@ inline DRAM_ATTR int isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 inline DRAM_ATTR bool isr1CC =0;
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil(estimatedI2CReadTimeInMicros/ticksToµs))
+#define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil((estimatedI2CReadTimeInMicros-30)/ticksToµs))
 #define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
 #define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
@@ -107,15 +107,22 @@ typedef struct{
     std::atomic<bool> readAS5600 = false;
     std::atomic<bool> setMotorFreeSpin = false;
     std::atomic<bool> setMotorFreeTemporarily = false;
+    
+    control_type controlMethod = VELOCITY_CONTROL;
+    /*PID variables*/
+    int rotorVal =0; //needs to inversted
     float targetPosition =0; //target RPS
     float targetVelocity =0; //target RPS
     float targetAcceleration =0; //target RPS
-    /*Measured Values*/
-    uint32_t rotorVal =0;
-    uint32_t measuredPositions[3] ={0,0,0}; //recent values at the front
-    float measureVelocities[2] ={0,0};
-    float measureAccelerations[1] ={0};
-    control_type controlMethod = VELOCITY_CONTROL;
+    int measuredPos[4] ={0, 0, 0, 0}; //recent values at the front
+    float measuredVel[4] ={0, 0, 0, 0};
+    float measuredAccel[4] ={0, 0, 0, 0};
+    std::atomic <uint32_t> pindex= 0;
+    std::atomic <uint32_t> vindex= 0;
+    std::atomic <uint32_t> aindex= 0;
+    std::atomic <float> posIntegrate= 0;
+    std::atomic <float> velIntegrate= 0;
+    std::atomic <float> accelIntegrate = 0; 
     int dir = 2; // 4=cw (-), 2 for ccw(+) (2 for half working AS5600)
 } gVar_t;
 volatile DRAM_ATTR inline gVar_t global;
@@ -173,6 +180,7 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 //====================FUNCTION DECLARATION =======================
 inline TaskHandle_t setupTask= NULL;
 inline TaskHandle_t getSectorNumberTask= NULL;
+inline TaskHandle_t mathItOutTask= NULL;
 // DRAM_ATTR constexpr const char* ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};
 DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "}; //[-30,30) = block 0
 #ifdef debug_hyperFastPrints
