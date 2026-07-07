@@ -113,7 +113,7 @@ void initializeHighGate(int staartingTargetSector, uint32_t comparatorOff_Duty){
         );
     }
 }
-
+  
 void initializeSyncs(){
     ESP_ERROR_CHECK(mcpwm_new_soft_sync_src(&tripleHighTriggerSetup, &tripleHighTrigger[0]));
     ESP_ERROR_CHECK(mcpwm_new_soft_sync_src(&tripleHighTriggerSetup, &tripleHighTrigger[1]));
