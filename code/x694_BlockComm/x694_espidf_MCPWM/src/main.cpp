@@ -4,15 +4,45 @@
 #define generatorGPIO phaseCHighPort //tx2 = bh= 17
 #define phaseLowGate phaseALowPort //outwards
 
-// #define countingFrequency (1048576*64)
 #define countingFrequency (4e6) //2432
-
-// #define timerPeriod countingFrequency/20000 //2e16
-// #define timerPeriod 4000 //2e16
 #define timerPeriod (countingFrequency/20000)
 #define dutyCycle (float)(1-(.8))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
+
+TaskHandle_t readTask;
+void read(void*parameter){
+    int bt1= 0;
+uint16_t pastAngle =0;
+uint16_t counter =0;
+    for(;;){
+        ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(10));
+        /*
+            bt1 = MCPWM1.timer[0].timer_status.timer_value;
+        esp_rom_printf("%d\n", bt1);
+        */
+        counter= (counter+1)%4096;
+        esp_err_t result = i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 1);
+        if(result != ESP_ERR_INVALID_STATE){
+            angle = (( read_buffer[0] << 8) | read_buffer[1]);
+            esp_rom_printf("\x1B[1G" "Angle: %4d, tick = %7d", angle, counter);
+            pastAngle= angle;
+        }else{
+            esp_rom_printf("RECIEVED ESP_INV_STATE \n");
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }       
+}
+
+TaskHandle_t debugTask;
+void debug(void*parameter){
+    for(;;){
+        esp_rom_printf("\n");
+        esp_timer_dump(stdout);
+        esp_rom_printf("\n");
+       vTaskDelay(1000);
+    }       
+}
 
 void groundSetup(){
     gpio_num_t gateArray[8]= {
@@ -78,12 +108,23 @@ void setupMCPWM(){
     ESP_ERROR_CHECK(mcpwm_new_generator(operatorHandle, &genSetup, &genHandle));
 
 /*I@C*/
- printf("loop start \n \n \n \n \n \n \n \n ");
         ESP_ERROR_CHECK(i2c_new_master_bus(&master_config, &bus_handle));
         ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
 }
-uint16_t pastAngle =0;
-    uint16_t counter =0;
+
+esp_timer_create_args_t etimerSetup ={
+    .callback = cbk,
+    .dispatch_method = ESP_TIMER_ISR,
+    .name = "i2ctimer",
+    .skip_unhandled_events = true
+};
+esp_timer_handle_t etimerHandle;
+BaseType_t pxHigherPriorityTaskWoken =pdFALSE;
+IRAM_ATTR void cbk(void * parameter){
+    vTaskNotifyGiveFromISR(readTask, &pxHigherPriorityTaskWoken);
+    esp_timer_isr_dispatch_need_yield();
+}
+
 extern "C" {
     void app_main() {
         setupMCPWM();
@@ -109,20 +150,9 @@ extern "C" {
         ));
         ESP_ERROR_CHECK(mcpwm_timer_enable(timerHandle));
         ESP_ERROR_CHECK(mcpwm_timer_start_stop(timerHandle, MCPWM_TIMER_START_NO_STOP));
-        int bt1= 0;
-        for(;;){
-            /*
-             bt1 = MCPWM1.timer[0].timer_status.timer_value;
-            esp_rom_printf("%d\n", bt1);
-            */
-            counter= (counter+1)%4096;
-            ESP_ERROR_CHECK(i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 500));
-            angle = (( read_buffer[0] << 8) | read_buffer[1]);
-            // if(abs(pastAngle angle)<2){
-                printf("recieved info: %4d, tick = %7d \n ", angle, counter);
-                pastAngle= angle;
-            // }
-            vTaskDelay(pdMS_TO_TICKS(80));
-        }       
+        xTaskCreatePinnedToCore(read,"i2c reader",4000, NULL, 21, &readTask, 1);
+        xTaskCreatePinnedToCore(debug,"debug log",2000,NULL, 15,&debugTask,0);
+        esp_timer_create(&etimerSetup, &etimerHandle);
+        esp_timer_start_periodic(etimerHandle,160);
     } 
 } 

@@ -1,9 +1,10 @@
 #include "Initialize.h"
 #include "GateControl.h"
 #include <bitset> 
-
+bool changeFlag = true;
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
+TickType_t pxPreviousWakeTime;
 UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
 void initialize(void * parameter){   
    pinSetup();
@@ -19,28 +20,34 @@ void initialize(void * parameter){
    global.blockPeriod = debug_dontReadVelocityPot;//does not affect
    global.newVelPotValue =true; //nti
    #endif
-   readPotOnce(NULL);
+
+   readPotOnce((void *)&changeFlag);
    int k2 = global.dir;
    ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
+
    as5600initialize(); 
-   #ifdef useESPTimerLoopOverFreeRTOSLoop
+   mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
-   ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTimeInMicros+30));
-   //170+20 for poor quality, 170+30 for ok quality
-   #endif
-   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  21, &getSectorNumberTask, 1);
+   
+
+
+   pxPreviousWakeTime = xTaskGetTickCount();
+   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
    xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
    ulTaskNotifyValueClear(getSectorNumberTask ,0);
-
-   mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
-   ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
+   // // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &pxPreviousWakeTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
+   // // xTaskNotifyStateClearIndexed(mathItOutTask,0);
+   // // ulTaskNotifyValueClear(mathItOutTask,0);
    #ifdef enableReadPotRepeat
-   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 6, NULL,0);
-   ESP_LOGW("init.cpp", "nableReadPotRepeat");
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, &pxPreviousWakeTime, 6, NULL,0);
    #endif 
-   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, 3, NULL, 0);
-   // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
+   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
+
+   xTaskDelayUntil(&pxPreviousWakeTime,pdMS_TO_TICKS(10));
+   ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTimeInMicros));
+   initializeInterruptEnablePin(); //after isr init  and L sync 
    vTaskDelete(NULL);
+   //
 }
 
 int mod6 (int value){ //for single add
@@ -65,23 +72,12 @@ void pinSetup(){
 void initializeInterruptEnablePin(){
     mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     MCPWMx->int_clr.val=  clearReg.val;
-    #ifndef useESPTimerLoopOverFreeRTOSLoop
-    MCPWMx->int_ena.timer0_tez_int_ena = 1; // //timer 0= BTimer
-    #endif
     MCPWMx->int_ena.timer1_tez_int_ena = 1; //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
-    MCPWMx->int_ena.timer2_tez_int_ena = 1; // //timer 0= BTimer
-    ESP_ERROR_CHECK(esp_intr_enable(oneBlockISR)); //Starting AS5600 read ISR
+    MCPWMx->int_ena.timer2_tez_int_ena = 1;
+   //  ESP_ERROR_CHECK(esp_intr_enable(oneBlockISR)); //Starting AS5600 read ISR
 }
 
 void initializeISR(){
-    /*
-        ///Solution2 : using callback evt
-        mcpwm_comparator_register_event_callbacks(comparator, );
-        mcpwm_timer_event_callbacks_t timer_isr = {};
-        mcpwm_comparator_event_callbacks_t = {}
-        mcpwm_compare_event_cb_t
-        mcpwm_compare_event_data_t = {}
-    */
 mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     MCPWMx->int_ena.val = 0x00000000;
     MCPWMx->int_clr.val=  clearReg.val;
@@ -98,11 +94,10 @@ mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
 
 void IRAM_ATTR runOnESPTimerIntr(void * globe) {
    vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
-   MCPWMx-> int_clr.val = tempClearR1.val;
-   if(xHigherPriorityTaskWoken == pdTRUE){
-      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-      xHigherPriorityTaskWoken =pdFALSE;
-   }
+   // if(xHigherPriorityTaskWoken == pdTRUE){
+      esp_timer_isr_dispatch_need_yield();
+      // xHigherPriorityTaskWoken =pdFALSE;
+   // }
 }
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
@@ -110,12 +105,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
 
       if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
          if(global.newPhaseSwitchFlag.load()){
-            #ifdef debug_fastPrints
-            esp_rom_printf(blue "B");
-            #elif defined(debug_hyperFastPrints)
-            darray[dindex[0].fetch_add(1)]= blue "B ";
-            // rA[rindx.fetch_add(1)] = (int)esp_timer_get_time()-rA[0];
-            #endif
+            tag(blue "B ");
             xHigherPriorityTaskWoken =pdFALSE;
             vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
             MCPWMx-> int_clr.val = tempClearR1.val;
@@ -132,29 +122,56 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          if(global.readAS5600.exchange(false)){
             if(global.newPhaseSwitchFlag.exchange(false)){
                //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
-               // global.newPhaseSwitchFlag.exchange(false);
+               /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
                executeGates(false);
             }
-         // } else{
-         //    if(global.newPhaseSwitchFlag.exchange(false)){
-         //       executeGates(true);
-         //    }
          }
          MCPWMx->int_clr.val = (tempClearR2.val | tempClearR3.val);
          return;
          /*CASE 2 ABOVE*/
 
       } else if(tempStatusReg.timer2_tez_int_st){
-         #ifdef debug_fastPrints
-         esp_rom_printf(magenta "V");
-         #elif defined(debug_hyperFastPrints)
-         darray[dindex[0].fetch_add(1)] = magenta "V";
-         #endif
+        tag(magenta "V");
          global.newPhaseSwitchFlag.store(true);
          MCPWMx-> int_clr.val = tempClearR3.val;
          /*CASE 3 ABOVE*/
       }
    }  
+}
+
+
+void mathItOut(void * startTick4){
+   TickType_t startTick = *(TickType_t*)startTick4;
+   xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
+   for(;;){
+      if(global.rotorVal != -1){ //if a new position is recorded
+         // /* +error = ahead of target ccw*/
+         // uint32_t newThetas[3] = {global.rotorVal, global.measuredPositions[0], global.measuredPositions[1]};
+         // float newOmegas[2] = {
+         //    (newThetas[0] - newThetas[1])/(float)(SetAs5600PollPeriod*timerResolution),
+         //    (newThetas[1] - newThetas[2])/((float)SetAs5600PollPeriod*timerResolution),
+         // };
+         // float newAlphas[1] = {(newOmegas[0] - newOmegas[1])/((float)SetAs5600PollPeriod*timerResolution)};
+         
+         // if(global.controlMethod == VELOCITY_CONTROL){
+         //    float errorVel =global.targetVelocity- global.measureVelocities[0];
+         //    float prevArea =1;
+         //    float prevError =1;
+         //    float dt = SetAs5600PollPeriod/timerResolution;
+         //    float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
+         //    float errorI = kPID[VELOCITY_CONTROL][1]*(dt * errorVel +prevArea); /*-area*k, */
+         //    float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
+         //    /*finally changes set cmpVal*/
+         //    float errorTotal  = errorP +errorI+errorD; //⍺
+         //    //error can theoretically go from 0 to infinity for 1 c. ->
+         // }
+         // // global.measuredPositions = newThetas;
+         // // global.measureVelocities = newOmegas;
+         // // global.measureAccelerations = newAlphas;
+         global.rotorVal = -1;
+         
+      }
+   }
 }
 
 void as5600initialize() {
@@ -187,39 +204,32 @@ void as5600initialize() {
    global.sectorTarget = newBNumber;
 }
 
-//    #include "esp_private/pm_impl.h"
-// #include "esp_pm.h"
-// #include "esp_private/esp_clk.h"
-void IRAM_ATTR getSectorNumber(void *returnValue){
-   // uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
-   vTaskDelay(pdMS_TO_TICKS(15));
-   TickType_t pxPreviousWakeTime;
-   pxPreviousWakeTime = xTaskGetTickCount();
-   
+void IRAM_ATTR getSectorNumber(void * startTick1){
+   uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
+   esp_err_t valRequestStatus=ESP_ERR_INVALID_STATE;
+   TickType_t startTick = *(TickType_t*)startTick1;
+   xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
+
    while(1){
       #ifdef useESPTimerLoopOverFreeRTOSLoop
       file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(100));
       #else
-      vTaskDelayUntil(&pxPreviousWakeTime,pdMS_TO_TICKS(1));
-      #endif
-      #ifdef debug_fastPrints
-      // esp_rom_printf("GSN");
-      #elif defined(debug_hyperFastPrints)
-      // darray[dindex[0].fetch_add(1)]= "GSN ";
+      xTaskDelayUntil(&pxPreviousWakeTime,pdMS_TO_TICKS(1));
       #endif
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
-      if(!(isr2CurrentCounter++%16)){ 
+      if(!(isr2CurrentCounter++%256)){ 
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
+         tagFlag(true);
       }
       #endif
 
-      assert(as5600Handle != nullptr);
-      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
+      valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
+         tagFlag(false);
       }
       #endif
       if(valRequestStatus != ESP_ERR_INVALID_STATE){
@@ -232,9 +242,7 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
       } else{
          global.setMotorFreeTemporarily.store(true);
          global.oldSectorTarget=global.sectorTarget;
-         #if defined(debug_hyperFastPrints) 
-            darray[dindex[0].fetch_add(1)]= "I2cF& ";
-         #endif
+         tag("<F> ");
       }
       preloadGates();
       global.readAS5600.store(true);
@@ -245,39 +253,7 @@ void IRAM_ATTR getSectorNumber(void *returnValue){
          isr2CurrentCounterCounted =false;
       }
       #endif
+      taskYIELD();
    }
    
 }
-
-void mathItOut(void *parameter){
-   for(;;){
-      if(global.rotorVal != -1){ //if a new position is recorded
-         /* +error = ahead of target ccw*/
-         uint32_t newThetas[3] = {global.rotorVal, global.measuredPositions[0], global.measuredPositions[1]};
-         float newOmegas[2] = {
-            (newThetas[0] - newThetas[1])/(float)(SetAs5600PollPeriod*timerResolution),
-            (newThetas[1] - newThetas[2])/((float)SetAs5600PollPeriod*timerResolution),
-         };
-         float newAlphas[1] = {(newOmegas[0] - newOmegas[1])/((float)SetAs5600PollPeriod*timerResolution)};
-         
-         if(global.controlMethod == VELOCITY_CONTROL){
-            float errorVel =global.targetVelocity- global.measureVelocities[0];
-            float prevArea =1;
-            float prevError =1;
-            float dt = SetAs5600PollPeriod/timerResolution;
-            float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
-            float errorI = kPID[VELOCITY_CONTROL][1]*(dt * errorVel +prevArea); /*-area*k, */
-            float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
-            /*finally changes set cmpVal*/
-            float errorTotal  = errorP +errorI+errorD; //⍺
-            //error can theoretically go from 0 to infinity for 1 c. ->
-         }
-         // global.measuredPositions = newThetas;
-         // global.measureVelocities = newOmegas;
-         // global.measureAccelerations = newAlphas;
-         global.rotorVal = -1;
-         
-      }
-   }
-}
-   

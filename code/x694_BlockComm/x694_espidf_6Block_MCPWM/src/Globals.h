@@ -19,7 +19,7 @@
 #include "ANSI_escape_sequences.h"
 // #define debug_fastPrints //isr indicator and BLOCK#
 /*=============================DEBUG CONTROL PANEL=============================*/
-// #define debug_printRPS 
+#define debug_printRPS 
 // #define debug_hyperFastPrints
 #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
@@ -38,7 +38,7 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 // #define as5600DirPinHigh
 #define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
 
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(170+30)
+#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(400)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define SetLTimerPollPeriod 1000 //period ticks
@@ -66,7 +66,7 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 
 inline DRAM_ATTR int isr2CurrentTime =0; //t1
 inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
-inline DRAM_ATTR int isr2CurrentCounter =0;
+inline DRAM_ATTR uint32_t isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 inline DRAM_ATTR bool isr1CC =0;
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
@@ -158,6 +158,8 @@ void readPotOnce(void * parameter);
 void getTimerCountNow(const char* str);
 void spamSearchCV(void *parameter);
 void initialize(void *parameter);      
+void tag(const char* tag);
+void tagFlag(bool start);
 
 constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
 #define dataPin GPIO_NUM_21 //i2c data yellow, 21 

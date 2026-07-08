@@ -8,9 +8,13 @@ uint32_t potBuffer[128];
 int rawData = 0;
 portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
-void debugLog(void * parameter){
+void debugLog(void * startTick2){
   int tracker = 0;
+  char buf[400];
+  TickType_t startTick = *(TickType_t*)startTick2;
+  xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
   for(;;){
+    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod*10)); 
     #ifdef debug_printRPS
     taskENTER_CRITICAL(&stepPeriodMux);
     // int k = global.dir;
@@ -19,15 +23,21 @@ void debugLog(void * parameter){
     // esp_rom_printf("a∂c","%4d " cyan "TRPM:%5d" green " BPeriod %d I2c:%4d G:%s\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal, ghgl[global.sectorTarget]);
       esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal);
     #endif
-    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
+    esp_rom_printf(blue);
+    esp_timer_dump(stdout);
+    vTaskList(buf);
+    ESP_LOGI("taskDymo","%s",buf);
   }
   
 }
 
-void readPotRepeat(void * parameter){
+void readPotRepeat(void * startTick3){
+  bool changeV = false;
+  TickType_t startTick = *(TickType_t*)startTick3;
+  xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
   for(;;){
-    readPotOnce(parameter);
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
+    readPotOnce((void *)&changeV);
   }
 }
 
@@ -35,6 +45,7 @@ void readPotRepeat(void * parameter){
 /*https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=*/
 uint32_t vbPeriod_temp;
 void readPotOnce(void * parameter){
+  bool flagOn = *(bool *)parameter;
   ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
   rawData = (rawData/2)*2;
   #ifdef debug_dontReadVelocityPot
@@ -69,7 +80,9 @@ void readPotOnce(void * parameter){
         global.setMotorFreeSpin.store(false);
         global.blockPeriod = vbPeriod_temp;
       }
-        global.newVelPotValue =true; //spinlock
+      if(flagOn){
+        global.newVelPotValue =true; 
+      }
       taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
     }
 

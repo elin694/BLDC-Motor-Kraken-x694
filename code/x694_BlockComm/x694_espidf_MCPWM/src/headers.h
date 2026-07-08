@@ -35,6 +35,7 @@ const uint8_t write_buffer = 0x0e;
 uint8_t read_buffer[2];
 #define data_length 2
 int16_t angle = 0;
+void cbk(void * parameter);
 
 //================== #INSTALL MASTER BUS AND DEVICE ==================
 i2c_master_bus_config_t master_config = {
@@ -42,7 +43,7 @@ i2c_master_bus_config_t master_config = {
     .sda_io_num = DATA,
     .scl_io_num = CLOCK,
     .clk_source = I2C_CLK_SRC_DEFAULT,
-    .glitch_ignore_cnt = 7,
+    // .glitch_ignore_cnt = 7,
     .flags = {.enable_internal_pullup = true},
 };
 i2c_master_bus_handle_t bus_handle;  
@@ -50,7 +51,11 @@ i2c_master_bus_handle_t bus_handle;
 i2c_device_config_t dev_config = {
     .dev_addr_length = I2C_ADDR_BIT_LEN_7,
     .device_address = as5600,   
-    .scl_speed_hz = 900000,
+    .scl_speed_hz = 1000000,
+    .scl_wait_us =50,
+    .flags = {
+        .disable_ack_check = false
+    }
 };
 i2c_master_dev_handle_t dev_handle;
 

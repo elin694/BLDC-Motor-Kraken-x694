@@ -9,6 +9,7 @@ void initializeGPIO();
 
 void as5600initialize();
 
+void initializeInterruptEnablePin(); 
 void runOnESPTimerIntr(void * globe);
 void runOnMCPWMIntr(void *returnValue);
 void getSectorNumber(void *returnValue);
@@ -25,8 +26,8 @@ inline i2c_master_bus_config_t busSetup = {
     .sda_io_num= dataPin,
     .scl_io_num= clockPin,
     .clk_source = I2C_CLK_SRC_APB,
-    // .glitch_ignore_cnt = 7,
-    // .intr_priority = 1,
+   //  .intr_priority=3,
+   //  .glitch_ignore_cnt= 7,
     .flags={.enable_internal_pullup = true}
 };
 inline i2c_master_bus_handle_t busHandle;
@@ -78,7 +79,7 @@ esp_timer_create_args_t gsnTimerSetup= {
    .arg =(void*)&global,
    .dispatch_method=ESP_TIMER_ISR,
    .name= "i2ctimer",
-   .skip_unhandled_events = false
+   .skip_unhandled_events = true
    
 }; 
    // esp_timer_cb_t callback;        //!< Callback function to execute when timer expires
