@@ -1,6 +1,7 @@
 #include "Initialize.h"
 #include "GateControl.h"
 #include <bitset> 
+#include "esp_intr_alloc.h"
 bool changeFlag = true;
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
@@ -46,6 +47,7 @@ void initialize(void * parameter){
    xTaskDelayUntil(&pxPreviousWakeTime,pdMS_TO_TICKS(10));
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTimeInMicros));
    initializeInterruptEnablePin(); //after isr init  and L sync 
+   esp_intr_dump(stdout);
    vTaskDelete(NULL);
    //
 }
@@ -205,34 +207,30 @@ void as5600initialize() {
 }
 
 void IRAM_ATTR getSectorNumber(void * startTick1){
-   uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
-   esp_err_t valRequestStatus=ESP_ERR_INVALID_STATE;
+
    TickType_t startTick = *(TickType_t*)startTick1;
    xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
 
    while(1){
-      #ifdef useESPTimerLoopOverFreeRTOSLoop
-      file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(100));
-      #else
-      xTaskDelayUntil(&pxPreviousWakeTime,pdMS_TO_TICKS(1));
-      #endif
+      //uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
+      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(100));
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
-      if(!(isr2CurrentCounter++%256)){ 
+      if((isr2CurrentCounter++%256)==0){ 
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
          tagFlag(true);
       }
       #endif
 
-      valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
+      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
          tagFlag(false);
       }
       #endif
-      if(valRequestStatus != ESP_ERR_INVALID_STATE){
+      if(valRequestStatus == ESP_OK){
          global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
          global.oldSectorTarget = global.sectorTarget;
          global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
@@ -242,7 +240,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       } else{
          global.setMotorFreeTemporarily.store(true);
          global.oldSectorTarget=global.sectorTarget;
-         tag("<F> ");
+         tag("#F ");
       }
       preloadGates();
       global.readAS5600.store(true);

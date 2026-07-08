@@ -12,6 +12,7 @@
 #include <esp_rom_sys.h> 
 #include "driver/i2c_master.h"
 #include "driver/mcpwm_prelude.h"
+#include "ANSI.h"
 
 
 //PORTS
@@ -43,7 +44,7 @@ i2c_master_bus_config_t master_config = {
     .sda_io_num = DATA,
     .scl_io_num = CLOCK,
     .clk_source = I2C_CLK_SRC_DEFAULT,
-    // .glitch_ignore_cnt = 7,
+    .glitch_ignore_cnt = 7,
     .flags = {.enable_internal_pullup = true},
 };
 i2c_master_bus_handle_t bus_handle;  
