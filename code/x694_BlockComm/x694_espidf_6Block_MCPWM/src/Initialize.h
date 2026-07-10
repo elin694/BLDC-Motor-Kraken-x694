@@ -17,6 +17,9 @@ void debugLog(void * parameter);
 int mod6(int value);
 void mathItOut(void *parameter);
 
+void setPosition(float targetPosition);
+void setVelocity(float targetVelocity);
+
 intr_handle_t oneBlockISR = NULL;
 
 inline DRAM_ATTR mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };

@@ -1,6 +1,6 @@
 #include "Initialize.h"
 #include "GateControl.h"
-#include <bitset> 
+// #include "GC.h"
 #include "esp_intr_alloc.h"
 bool changeFlag = true;
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
@@ -137,39 +137,98 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
 }
 
 
-void mathItOut(void * startTick4){
+void mathItOut(void * startTick4){ //updates arrrays with new ifo
    TickType_t startTick = *(TickType_t*)startTick4;
    xTaskDelayUntil(&startTick,initializationLatency);
+   float dt  = estimatedI2CReadTimeInMicros;
    for(;;){
-      if(global.rotorVal != -1){ //if a new position is recorded
-         // /* +error = ahead of target ccw*/
-         // uint32_t newThetas[3] = {global.rotorVal, global.measuredPositions[0], global.measuredPositions[1]};
-         // float newOmegas[2] = {
-         //    (newThetas[0] - newThetas[1])/(float)(SetAs5600PollPeriod*timerResolution),
-         //    (newThetas[1] - newThetas[2])/((float)SetAs5600PollPeriod*timerResolution),
-         // };
-         // float newAlphas[1] = {(newOmegas[0] - newOmegas[1])/((float)SetAs5600PollPeriod*timerResolution)};
-         
-         // if(global.controlMethod == VELOCITY_CONTROL){
-         //    float errorVel =global.targetVelocity- global.measureVelocities[0];
-         //    float prevArea =1;
-         //    float prevError =1;
-         //    float dt = SetAs5600PollPeriod/timerResolution;
-         //    float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
-         //    float errorI = kPID[VELOCITY_CONTROL][1]*(dt * errorVel +prevArea); /*-area*k, */
-         //    float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
-         //    /*finally changes set cmpVal*/
-         //    float errorTotal  = errorP +errorI+errorD; //⍺
-         //    //error can theoretically go from 0 to infinity for 1 c. ->
-         // }
-         // // global.measuredPositions = newThetas;
-         // // global.measureVelocities = newOmegas;
-         // // global.measureAccelerations = newAlphas;
-         global.rotorVal = -1;
-         
+      // index shuld stay in here
+      //cahgne init as5600 read &&&||||| move to next index then save
+      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(100));
+      int previousPos = global.measuredPos[(global.pindex.fetch_add(1))%cBufSize];
+      float previousVel = global.measuredVel[(global.vindex.fetch_add(1))%cBufSize];
+      float previousAccel = global.measuredAccel[(global.aindex.fetch_add(1))%cBufSize];
+      
+      uint32_t vidx = global.vindex;
+      uint32_t pidx = global.pindex;
+      //*assuming dir is always at ground
+      // global.measuredPos[pidx%cBufSize] = global.rotorVal;
+      // float newVel = global.measuredVel[vidx%cBufSize] = ((global.rotorVal-previousPos)%4096)/dt;
+      // global.measuredAccel[global.aindex%cBufSize] = (newVel-previousVel)/dt;
+      taskYIELD();
+   }
+}
+
+
+void setTorque(float targetTorque){
+      if(global.controlMethod <= TORQUE_CONTROL){
+         float magnitude = fabsf(targetTorque);
+         if(magnitude < minDuty || magnitude > maxDuty){
+            global.setMotorFreeSpin = true; //rmeove delay between this and freespining in the future
+         } else{
+            for(int i=2; i>-1; i--){
+               // ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0,(1-magnitude)*(activePwmPeriod/2.0)));
+            }
+         }
+         if(targetTorque < 0){
+            global.dir = 5;
+         }else{
+            global.dir = 2;
+         }
+      }
+}
+
+void setVelocity(float targetVelocity){
+   for(;;){
+         /* +error = ahead of target ccw*/
+         if(global.controlMethod <= VELOCITY_CONTROL){
+            float dt  = estimatedI2CReadTimeInMicros;
+            uint32_t vidx = global.vindex;
+            float errorVel =targetVelocity- global.measuredVel[vidx%cBufSize];/////////////////
+            float prevError = global.lastVelError;
+            global.totalVelChange = global.totalVelChange + errorVel*dt;
+
+            float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
+            float errorI = kPID[VELOCITY_CONTROL][1]*global.totalVelChange; /*-area*k, */
+            float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
+            /*finally changes set cmpVal*/
+            float errorTotal  = errorP +errorI+errorD; //⍺
+            if(errorTotal > maxDuty){
+               errorTotal = maxDuty;
+            } else if (errorTotal < -maxDuty){
+               errorTotal = -maxDuty;
+            }
+            setTorque(errorTotal);
+            ///remember to set prev Erorr and other past var
+         }
+      }
+}
+
+void setPosition(float targetPosition){
+   for(;;){
+      if(global.controlMethod <= POSITION_CONTROL){
+         float dt  = estimatedI2CReadTimeInMicros;
+         uint32_t pidx = global.pindex;
+         float errorPos =global.targetPosition- global.measuredPos[pidx%cBufSize];/////////////////
+         float prevError = global.lastPosError;
+         global.totalPosChange = global.totalPosChange + errorPos*dt;
+
+         float errorP = kPID[POSITION_CONTROL][0]*errorPos;
+         float errorI = kPID[POSITION_CONTROL][1]*global.totalPosChange; /*-area*k, */
+         float errorD = kPID[POSITION_CONTROL][2]*(errorPos-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
+         /*finally changes set cmpVal*/
+         float errorTotal  = errorP +errorI+errorD; //⍺
+         if(errorTotal > maxRPS){
+            errorTotal = maxRPS;
+         } else if (errorTotal < -maxRPS){
+            errorTotal = -maxRPS;
+         }
+         setVelocity(errorTotal);
+         //error can theoretically go from 0 to infinity for 1 c. ->
       }
    }
 }
+
 
 void as5600initialize() {
    isr2CurrentTime =esp_timer_get_time();
@@ -207,7 +266,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
 
    while(1){
       //uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
-      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(100));
+      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(10));
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
       if((isr2CurrentCounter++%256)==0){ 

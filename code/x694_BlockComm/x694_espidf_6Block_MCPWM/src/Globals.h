@@ -28,6 +28,7 @@ volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
 volatile inline DRAM_ATTR int rA[10000];
 volatile inline DRAM_ATTR std::atomic<int> rindx =0; //new, old
+#define cBufSize 8
 
 volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 #define velPotReadPeriod (int)(200) //set velocity via pot 1
@@ -42,10 +43,10 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 #define estimatedI2CReadTimeInMicros (uint32_t)(400)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
-#define SetLTimerPollPeriod 1000 //period ticks
-#if (estimatedI2CReadTimeInTicks > SetLTimerPollPeriod)
-#warnings "SetLTimerPollPeriod too brief; shorter than i2c read time"
-#endif
+#define SetLTimerPollPeriod 100 //period ticks
+// #if (estimatedI2CReadTimeInTicks > SetLTimerPollPeriod)
+// #warnings "SetLTimerPollPeriod too brief; shorter than i2c read time"
+// #endif
 #define preCompStartingTargetSector 1
 /*ALSO CHANGE HARD CODED PRESCALERS*/
 #define mcpwm_lowSideGroupPrescaler 40
@@ -74,6 +75,11 @@ inline DRAM_ATTR bool isr1CC =0;
 #define estimatedI2CReadTimeInTicks (uint32_t)(ceil((estimatedI2CReadTimeInMicros-30)/ticksToµs))
 #define activePwmPeriod (uint32_t)(timerResolution/20000)  //change to 20khz when high
 #define startingGateCmpValue (uint32_t)(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
+#define maxDuty 0.95f
+#define minDuty 0.03f
+#define maxRPS 30
+#define minRPS 1
+
 
 #define phaseAHighPort GPIO_NUM_33
 #define phaseALowPort GPIO_NUM_14
@@ -112,19 +118,23 @@ typedef struct{
     control_type controlMethod = VELOCITY_CONTROL;
     /*PID variables*/
     int rotorVal =0; //needs to inversted
-    float targetPosition =0; //target RPS
+    float targetPosition =0; //target Position in bits
     float targetVelocity =0; //target RPS
     float targetAcceleration =0; //target RPS
-    int measuredPos[4] ={0, 0, 0, 0}; //recent values at the front
-    float measuredVel[4] ={0, 0, 0, 0};
-    float measuredAccel[4] ={0, 0, 0, 0};
+
+    uint32_t measuredPos[cBufSize]; //recent values at the front
+    float measuredVel[cBufSize];
+    float measuredAccel[cBufSize];
     std::atomic <uint32_t> pindex= 0;
     std::atomic <uint32_t> vindex= 0;
     std::atomic <uint32_t> aindex= 0;
-    std::atomic <float> posIntegrate= 0;
-    std::atomic <float> velIntegrate= 0;
-    std::atomic <float> accelIntegrate = 0; 
-    int dir = 2; // 4=cw (-), 2 for ccw(+) (2 for half working AS5600)
+    float lastPosError = 0; //dx/dt
+    float totalPosChange = 0; //∫v(t)dt
+
+    //Velocity pid
+    float lastVelError = 0; //dv/dt
+    float totalVelChange = 0; //∫a(t)dt, area
+    int dir = 5; // 5=cw (-), 2 for ccw(+) (2 for half working AS5600)
 } gVar_t;
 volatile DRAM_ATTR inline gVar_t global;
 inline uint32_t file1 =0;
