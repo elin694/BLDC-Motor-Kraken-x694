@@ -1,7 +1,8 @@
 #pragma once 
 #include "Globals.h"
 #include "driver/gpio.h"
-
+//timer setups, operator , syncs
+//comparator in gateControl.h
 #define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.5) //isr 700ns responds time
 #define relativeDeadTime 5
 
@@ -22,6 +23,7 @@ mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
+    .period_ticks =activePwmPeriod,
     // .intr_priority = 1,
     .flags = {
         .update_period_on_empty = 0,

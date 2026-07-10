@@ -12,7 +12,7 @@ void debugLog(void * startTick2){
   int tracker = 0;
   char buf[400];
   TickType_t startTick = *(TickType_t*)startTick2;
-  xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
+  xTaskDelayUntil(&startTick,initializationLatency);
   for(;;){
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod*10)); 
     #ifdef debug_printRPS
@@ -26,7 +26,7 @@ void debugLog(void * startTick2){
     esp_rom_printf(blue);
     esp_timer_dump(stdout);
     vTaskList(buf);
-    ESP_LOGI("taskDymo","%s",buf);
+    ESP_LOGI("\n","%s",buf);
   }
   
 }
@@ -34,10 +34,10 @@ void debugLog(void * startTick2){
 void readPotRepeat(void * startTick3){
   bool changeV = false;
   TickType_t startTick = *(TickType_t*)startTick3;
-  xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
+  xTaskDelayUntil(&startTick,initializationLatency);
   for(;;){
-    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
     readPotOnce((void *)&changeV);
+    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
   }
 }
 

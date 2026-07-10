@@ -5,39 +5,31 @@ void mcpwmSetup(int startingTargetSector){
     int tVal[3] ={0,0,0};
     setCountValueAndPeriod(startingTargetSector);
     initializeLowGate(startingTargetSector); // suppress Lgate to OFF
-    initializeHighGate(startingTargetSector, CMRA0Threshold); //suppress Hgate to OFF, CMRA0 NEVER actually used
+    initializeHighGate(startingTargetSector, startingGateCmpValue); //suppress Hgate to OFF, CMRA0 NEVER actually used
     initializeSyncs();
     initializeISR();
-    initializeTimer(startingTargetSector); 
+    initializeTimer(startingTargetSector);  //sets and starts B and L timer
     
-    firstPreload(motorH, motorL, startingTargetSector);
-    for(int i =0; i < 3; i++){
-        synchrISR(tripleHighTrigger[i], "triple high triggers");
-    }
-    synchrISR(BTimerTrigger, ""); //0-1us, Post-intr_ena BTSync
-    synchrISR(LTimerTrigger, ""); //0-1us, Post-intr_ena LT Sync
-    synchrISR(VTimerTrigger, ""); //0-1us ,Post-intr_ena VT Sync
+    // synchrISR(BTimerTrigger, ""); //0-1us, Post-intr_ena BTSync
+    // synchrISR(LTimerTrigger, ""); //0-1us, Post-intr_ena LT Sync
+    // synchrISR(VTimerTrigger, ""); //0-1us ,Post-intr_ena VT Sync
     tVal[0] =MCPWM0.timer[0].timer_status.timer_value; //block
     tVal[1] =MCPWM0.timer[1].timer_status.timer_value;  //low
-    tVal[2] =MCPWM0.timer[2].timer_status.timer_value;  //velecoty
-    esp_rom_printf(red "Bc %5d Lc %5d, Vc %5d (ot,nt): %d, %d \n", tVal[0], tVal[1], tVal[2], global.oldSectorTarget, global.sectorTarget);
-    ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f \n\n",fMin, fMax);
-    
-    esp_rom_delay_us(ticksToµs); //Vtimer tick may not have passed
+    // tVal[2] =MCPWM0.timer[2].timer_status.timer_value;  //velecoty
+    esp_rom_printf(red "Bc %5d Lc %5d (ot,nt): %d, %d \n", tVal[0], tVal[1], global.oldSectorTarget, global.sectorTarget);
+    ESP_LOGW("gcc"," maximum target RPs; %6.3f, minimum target RPS: %6.3f \n\n",fMin, fMax);
 }
 
 void setCountValueAndPeriod(int startingTargetSector){
-    CMRA0Threshold = static_cast<uint32_t>(startingGateCmpValue);
-
-    //SET PERIOD TICKS
-   phaseTimerSetupHigh.period_ticks =static_cast<uint32_t>(activePwmPeriod);
-    I2CReadTimerSetup.period_ticks =static_cast<uint32_t>(SetLTimerPollPeriod); //1 phase every change int
-    globalTimerSetupLow.period_ticks =static_cast<uint32_t>(SetLTimerPollPeriod);//causes execute gate isr
+//SET PERIOD TICKS
+//    phaseTimerSetupHigh.period_ticks =(uint32_t)(activePwmPeriod);
+    I2CReadTimerSetup.period_ticks =(uint32_t)(SetLTimerPollPeriod); //1 phase every change int
+    globalTimerSetupLow.period_ticks =(uint32_t)(SetLTimerPollPeriod);//causes execute gate isr
     velocityTrackerTimerSetup.period_ticks = global.blockPeriod;
 
-    tripleHighOnSync.count_value = 0; 
+    tripleHighOnSync.count_value = 1; 
     int excess = 0;
-    VTimerOnSync.count_value = 0;
+    VTimerOnSync.count_value = 1;
     BTimerOnSync.count_value = estimatedI2CReadTimeInTicks; //is the starting phaseOffset
     LTimerOnSync.count_value = excess;
     ESP_LOGW(white "GC 1.5 ON_SYNC_VALUES-setCountValueAndPeriod", "\n BTIMER_CV_OS: %d\n LTIMER_CV_OS %d\n VTIMER_CV_OS %d\n excess: %d", (int)BTimerOnSync.count_value, (int)LTimerOnSync.count_value, (int)VTimerOnSync.count_value, excess);
@@ -143,17 +135,18 @@ void initializeTimer(int startingTargetSector){
     }
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(globalLowTimer, MCPWM_TIMER_START_NO_STOP));
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(blockTimer, MCPWM_TIMER_START_NO_STOP));
-    ESP_ERROR_CHECK(mcpwm_timer_start_stop(velocityTrackerTimer, MCPWM_TIMER_START_NO_STOP));
-    ESP_LOGI(blue "GC6", "======ENABLES AND STARTS counting on all 5 timers ");
+    ESP_LOGI(blue "GC6", "======ENABLES AND STARTS counting on 4 timers ");
 }
 
 void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm * motorLow, int startingTargetSector){
     for (int i= 0; i<5; i+= 2){ 
+        int hlvl;
         if(gateLevelCycle[global.sectorTarget][i]==1){
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
+            hlvl= -1;
         }else{
-            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
+            hlvl= 0;
         }
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, hlvl, true));
         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
     }
 }
@@ -225,24 +218,26 @@ void IRAM_ATTR executeGates(bool freeSpin){
         tag(yellow "EgTfre ");
         for(int i =2; i>-1; i--){
             ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
-            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
+            // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 1, true));
         }
     }else{
         if(global.setMotorFreeTemporarily.load() ||global.setMotorFreeSpin.load()){ //don't esrase these valeus
             tag(yellow "EgFTFree ");
             for(int i =2; i>-1; i--){
                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
+                // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 1, true));
             }
         }else {  //not freespinning = active control
             tag(yellow "EgFFSw ");
             //when motor is off (freespinnig), nPSF still runs, but no changes are made
             for(int i =0; i<5; i+=2){
+                int hlvl;
                 if(gateLevelCycle[global.sectorTarget][i]==1){
-                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, -1, true));
+                    hlvl =-1;
                 }else{
-                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, 0, true));
+                    hlvl =0;
                 }
+                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, hlvl, true));
                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
             }
         }

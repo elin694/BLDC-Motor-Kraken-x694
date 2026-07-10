@@ -31,6 +31,7 @@ volatile inline DRAM_ATTR std::atomic<int> rindx =0; //new, old
 
 volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 #define velPotReadPeriod (int)(200) //set velocity via pot 1
+#define initializationLatency pdMS_TO_TICKS(2)
 // #define debug_dontReadVelocityPot 22133 //affect block period
 /*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
@@ -38,7 +39,7 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 // #define as5600DirPinHigh
 #define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
 
-#define estimatedI2CReadTimeInMicros static_cast<uint32_t>(400)
+#define estimatedI2CReadTimeInMicros (uint32_t)(400)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define SetLTimerPollPeriod 1000 //period ticks
@@ -48,8 +49,8 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 #define preCompStartingTargetSector 1
 /*ALSO CHANGE HARD CODED PRESCALERS*/
 #define mcpwm_lowSideGroupPrescaler 40
-#define timerResolution  static_cast<uint32_t>(16e7/mcpwm_lowSideGroupPrescaler) //125ns , must not simple ratio
-#define VTimerResolution  static_cast<uint32_t>(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
+#define timerResolution  (uint32_t)(16e7/mcpwm_lowSideGroupPrescaler) //125ns , must not simple ratio
+#define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
 /*minimum and maximum RPS */
 #define maxf_HTimerPeriod (1111) //200--> 111.11rps
@@ -70,9 +71,9 @@ inline DRAM_ATTR uint32_t isr2CurrentCounter =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 inline DRAM_ATTR bool isr1CC =0;
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define estimatedI2CReadTimeInTicks static_cast<uint32_t>(ceil((estimatedI2CReadTimeInMicros-30)/ticksToµs))
-#define activePwmPeriod static_cast<uint32_t>(timerResolution/20000)  //change to 20khz when high
-#define startingGateCmpValue static_cast<uint32_t>(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
+#define estimatedI2CReadTimeInTicks (uint32_t)(ceil((estimatedI2CReadTimeInMicros-30)/ticksToµs))
+#define activePwmPeriod (uint32_t)(timerResolution/20000)  //change to 20khz when high
+#define startingGateCmpValue (uint32_t)(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 
 #define phaseAHighPort GPIO_NUM_33
 #define phaseALowPort GPIO_NUM_14

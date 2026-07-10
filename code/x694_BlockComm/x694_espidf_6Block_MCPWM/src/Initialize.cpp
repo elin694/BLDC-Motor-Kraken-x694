@@ -14,24 +14,17 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
-   int k = global.dir;
    #ifdef debug_dontReadVelocityPot
    global.targetVelocity=VTimerResolution/(18.0f* debug_dontReadVelocityPot);
-   (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
+   (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
    global.blockPeriod = debug_dontReadVelocityPot;//does not affect
    global.newVelPotValue =true; //nti
    #endif
-
-   readPotOnce((void *)&changeFlag);
-   int k2 = global.dir;
-   ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
-
    as5600initialize(); 
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
+
    
-
-
    pxPreviousWakeTime = xTaskGetTickCount();
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
    xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
@@ -43,10 +36,11 @@ void initialize(void * parameter){
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, &pxPreviousWakeTime, 6, NULL,0);
    #endif 
    xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
-
-   xTaskDelayUntil(&pxPreviousWakeTime,pdMS_TO_TICKS(10));
+   
+   xTaskDelayUntil(&pxPreviousWakeTime,initializationLatency);
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTimeInMicros));
    initializeInterruptEnablePin(); //after isr init  and L sync 
+   ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d", global.blockPeriod, global.newVelPotValue);//nti
    esp_intr_dump(stdout);
    vTaskDelete(NULL);
    //
@@ -72,7 +66,8 @@ void pinSetup(){
 }
 
 void initializeInterruptEnablePin(){
-    mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
+   ESP_ERROR_CHECK(mcpwm_timer_start_stop(velocityTrackerTimer, MCPWM_TIMER_START_NO_STOP));
+   mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     MCPWMx->int_clr.val=  clearReg.val;
     MCPWMx->int_ena.timer1_tez_int_ena = 1; //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
     MCPWMx->int_ena.timer2_tez_int_ena = 1;
@@ -144,7 +139,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
 
 void mathItOut(void * startTick4){
    TickType_t startTick = *(TickType_t*)startTick4;
-   xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
+   xTaskDelayUntil(&startTick,initializationLatency);
    for(;;){
       if(global.rotorVal != -1){ //if a new position is recorded
          // /* +error = ahead of target ccw*/
@@ -197,19 +192,18 @@ void as5600initialize() {
    ESP_LOGI(magenta "init.cpp", "as5600 Fast Fillter Threshold Set: %d \n", (int)fthRegisterData[0]);
    //===================================GET A STARTING SECTOR VALUE ===================================
    /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/20*i2cWaitout));
-   t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d,%d,%d\n", isr2CurrentTime2, isr2CurrentTime,t1);
+   // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/20*i2cWaitout));
+   // t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d,%d,%d\n", isr2CurrentTime2, isr2CurrentTime,t1);
 
-   global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
-   int newBNumber = (int)((getRotorValAdjusted(global.rotorVal) * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
-   global.oldSectorTarget = newBNumber; 
-   global.sectorTarget = newBNumber;
+   // global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
+   // int newBNumber = (int)((getRotorValAdjusted(global.rotorVal) * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
+   // global.oldSectorTarget = newBNumber; 
+   // global.sectorTarget = newBNumber;
 }
 
 void IRAM_ATTR getSectorNumber(void * startTick1){
-
    TickType_t startTick = *(TickType_t*)startTick1;
-   xTaskDelayUntil(&startTick,pdMS_TO_TICKS(10));
+   xTaskDelayUntil(&startTick,initializationLatency-pdMS_TO_TICKS(1));
 
    while(1){
       //uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
