@@ -25,14 +25,13 @@ void debugLog(void * startTick2){
     #endif
     esp_rom_printf(blue);
     esp_timer_dump(stdout);
-    vTaskList(buf);
-    ESP_LOGI("\n","%s",buf);
+    // vTaskList(buf); ESP_LOGI("\n","%s",buf);
   }
   
 }
 
 void readPotRepeat(void * startTick3){
-  bool changeV = false;
+  bool changeV =true;
   TickType_t startTick = *(TickType_t*)startTick3;
   xTaskDelayUntil(&startTick,initializationLatency);
   for(;;){
@@ -84,6 +83,8 @@ void readPotOnce(void * parameter){
         global.newVelPotValue =true; 
       }
       taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
+      tag("Rp ");
+      //prints after reading a new pot value
     }
 
     }else if(global.controlMethod == TORQUE_CONTROL){

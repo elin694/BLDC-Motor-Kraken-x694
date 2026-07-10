@@ -1,8 +1,8 @@
 //CAILBRATE AS5600 MAGNET
 #include "headers.h"
 
-#define generatorGPIO phaseCHighPort //tx2 = bh= 17
-#define phaseLowGate phaseALowPort //outwards
+#define generatorGPIO phaseAHighPort //tx2 = bh= 17
+#define phaseLowGate phaseCLowPort //outwards
 
 #define countingFrequency (4e6) //2432
 #define timerPeriod (countingFrequency/20000)
@@ -162,6 +162,6 @@ extern "C" {
         xTaskCreatePinnedToCore(read,"i2c reader",4000, NULL, 21, &readTask, 1);
         xTaskCreatePinnedToCore(debug,"debug log",2000,NULL, 15,&debugTask,0);
         esp_timer_create(&etimerSetup, &etimerHandle);
-        esp_timer_start_periodic(etimerHandle,249);
+        esp_timer_start_periodic(etimerHandle,250);
     } 
 } 

@@ -176,6 +176,7 @@ void tagFlag(bool start){
      if(start){
         esp_rom_printf("<%d_%d%d%d%d%d\n",
             bp,
+
             readPotFlag,
             phaseSwitchFlag,
             finishedAs5600,
@@ -204,10 +205,10 @@ void IRAM_ATTR getTimerCountNow(const char* str){
 }
 
 /*==============================================================================================*/
-void IRAM_ATTR preloadGates(){
+void IRAM_ATTR preloadGates(){ //part of GSN
     if(global.newVelPotValue.exchange(false)){
-    tag("PgTVf");
         if(global.blockPeriod <minf_HTimerPeriod){ 
+            tag("gsnTVf");               //set new block value on period ONLY WHEN POT HAS READ SMTH new, and updates period period on empty
             ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));   
         }
     }
@@ -232,7 +233,7 @@ void IRAM_ATTR executeGates(bool freeSpin){
             //when motor is off (freespinnig), nPSF still runs, but no changes are made
             for(int i =0; i<5; i+=2){
                 int hlvl;
-                if(gateLevelCycle[global.sectorTarget][i]==1){
+                if(gateLevelCycle[global.sectorTarget][i] == 1){
                     hlvl =-1;
                 }else{
                     hlvl =0;

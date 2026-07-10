@@ -128,7 +128,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          /*CASE 2 ABOVE*/
 
       } else if(tempStatusReg.timer2_tez_int_st){
-        tag(magenta "V");
+        tag(cyan "V");
          global.newPhaseSwitchFlag.store(true);
          MCPWMx-> int_clr.val = tempClearR3.val;
          /*CASE 3 ABOVE*/
@@ -272,7 +272,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       if((isr2CurrentCounter++%256)==0){ 
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
-         tagFlag(true);
+         tagFlag(true); //tags before and after transmit
       }
       #endif
 
