@@ -18,6 +18,21 @@
 #include <atomic>
 #include "ANSI_escape_sequences.h"
 // #define debug_fastPrints //isr indicator and BLOCK#
+#define debug_useTagFlag
+//============================= INTERRUPT PRIORITY=============================
+//originally (high) 000 (low)20 (intr)1
+#define MCPWM_HighsideTimerIntrPriority 0 //tep,tez
+#define MCPWM_HighsideOperatorIntrPriority 0
+#define MCPWM_HighsideComparatorIntrPriority 0 //tea //has to be the same as all of the above breh
+
+#define MCPWM_LowsideTimerIntrPriority 2
+#define MCPWM_LowsideOperatorIntrPriority 0
+
+#define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
+#define i2c_intrPriority 0
+/*esp timer intr 1-3, gsn read  (2)
+freertos timer source lvl 1 or 3 (1)
+watchdog and sys checks - 4 or 5 (either)*/
 /*=============================DEBUG CONTROL PANEL=============================*/
 // #define debug_printRPS 
 // #define debug_hyperFastPrints

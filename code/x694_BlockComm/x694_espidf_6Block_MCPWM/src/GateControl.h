@@ -2,7 +2,7 @@
 #include "Globals.h"
 
 inline mcpwm_comparator_config_t phaseComparatorSetup = {
-    // .intr_priority = 0,
+    .intr_priority = MCPWM_HighsideComparatorIntrPriority,
     .flags ={
         .update_cmp_on_tez = 1,
         .update_cmp_on_tep = 0,
@@ -31,7 +31,6 @@ typedef struct {
     mcpwm_cmpr_handle_t comparator1 = NULL; //null for high
     mcpwm_gen_handle_t pwmGate0 = NULL;
     mcpwm_gen_handle_t pwmGate1 = NULL;// stays null
-    // uint32_t phaseShift= 0; //tack on with an add later
     //shoutout gemini for suggest changing countval
 } phaseMcpwm;
 
@@ -43,7 +42,6 @@ void initializeTimer(int startingTargetSector);
 void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow, int startingTargetSector);
 void initializeISR();
 
-//Loop
 void preloadGates();
 void executeGates(bool freeSpin);
 

@@ -8,15 +8,13 @@ void pinSetup();
 void initializeGPIO();
 
 void as5600initialize(void* parameter);
-
 void initializeInterruptEnablePin(); 
 void runOnESPTimerIntr(void * globe);
 void runOnMCPWMIntr(void *returnValue);
 void getSectorNumber(void *returnValue);
 void debugLog(void * parameter);
-int mod6(int value);
-void mathItOut(void *parameter);
 
+void mathItOut(void *parameter);
 void setPosition(float targetPosition);
 void setVelocity(float targetVelocity);
 
@@ -29,7 +27,7 @@ inline i2c_master_bus_config_t busSetup = {
     .sda_io_num= dataPin,
     .scl_io_num= clockPin,
     .clk_source = I2C_CLK_SRC_APB,
-   //  .intr_priority=3,
+    .intr_priority=i2c_intrPriority,
    //  .glitch_ignore_cnt= 7,
     .flags={.enable_internal_pullup = true}
 };
@@ -68,14 +66,11 @@ constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR1 = {
 };
 constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR2 = { 
    .timer1_tez_int_clr =1,
-   // .timer1_tep_int_clr =1,
-   // .op0_tea_int_clr = 1,
-   // .op0_teb_int_clr = 1
 };
 constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR3 = { 
    .timer2_tez_int_clr =1
 };
-//
+
 esp_timer_handle_t gsnTimerHandle;
 esp_timer_create_args_t gsnTimerSetup= {
    .callback=runOnESPTimerIntr,

@@ -1,5 +1,4 @@
 #include "GateControl.h"
-
 #include "GC.h"
 void mcpwmSetup(int startingTargetSector){
     int tVal[3] ={0,0,0};
@@ -164,9 +163,8 @@ void IRAM_ATTR tag(const char* tag){
 }
 
 void tagFlag(bool start){
-    #ifdef debug_hyperFastPrints
     taskENTER_CRITICAL(&stepPeriodMux);
-    int bp = global.blockPeriod;
+    // int bp = global.blockPeriod;
     bool readPotFlag = global.newVelPotValue;
     bool phaseSwitchFlag = global.newPhaseSwitchFlag;
     bool finishedAs5600 = global.readAS5600;
@@ -174,9 +172,7 @@ void tagFlag(bool start){
     bool setMotorCoast = global.setMotorFreeSpin;
     taskEXIT_CRITICAL(&stepPeriodMux);
      if(start){
-        esp_rom_printf("<%d_%d%d%d%d%d\n",
-            bp,
-
+        esp_rom_printf("<%d%d%d%d%d",
             readPotFlag,
             phaseSwitchFlag,
             finishedAs5600,
@@ -184,17 +180,16 @@ void tagFlag(bool start){
             setMotorCoast
         );
     }else {
-        esp_rom_printf("%d_%d%d%d%d%d>\n",
-            bp,
+        esp_rom_printf("^%d%d%d%d%d>\n",
+            // bp,
             readPotFlag,
             phaseSwitchFlag,
             finishedAs5600,
             i2cfailed,
+            
             setMotorCoast
         );
     }
-    #else
-    #endif
 }
 
 void IRAM_ATTR getTimerCountNow(const char* str){

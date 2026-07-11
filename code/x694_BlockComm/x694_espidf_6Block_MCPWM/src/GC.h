@@ -1,6 +1,6 @@
 #pragma once 
 #include "Globals.h"
-#include "driver/gpio.h"
+// #include "driver/gpio.h"
 //timer setups, operator , syncs
 //comparator in gateControl.h
 #define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.5) //isr 700ns responds time
@@ -8,13 +8,10 @@
 
 // gpio 19- miso, b High side is tx2
 
-uint32_t CMRA0Threshold;
-// intr_handle_t sixBlockISR = NULL;
 phaseMcpwm motorH[3];
 phaseMcpwm motorL[3];
 
 void initializeSyncs();
-
 void setCountValueAndPeriod(int startingTargetSector);
 void synchrISR(mcpwm_sync_handle_t handle, const char* name);
 
@@ -24,7 +21,7 @@ mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
     .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     .period_ticks =activePwmPeriod,
-    // .intr_priority = 1,
+    .intr_priority = MCPWM_HighsideTimerIntrPriority,
     .flags = {
         .update_period_on_empty = 0,
         .update_period_on_sync = 1 
@@ -36,7 +33,7 @@ mcpwm_timer_config_t I2CReadTimerSetup = { //onces per step/block
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-    .intr_priority = 2,
+    .intr_priority = MCPWM_LowsideTimerIntrPriority,
     .flags = {
         .update_period_on_empty = 0,
         .update_period_on_sync = 1
@@ -74,7 +71,7 @@ const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
 };
 const mcpwm_operator_config_t operatorSetupHigh = {
     .group_id = highSideGroup,
-    // .intr_priority = 0,
+    .intr_priority = MCPWM_HighsideOperatorIntrPriority,
     .flags = {
         .update_gen_action_on_tez = 1,
         .update_gen_action_on_tep = 0,
@@ -94,7 +91,7 @@ const mcpwm_dead_time_config_t lowGateDeadTimeSetup = {
 };
 const mcpwm_operator_config_t operatorSetupLow = {
     .group_id = lowSideGroup,
-    // .intr_priority = 0,
+    .intr_priority = MCPWM_LowsideOperatorIntrPriority,
     .flags = {
         .update_gen_action_on_tez = 0,
         .update_gen_action_on_tep = 0,

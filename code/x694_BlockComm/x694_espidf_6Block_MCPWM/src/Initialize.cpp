@@ -67,7 +67,7 @@ mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     MCPWMx->int_clr.val=  clearReg.val;
     ESP_ERROR_CHECK(esp_intr_alloc(
         ETS_PWM0_INTR_SOURCE,
-        ESP_INTR_FLAG_LEVEL3 | ESP_INTR_FLAG_IRAM,
+        runOnMCPWMIntrPriority | ESP_INTR_FLAG_IRAM,
         runOnMCPWMIntr,
         (void *)&global,
         &oneBlockISR
@@ -248,7 +248,9 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       if((isr2CurrentCounter++%256)==0){ 
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
+         #ifdef debug_useTagFlag
          tagFlag(true); //tags before and after transmit
+         #endif
       }
       #endif
 
@@ -256,7 +258,9 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
+         #ifdef debug_useTagFlag
          tagFlag(false);
+         #endif
       }
       #endif
       if(valRequestStatus == ESP_OK){
