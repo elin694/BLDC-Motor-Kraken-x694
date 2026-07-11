@@ -98,9 +98,9 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
          /*CASE 1 ABOVE*/
 
       } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
-         if(global.readAS5600.exchange(false)){
+         if(global.readAS5600.exchange(false)){ //core 0
             if(global.newPhaseSwitchFlag.exchange(false)){
-               //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
+               //if global.readA S5600==false, the read is taking too long, so might as well let motor freespin
                /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
                executeGates(false);
             }
@@ -249,7 +249,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
          #ifdef debug_useTagFlag
-         tagFlag(true); //tags before and after transmit
+         tagFlag(true,0); //tags before and after transmit
          #endif
       }
       #endif
@@ -259,7 +259,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
          #ifdef debug_useTagFlag
-         tagFlag(false);
+         tagFlag(false, isr2CurrentTime2); //tags before and after transmit
          #endif
       }
       #endif
@@ -276,7 +276,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
          tag("#F ");
       }
       preloadGates();
-      global.readAS5600.store(true);
+      global.readAS5600.store(true); //core 1
 
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){

@@ -52,7 +52,7 @@ void readPotOnce(void * parameter){
     esp_rom_printf("ENTIRNG CRITICAL"); 
     global.targetVelocity=VTimerResolution/(18.0f* vbPeriod_temp);
     (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
-    taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
+    taskENTER_CRITICAL(&stepPeriodMux); //don't read v pot, core 0
     global.blockPeriod = vbPeriod_temp;
     global.newVelPotValue =true;
     taskEXIT_CRITICAL(&stepPeriodMux);
@@ -69,7 +69,7 @@ void readPotOnce(void * parameter){
       // ESP_LOGI("F","SPIN");
     }
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-      taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
+      taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
       (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
       if(notlegal){
         global.setMotorFreeSpin.store(true); //spinlock

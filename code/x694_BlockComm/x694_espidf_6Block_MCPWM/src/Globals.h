@@ -208,5 +208,5 @@ void getTimerCountNow(const char* str);
 void spamSearchCV(void *parameter);
 void initialize(void *parameter);      
 void tag(const char* tag);
-void tagFlag(bool start);
+void tagFlag(bool start, int timer);
 

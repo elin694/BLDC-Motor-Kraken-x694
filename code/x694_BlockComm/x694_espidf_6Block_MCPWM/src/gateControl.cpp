@@ -162,12 +162,12 @@ void IRAM_ATTR tag(const char* tag){
     #endif
 }
 
-void tagFlag(bool start){
+void tagFlag(bool start,int time){
     taskENTER_CRITICAL(&stepPeriodMux);
     // int bp = global.blockPeriod;
     bool readPotFlag = global.newVelPotValue;
     bool phaseSwitchFlag = global.newPhaseSwitchFlag;
-    bool finishedAs5600 = global.readAS5600;
+    bool finishedAs5600 = global.readAS5600; //core 1
     bool i2cfailed= global.setMotorFreeTemporarily;
     bool setMotorCoast = global.setMotorFreeSpin;
     taskEXIT_CRITICAL(&stepPeriodMux);
@@ -180,14 +180,14 @@ void tagFlag(bool start){
             setMotorCoast
         );
     }else {
-        esp_rom_printf("^%d%d%d%d%d>\n",
+        esp_rom_printf("^%d%d%d%d%d>%d\n",
             // bp,
             readPotFlag,
             phaseSwitchFlag,
             finishedAs5600,
             i2cfailed,
-            
-            setMotorCoast
+            setMotorCoast,
+            time
         );
     }
 }
