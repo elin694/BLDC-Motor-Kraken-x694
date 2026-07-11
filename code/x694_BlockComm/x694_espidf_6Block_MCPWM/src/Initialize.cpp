@@ -35,12 +35,11 @@ void initialize(void * parameter){
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, &pxPreviousWakeTime, 6, NULL,0);
    #endif 
    xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
-   
    xTaskDelayUntil(&pxPreviousWakeTime,initializationLatency);
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTimeInMicros));
    initializeInterruptEnablePin(); //after isr init  and L sync 
    ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d", global.blockPeriod, global.newVelPotValue);//nti
-   esp_intr_dump(stdout);
+   // esp_intr_dump(stdout);
    vTaskDelete(NULL);
    //
 }

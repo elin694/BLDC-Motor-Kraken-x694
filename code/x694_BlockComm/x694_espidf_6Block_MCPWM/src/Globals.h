@@ -40,7 +40,7 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 // #define as5600DirPinHigh
 #define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
 
-#define estimatedI2CReadTimeInMicros (uint32_t)(400)
+#define estimatedI2CReadTimeInMicros (uint32_t)(200)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define SetLTimerPollPeriod 100 //period ticks
