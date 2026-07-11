@@ -7,7 +7,7 @@
 void pinSetup();
 void initializeGPIO();
 
-void as5600initialize();
+void as5600initialize(void* parameter);
 
 void initializeInterruptEnablePin(); 
 void runOnESPTimerIntr(void * globe);

@@ -7,24 +7,23 @@ bool changeFlag = true;
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
 TickType_t pxPreviousWakeTime;
 UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
+TaskHandle_t initializeI2CTask= NULL;
 void initialize(void * parameter){   
    pinSetup();
    vTaskDelay(pdMS_TO_TICKS(20)); //To let gate driver setup
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
-   ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
-   ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
    #ifdef debug_dontReadVelocityPot
    global.targetVelocity=VTimerResolution/(18.0f* debug_dontReadVelocityPot);
    (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
    global.blockPeriod = debug_dontReadVelocityPot;//does not affect
    global.newVelPotValue =true; //nti
    #endif
-   as5600initialize(); 
+   xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
 
-   
+   ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200000));
    pxPreviousWakeTime = xTaskGetTickCount();
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
    xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
@@ -229,8 +228,10 @@ void setPosition(float targetPosition){
    }
 }
 
+void as5600initialize(void * parameter) {
+   ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
+   ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
 
-void as5600initialize() {
    isr2CurrentTime =esp_timer_get_time();
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
@@ -258,6 +259,8 @@ void as5600initialize() {
    // int newBNumber = (int)((getRotorValAdjusted(global.rotorVal) * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
    // global.oldSectorTarget = newBNumber; 
    // global.sectorTarget = newBNumber;
+   xTaskNotifyGive(setupTask);
+   vTaskDelete(NULL);
 }
 
 void IRAM_ATTR getSectorNumber(void * startTick1){

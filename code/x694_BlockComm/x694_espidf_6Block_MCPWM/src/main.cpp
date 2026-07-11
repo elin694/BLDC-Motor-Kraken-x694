@@ -21,10 +21,9 @@ void debugLog(void * startTick2){
     int gp = global.blockPeriod;
     taskEXIT_CRITICAL(&stepPeriodMux);
     // esp_rom_printf("a∂c","%4d " cyan "TRPM:%5d" green " BPeriod %d I2c:%4d G:%s\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal, ghgl[global.sectorTarget]);
-      esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal);
+    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal);
     #endif
-    esp_rom_printf(blue);
-    esp_timer_dump(stdout);
+    // esp_rom_printf(blue); esp_timer_dump(stdout);
     // vTaskList(buf); ESP_LOGI("\n","%s",buf);
   }
   
@@ -100,6 +99,8 @@ void readPotOnce(void * parameter){
 extern "C"{
   void app_main(){
     xTaskCreatePinnedToCore(initialize, "SETUP", 30000, NULL, 12, &setupTask, 0); 
+    ulTaskNotifyValueClear(setupTask, 0xffffffff);
+    xTaskNotifyStateClear(setupTask);
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
   }
 }

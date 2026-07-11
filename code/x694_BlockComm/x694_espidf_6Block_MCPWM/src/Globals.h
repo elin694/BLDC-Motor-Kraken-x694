@@ -19,7 +19,7 @@
 #include "ANSI_escape_sequences.h"
 // #define debug_fastPrints //isr indicator and BLOCK#
 /*=============================DEBUG CONTROL PANEL=============================*/
-#define debug_printRPS 
+// #define debug_printRPS 
 // #define debug_hyperFastPrints
 #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
@@ -192,6 +192,7 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 #endif
 //====================FUNCTION DECLARATION =======================
 inline TaskHandle_t setupTask= NULL;
+extern TaskHandle_t initializeI2CTask;
 inline TaskHandle_t getSectorNumberTask= NULL;
 inline TaskHandle_t mathItOutTask= NULL;
 // DRAM_ATTR constexpr const char* ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};
