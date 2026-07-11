@@ -98,6 +98,7 @@ void readPotOnce(void * parameter){
 
 extern "C"{
   void app_main(){
+    vTaskDelay(pdMS_TO_TICKS(10)); //To let gate driver setup
     xTaskCreatePinnedToCore(initialize, "SETUP", 30000, NULL, 12, &setupTask, 0); 
     ulTaskNotifyValueClear(setupTask, 0xffffffff);
     xTaskNotifyStateClear(setupTask);

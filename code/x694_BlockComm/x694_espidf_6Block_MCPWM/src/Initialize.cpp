@@ -10,7 +10,6 @@ UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
 TaskHandle_t initializeI2CTask= NULL;
 void initialize(void * parameter){   
    pinSetup();
-   vTaskDelay(pdMS_TO_TICKS(20)); //To let gate driver setup
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
    #ifdef debug_dontReadVelocityPot
@@ -26,8 +25,8 @@ void initialize(void * parameter){
    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200000));
    pxPreviousWakeTime = xTaskGetTickCount();
    xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
-   xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
-   ulTaskNotifyValueClear(getSectorNumberTask ,0);
+   xTaskNotifyStateClear(getSectorNumberTask); 
+   ulTaskNotifyValueClear(getSectorNumberTask, 0);
    // // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &pxPreviousWakeTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
    // // xTaskNotifyStateClearIndexed(mathItOutTask,0);
    // // ulTaskNotifyValueClear(mathItOutTask,0);
@@ -39,18 +38,8 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTimeInMicros));
    initializeInterruptEnablePin(); //after isr init  and L sync 
    ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d", global.blockPeriod, global.newVelPotValue);//nti
-   // esp_intr_dump(stdout);
+   esp_intr_dump(stdout);
    vTaskDelete(NULL);
-   //
-}
-
-int mod6 (int value){ //for single add
-    if(value > 5){
-        value -= 6;
-    } else if(value < 0){
-        value += 6;
-    }
-    return value;
 }
 
 void pinSetup(){
@@ -78,9 +67,7 @@ mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
     MCPWMx->int_clr.val=  clearReg.val;
     ESP_ERROR_CHECK(esp_intr_alloc(
         ETS_PWM0_INTR_SOURCE,
-        ESP_INTR_FLAG_LEVEL3 
-        | ESP_INTR_FLAG_IRAM
-        ,
+        ESP_INTR_FLAG_LEVEL3 | ESP_INTR_FLAG_IRAM,
         runOnMCPWMIntr,
         (void *)&global,
         &oneBlockISR
@@ -89,10 +76,7 @@ mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
 
 void IRAM_ATTR runOnESPTimerIntr(void * globe) {
    vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
-   // if(xHigherPriorityTaskWoken == pdTRUE){
-      esp_timer_isr_dispatch_need_yield();
-      // xHigherPriorityTaskWoken =pdFALSE;
-   // }
+   esp_timer_isr_dispatch_need_yield();
 }
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
@@ -129,11 +113,11 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
         tag(cyan "V");
          global.newPhaseSwitchFlag.store(true);
          MCPWMx-> int_clr.val = tempClearR3.val;
+         portYIELD_FROM_ISR();
          /*CASE 3 ABOVE*/
       }
    }  
 }
-
 
 void mathItOut(void * startTick4){ //updates arrrays with new ifo
    TickType_t startTick = *(TickType_t*)startTick4;
@@ -156,7 +140,6 @@ void mathItOut(void * startTick4){ //updates arrrays with new ifo
       taskYIELD();
    }
 }
-
 
 void setTorque(float targetTorque){
       if(global.controlMethod <= TORQUE_CONTROL){
@@ -249,15 +232,6 @@ void as5600initialize(void * parameter) {
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, (size_t)1, fthRegisterData, (size_t)1, /*alpha*/20*i2cWaitout));
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "init.cpp", "as5600 Fast Fillter Threshold Set: %d \n", (int)fthRegisterData[0]);
-   //===================================GET A STARTING SECTOR VALUE ===================================
-   /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();
-   // ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/20*i2cWaitout));
-   // t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d,%d,%d\n", isr2CurrentTime2, isr2CurrentTime,t1);
-
-   // global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
-   // int newBNumber = (int)((getRotorValAdjusted(global.rotorVal) * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
-   // global.oldSectorTarget = newBNumber; 
-   // global.sectorTarget = newBNumber;
    xTaskNotifyGive(setupTask);
    vTaskDelete(NULL);
 }

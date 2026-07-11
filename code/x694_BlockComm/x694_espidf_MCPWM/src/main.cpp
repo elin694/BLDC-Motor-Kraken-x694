@@ -6,7 +6,7 @@
 
 #define countingFrequency (4e6) //2432
 #define timerPeriod (countingFrequency/20000)
-#define dutyCycle (float)(1-(.8))
+#define dutyCycle (float)(1-(.01))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
 
@@ -162,6 +162,6 @@ extern "C" {
         xTaskCreatePinnedToCore(read,"i2c reader",4000, NULL, 21, &readTask, 1);
         xTaskCreatePinnedToCore(debug,"debug log",2000,NULL, 15,&debugTask,0);
         esp_timer_create(&etimerSetup, &etimerHandle);
-        esp_timer_start_periodic(etimerHandle,250);
+        esp_timer_start_periodic(etimerHandle,200);
     } 
 } 
