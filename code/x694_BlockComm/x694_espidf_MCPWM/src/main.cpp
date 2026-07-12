@@ -6,45 +6,106 @@
 
 #define countingFrequency (4e6) //2432
 #define timerPeriod (countingFrequency/20000)
-#define dutyCycle (float)(1-(.01))
+#define dutyCycle (float)(1-(.1))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
+esp_timer_handle_t etimerHandle;
+esp_timer_handle_t padTimerHandle;
+esp_timer_create_args_t padTimerSetup ={
+    .callback = cbk,
+    .arg=NULL,
+    .dispatch_method = ESP_TIMER_ISR,
+    .name = "i2cPadTimer",
+    .skip_unhandled_events = true
+};
 
 TaskHandle_t readTask;
+#define gpt 
+#ifdef gpt 
 void read(void*parameter){
-    int bt1= 0;
     uint32_t pastAngle =0;
     uint32_t counter =0;
     uint32_t failCounter =0;
-
     uint32_t printCounter=0;
 
+    uint32_t timer =0;
+    // bool timerFlag =false;
+std::atomic<bool> timerFlag =false;
     for(;;){
-        uint32_t file1 = ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(1));
-        /*
-            bt1 = MCPWM1.timer[0].timer_status.timer_value;
-        esp_rom_printf("%d\n", bt1);
-        */
-        counter++;
+        // esp_timer_start_once(etimerHandle,250);
+        // uint32_t file1 =ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
+        timer = esp_cpu_get_cycle_count();
+        if((counter++ %256)==0){
+            timerFlag =true;//trouble
+        }
         esp_err_t result = i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 1);
+        // uint32_t i2cReadDuration =esp_cpu_get_cycle_count() -timer;
+        // if(timerFlag.exchange(false)){
+        //     esp_rom_printf("us:%d\n",i2cReadDuration);
+        //     // esp_rom_printf("Pos:%4d|T:%6d|F:%d|us:%d\n", angle, counter,failCounter,timer);
+        // }
         if(result ==ESP_OK){
             angle = (( read_buffer[0] << 8) | read_buffer[1]);
             if((printCounter++ %256)==0){
-                esp_rom_printf("\x1B[1G " "Pos:%4d|T:%6d|F:%d|Calls:%d", angle, counter,failCounter,file1);
+                esp_rom_printf("Pos:%4d|T:%6d|F:%d\n", angle, counter, failCounter);
             }
-            // pastAngle= angle;
         }else{
             failCounter++;
-            esp_rom_printf(magenta "F\n");
+        }
+#define pd (250*240)
+        uint32_t periodBetweenIterations = esp_cpu_get_cycle_count() -timer; //time elapsed in 240Mhz ticks
+        // int usRemaining = 250 - (int)(periodBetweenIterations/240.0f);
+        if(periodBetweenIterations <pd){
+            uint32_t papap=(pd-periodBetweenIterations);
+            ets_delay_us(papap/240.0f);
+        }
+
+    }       
+}
+#else
+void read(void* parameter){
+    uint32_t pastAngle = 0;
+    uint32_t counter = 0;
+    uint32_t failCounter = 0;
+    uint32_t printCounter = 0;
+    
+    // Target period in CPU cycles (e.g., 199us * 240 cycles per microsecond)
+    const uint32_t TARGET_PERIOD_CYCLES = 250 * 240; 
+
+    for(;;){
+        uint32_t loop_start = esp_cpu_get_cycle_count();
+        counter++;
+        
+        // 1. Run the I2C transaction
+        esp_err_t result = i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 1);
+        
+        if(result == ESP_OK){
+            angle = ((read_buffer[0] << 8) | read_buffer[1]);
+            
+            // 2. Controlled printing (only once every 256 frames)
+            if((printCounter++ % 256) == 0){
+                esp_rom_printf("Pos:%4d|T:%6d|F:%d\n", angle, counter, failCounter);
+            }
+        } else {
+            failCounter++;
+            // Avoid heavy printing inside the failure path to keep timing stable
+        }
+        
+        // 3. Dynamic Precision Padding
+        uint32_t elapsed = esp_cpu_get_cycle_count() - loop_start;
+        if (elapsed < TARGET_PERIOD_CYCLES) {
+            uint32_t cycles_to_wait = TARGET_PERIOD_CYCLES - elapsed;
+            // Convert remaining cycles back to microseconds for the ROM delay
+            ets_delay_us(cycles_to_wait / 240.0f);
         }
     }       
 }
-
+#endif
 TaskHandle_t debugTask;
 void debug(void*parameter){
     for(;;){
         esp_rom_printf("\n" white);
-        esp_timer_dump(stdout);
+        // esp_timer_dump(stdout);
         esp_rom_printf("\n" blue);
        vTaskDelay(pdMS_TO_TICKS(1000));
     }       
@@ -118,7 +179,6 @@ void setupMCPWM(){
         ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
 }
 
-esp_timer_handle_t etimerHandle;
 esp_timer_create_args_t etimerSetup ={
     .callback = cbk,
     .arg=NULL,
@@ -126,6 +186,9 @@ esp_timer_create_args_t etimerSetup ={
     .name = "i2ctimer",
     .skip_unhandled_events = true
 };
+
+
+
 
 BaseType_t pxHigherPriorityTaskWoken =pdFALSE;
 IRAM_ATTR void cbk(void * parameter){
@@ -162,6 +225,6 @@ extern "C" {
         xTaskCreatePinnedToCore(read,"i2c reader",4000, NULL, 21, &readTask, 1);
         xTaskCreatePinnedToCore(debug,"debug log",2000,NULL, 15,&debugTask,0);
         esp_timer_create(&etimerSetup, &etimerHandle);
-        esp_timer_start_periodic(etimerHandle,200);
+        // esp_timer_start_once(etimerHandle,250);
     } 
 } 

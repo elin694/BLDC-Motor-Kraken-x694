@@ -31,13 +31,15 @@ void initialize(void * parameter){
    // // xTaskNotifyStateClearIndexed(mathItOutTask,0);
    // // ulTaskNotifyValueClear(mathItOutTask,0);
    #ifdef enableReadPotRepeat
-   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, &pxPreviousWakeTime, 6, NULL,0);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &pxPreviousWakeTime, 6, NULL,0);
    #endif 
    xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
    xTaskDelayUntil(&pxPreviousWakeTime,initializationLatency);
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTimeInMicros));
    initializeInterruptEnablePin(); //after isr init  and L sync 
-   ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d", global.blockPeriod, global.newVelPotValue);//nti
+   int b = global.blockPeriod;
+   int c=global.newVelPotValue;
+   ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d", b, c);//nti
    esp_intr_dump(stdout);
    vTaskDelete(NULL);
 }
@@ -242,7 +244,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
 
    while(1){
       //uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
-      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(10));
+      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1));
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
       #if (defined(debug_spamPrintTimeISR1))
       if((isr2CurrentCounter++%256)==0){ 
@@ -268,15 +270,15 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
          global.oldSectorTarget = global.sectorTarget;
          global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
          int as5600location = (int)(getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)%6;
-         as5600BfieldVectorSector.store(as5600location);
-         global.setMotorFreeTemporarily.store(false);
+         as5600BfieldVectorSector =as5600location;
+         global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
       } else{
-         global.setMotorFreeTemporarily.store(true);
          global.oldSectorTarget=global.sectorTarget;
+         global.setMotorFreeTemporarily.store(true, std::memory_order::relaxed);
          tag("#F ");
       }
       preloadGates();
-      global.readAS5600.store(true); //core 1
+      global.readAS5600.store(true,std::memory_order::relaxed); //core 1
 
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){

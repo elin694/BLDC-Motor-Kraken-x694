@@ -165,11 +165,11 @@ void IRAM_ATTR tag(const char* tag){
 void tagFlag(bool start,int time){
     taskENTER_CRITICAL(&stepPeriodMux);
     // int bp = global.blockPeriod;
-    bool readPotFlag = global.newVelPotValue;
-    bool phaseSwitchFlag = global.newPhaseSwitchFlag;
-    bool finishedAs5600 = global.readAS5600; //core 1
-    bool i2cfailed= global.setMotorFreeTemporarily;
-    bool setMotorCoast = global.setMotorFreeSpin;
+    bool readPotFlag = global.newVelPotValue.load(std::memory_order::relaxed);
+    bool phaseSwitchFlag = global.newPhaseSwitchFlag.load(std::memory_order::relaxed);
+    bool finishedAs5600 = global.readAS5600.load(std::memory_order::relaxed); //core 1
+    bool i2cfailed= global.setMotorFreeTemporarily.load(std::memory_order::relaxed);
+    bool setMotorCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
     taskEXIT_CRITICAL(&stepPeriodMux);
      if(start){
         esp_rom_printf("<%d%d%d%d%d",
@@ -201,10 +201,11 @@ void IRAM_ATTR getTimerCountNow(const char* str){
 
 /*==============================================================================================*/
 void IRAM_ATTR preloadGates(){ //part of GSN
-    if(global.newVelPotValue.exchange(false)){
-        if(global.blockPeriod <minf_HTimerPeriod){ 
+    if(global.newVelPotValue.exchange(false,std::memory_order::relaxed)){
+        uint32_t bp =global.blockPeriod.load(std::memory_order::relaxed);
+        if( bp < minf_HTimerPeriod){ 
             tag("gsnTVf");               //set new block value on period ONLY WHEN POT HAS READ SMTH new, and updates period period on empty
-            ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, global.blockPeriod));   
+            // ESP_ERROR_CHECK(mcpwm_timer_set_period(velocityTrackerTimer, bp));   
         }
     }
 }

@@ -13,8 +13,10 @@ void debugLog(void * startTick2){
   char buf[400];
   TickType_t startTick = *(TickType_t*)startTick2;
   xTaskDelayUntil(&startTick,initializationLatency);
+  uint32_t esp_timer_log_counter = 0;
+  uint32_t task_list_log_counter = 0;
   for(;;){
-    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod*10)); 
+    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod*200)); 
     #ifdef debug_printRPS
     taskENTER_CRITICAL(&stepPeriodMux);
     // int k = global.dir;
@@ -23,8 +25,12 @@ void debugLog(void * startTick2){
     // esp_rom_printf("a∂c","%4d " cyan "TRPM:%5d" green " BPeriod %d I2c:%4d G:%s\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal, ghgl[global.sectorTarget]);
     esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal);
     #endif
-    // esp_rom_printf(blue); esp_timer_dump(stdout);
-    // vTaskList(buf); ESP_LOGI("\n","%s",buf);
+    if((esp_timer_log_counter++%8 )==0){
+      esp_rom_printf(blue); esp_timer_dump(stdout);
+    }
+    if((task_list_log_counter++%8 )==0){
+      vTaskList(buf); ESP_LOGI(" ","\n%s",buf);
+    }
   }
   
 }
@@ -99,7 +105,7 @@ void readPotOnce(void * parameter){
 extern "C"{
   void app_main(){
     vTaskDelay(pdMS_TO_TICKS(10)); //To let gate driver setup
-    xTaskCreatePinnedToCore(initialize, "SETUP", 30000, NULL, 12, &setupTask, 0); 
+    xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 12, &setupTask, 0); 
     ulTaskNotifyValueClear(setupTask, 0xffffffff);
     xTaskNotifyStateClear(setupTask);
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");

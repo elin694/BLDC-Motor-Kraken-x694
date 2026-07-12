@@ -18,7 +18,7 @@
 #include <atomic>
 #include "ANSI_escape_sequences.h"
 // #define debug_fastPrints //isr indicator and BLOCK#
-#define debug_useTagFlag
+// #define debug_useTagFlag
 //============================= INTERRUPT PRIORITY=============================
 //originally (high) 000 (low)20 (intr)1
 #define MCPWM_HighsideTimerIntrPriority 0 //tep,tez
@@ -29,12 +29,12 @@
 #define MCPWM_LowsideOperatorIntrPriority 0
 
 #define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
-#define i2c_intrPriority 0
+#define i2c_intrPriority 3
 /*esp timer intr 1-3, gsn read  (2)
 freertos timer source lvl 1 or 3 (1)
 watchdog and sys checks - 4 or 5 (either)*/
 /*=============================DEBUG CONTROL PANEL=============================*/
-// #define debug_printRPS 
+#define debug_printRPS 
 // #define debug_hyperFastPrints
 #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
@@ -45,7 +45,7 @@ volatile inline DRAM_ATTR int rA[10000];
 volatile inline DRAM_ATTR std::atomic<int> rindx =0; //new, old
 #define cBufSize 8
 
-volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
+volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(2)
 // #define debug_dontReadVelocityPot 22133 //affect block period
@@ -54,7 +54,7 @@ volatile inline DRAM_ATTR std::atomic<int> as5600BfieldVectorSector =0;
 #define enableReadPotRepeat
 #define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
 
-#define estimatedI2CReadTimeInMicros (uint32_t)(200)
+#define estimatedI2CReadTimeInMicros (uint32_t)(250)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define SetLTimerPollPeriod 100 //period ticks
@@ -134,7 +134,7 @@ constexpr float kPID[3][3] = {
 typedef struct{
     uint32_t oldSectorTarget = 0;
     int sectorTarget = 0; //for stator current vector
-    std::atomic<uint32_t> blockPeriod = 65535;
+    std::atomic<uint32_t> blockPeriod = 1035;
     std::atomic<bool> newVelPotValue = false;
     volatile std::atomic<bool> newPhaseSwitchFlag = false;
     std::atomic<bool> readAS5600 = false;

@@ -13,8 +13,8 @@
 #include "driver/i2c_master.h"
 #include "driver/mcpwm_prelude.h"
 #include "ANSI.h"
-
-
+#include <atomic>
+#include "esp_cpu.h"
 //PORTS
 #define phaseAHighPort GPIO_NUM_33
 #define phaseALowPort GPIO_NUM_14
