@@ -27,9 +27,13 @@ inline i2c_master_bus_config_t busSetup = {
     .sda_io_num= dataPin,
     .scl_io_num= clockPin,
     .clk_source = I2C_CLK_SRC_APB,
+    .glitch_ignore_cnt= 7,
     .intr_priority=i2c_intrPriority,
-   //  .glitch_ignore_cnt= 7,
-    .flags={.enable_internal_pullup = true}
+    .trans_queue_depth =2,
+    .flags={
+      .enable_internal_pullup = true,
+      .allow_pd =true
+   }
 };
 inline i2c_master_bus_handle_t busHandle;
 
@@ -55,6 +59,7 @@ uint8_t fthRegister[2] = {0x07, 0x00};
 
 constexpr adc_oneshot_unit_init_cfg_t adcSetup= {
    .unit_id = ADC_UNIT_1,
+   .clk_src =ADC_RTC_CLK_SRC_DEFAULT,
    .ulp_mode = ADC_ULP_MODE_DISABLE,
 };
 constexpr adc_oneshot_chan_cfg_t adcChannelSetup = {

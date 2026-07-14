@@ -12,10 +12,10 @@ inline mcpwm_comparator_config_t phaseComparatorSetup = {
 inline mcpwm_generator_config_t phasePwmSetup = {
     .flags = {
         .invert_pwm = false,
-        .io_loop_back = 0,
-        .io_od_mode = 0, //pull low or float only
-        .pull_up = 0,
-        .pull_down= 1
+        // .io_loop_back = 0,
+        // .io_od_mode = 0, //pull low or float only
+        // .pull_up = 0,
+        // .pull_down= 1
     }
 };
 typedef struct {

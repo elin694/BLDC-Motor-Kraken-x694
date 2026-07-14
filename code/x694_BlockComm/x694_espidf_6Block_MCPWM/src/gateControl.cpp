@@ -82,20 +82,30 @@ void initializeHighGate(int staartingTargetSector, uint32_t comparatorOff_Duty){
     }
     //putting command of setting lowGate Low and high gate High (by comparator action event) into buffer
     for (int i = 0; i <3; i++){
-        ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorH[i].pwmGate0,
+        // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorH[i].pwmGate0,
+        //     MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
+        //         motorH[i].comparator0,
+        //         MCPWM_GEN_ACTION_HIGH 
+        //     ),
+        //     MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, 
+        //         motorH[i].comparator0,
+        //         MCPWM_GEN_ACTION_LOW
+        //     ),
+        //     MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+        // ));
+        // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorH[i].pwmGate0,
+        //         MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_LOW),
+        //         MCPWM_GEN_TIMER_EVENT_ACTION_END()
+        //     )
+        // );
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motorH[i].pwmGate0,
             MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
                 motorH[i].comparator0,
-                MCPWM_GEN_ACTION_HIGH 
-            ),
-            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, 
-                motorH[i].comparator0,
-                MCPWM_GEN_ACTION_LOW
-            ),
-            MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+                MCPWM_GEN_ACTION_TOGGLE
+            )
         ));
-        ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorH[i].pwmGate0,
-                MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_LOW),
-                MCPWM_GEN_TIMER_EVENT_ACTION_END()
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event( motorH[i].pwmGate0,
+                MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_LOW)
             )
         );
     }

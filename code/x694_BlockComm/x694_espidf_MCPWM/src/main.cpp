@@ -23,7 +23,7 @@ TaskHandle_t readTask;
 #define gpt 
 #ifdef gpt 
 void read(void*parameter){
-    uint32_t pastAngle =0;
+    // uint32_t pastAngle =0;
     uint32_t counter =0;
     uint32_t failCounter =0;
     uint32_t printCounter=0;
@@ -140,10 +140,11 @@ mcpwm_timer_config_t timerSetup = {
     .resolution_hz = static_cast<uint32_t>(countingFrequency),
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     .period_ticks =static_cast<uint32_t>(timerPeriod),//
-    // .intr_priority = 1,
+    .intr_priority =1,
     .flags = {
         .update_period_on_empty = 1,
-        .update_period_on_sync = 0 //these 2 determine when set_period takes effect
+        .update_period_on_sync = 0, //these 2 determine when set_period takes effect
+        .allow_pd =true
     }
 };
 
@@ -151,10 +152,10 @@ mcpwm_generator_config_t genSetup = {
     .gen_gpio_num = generatorGPIO,
     .flags = {
         .invert_pwm = false,
-        .io_loop_back = 0,
-        .io_od_mode = 0, //pull low or float only
-        .pull_up = 0,
-        .pull_down= 1
+        // .io_loop_back = 0,
+        // .io_od_mode = 0, //pull low or float only
+        // .pull_up = 0,
+        // .pull_down= 1
     }
 };
 mcpwm_gen_handle_t genHandle;
@@ -207,19 +208,26 @@ extern "C" {
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparatorHandle,compareValue)); 
 
         
-        ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(genHandle,
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
             MCPWM_GEN_COMPARE_EVENT_ACTION(
                 MCPWM_TIMER_DIRECTION_UP,
                 comparatorHandle,
-                MCPWM_GEN_ACTION_HIGH
-            ),
-              MCPWM_GEN_COMPARE_EVENT_ACTION(
-                MCPWM_TIMER_DIRECTION_DOWN,
-                comparatorHandle,
-                MCPWM_GEN_ACTION_LOW
-            ),
-            MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+                MCPWM_GEN_ACTION_TOGGLE
+            )
         ));
+        // ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
+        //     MCPWM_GEN_COMPARE_EVENT_ACTION(
+        //         MCPWM_TIMER_DIRECTION_UP,
+        //         comparatorHandle,
+        //         MCPWM_GEN_ACTION_HIGH
+        //     ),
+        //       MCPWM_GEN_COMPARE_EVENT_ACTION(
+        //         MCPWM_TIMER_DIRECTION_DOWN,
+        //         comparatorHandle,
+        //         MCPWM_GEN_ACTION_LOW
+        //     ),
+        //     MCPWM_GEN_COMPARE_EVENT_ACTION_END()
+        // ));
         ESP_ERROR_CHECK(mcpwm_timer_enable(timerHandle));
         ESP_ERROR_CHECK(mcpwm_timer_start_stop(timerHandle, MCPWM_TIMER_START_NO_STOP));
         xTaskCreatePinnedToCore(read,"i2c reader",4000, NULL, 21, &readTask, 1);
