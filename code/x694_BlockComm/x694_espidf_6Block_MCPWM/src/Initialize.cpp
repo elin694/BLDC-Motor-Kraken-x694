@@ -10,7 +10,7 @@ TickType_t pxPreviousWakeTime;
 TaskHandle_t initializeI2CTask= NULL;
 void initialize(void * parameter){   
    pinSetup();
-   //aple
+   //aplePIE
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
    #ifdef debug_dontReadVelocityPot
