@@ -52,7 +52,7 @@ volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 #define enableReadPotRepeat
 #define startingDuty static_cast<float>(1- .1 ) //The Duty cycle is 1 - this.Value, normally .8
 
-#define estimatedI2CReadTimeInMicros (uint32_t)(250)
+#define estimatedI2CReadTimeInMicros (uint32_t)(500)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define SetLTimerPollPeriod 100 //period ticks
