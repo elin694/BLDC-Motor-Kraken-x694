@@ -45,11 +45,11 @@ i2c_master_bus_config_t master_config = {
     .scl_io_num = CLOCK,
     .clk_source = I2C_CLK_SRC_DEFAULT,
     .glitch_ignore_cnt = 7,
-    .intr_priority=3,
-    .trans_queue_depth =2,
+    // .intr_priority=3,
+    // .trans_queue_depth =2,
     .flags = {
         .enable_internal_pullup = true,
-        .allow_pd =true
+        // .allow_pd =true
     }
 };
 i2c_master_bus_handle_t bus_handle;  
@@ -72,7 +72,7 @@ static mcpwm_timer_handle_t timerHandle;
 
 mcpwm_operator_config_t operatorSetup = {
     .group_id = id,
-    .intr_priority = 1,
+    // .intr_priority = 1,
     .flags = {
         .update_gen_action_on_tez = 1,
         .update_gen_action_on_tep = 0,

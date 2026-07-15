@@ -148,7 +148,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=espidf-blick
+CMAKE_PROJECT_NAME:STATIC=x694_espidf_6Block_MCPWM
 
 //Value Computed by CMake
 CMAKE_PROJECT_SPDX_LICENSE:STATIC=
@@ -219,13 +219,13 @@ CMAKE_TAPI:FILEPATH=/Library/Developer/CommandLineTools/usr/bin/tapi
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
 //Value Computed by CMake
-espidf-blick_BINARY_DIR:STATIC=/Users/bingqiling/KRAKENX694_local/KrakenX694/code/x694_BlockComm/x694_espidf_6Block_MCPWM/build
+x694_espidf_6Block_MCPWM_BINARY_DIR:STATIC=/Users/bingqiling/KRAKENX694_local/KrakenX694/code/x694_BlockComm/x694_espidf_6Block_MCPWM/build
 
 //Value Computed by CMake
-espidf-blick_IS_TOP_LEVEL:STATIC=ON
+x694_espidf_6Block_MCPWM_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
-espidf-blick_SOURCE_DIR:STATIC=/Users/bingqiling/KRAKENX694_local/KrakenX694/code/x694_BlockComm/x694_espidf_6Block_MCPWM
+x694_espidf_6Block_MCPWM_SOURCE_DIR:STATIC=/Users/bingqiling/KRAKENX694_local/KrakenX694/code/x694_BlockComm/x694_espidf_6Block_MCPWM
 
 
 ########################

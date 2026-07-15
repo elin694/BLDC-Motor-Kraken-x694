@@ -6,7 +6,7 @@
 
 #define countingFrequency (4e6) //2432
 #define timerPeriod (countingFrequency/20000)
-#define dutyCycle (float)(1-(.1))
+#define dutyCycle (float)(1-(.9))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
 esp_timer_handle_t etimerHandle;
@@ -140,11 +140,11 @@ mcpwm_timer_config_t timerSetup = {
     .resolution_hz = static_cast<uint32_t>(countingFrequency),
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     .period_ticks =static_cast<uint32_t>(timerPeriod),//
-    .intr_priority =1,
+    // .intr_priority =1,
     .flags = {
         .update_period_on_empty = 1,
         .update_period_on_sync = 0, //these 2 determine when set_period takes effect
-        .allow_pd =true
+        // .allow_pd =true
     }
 };
 
@@ -171,7 +171,6 @@ void setupMCPWM(){
     // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;
     // MCPWM0.timer[0].timer_cfg0.timer_prescale= (16e7/countingFrequency)*5-1;
     ESP_ERROR_CHECK(mcpwm_new_operator(&operatorSetup, &operatorHandle));
-    ESP_LOGE("DEBUG2easd", "cmpvalue ");
     ESP_ERROR_CHECK(mcpwm_new_comparator(operatorHandle, &comparatorSetup, &comparatorHandle));
     ESP_ERROR_CHECK(mcpwm_new_generator(operatorHandle, &genSetup, &genHandle));
 
@@ -204,6 +203,7 @@ extern "C" {
         /*RUNTIME FUNCTIONS*/
         // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(genHandle, 0, true)); // Force low until ready
         ESP_ERROR_CHECK(mcpwm_operator_connect_timer(operatorHandle, timerHandle)); //--
+        // compareValue=49;
         ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
         ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparatorHandle,compareValue)); 
 
@@ -212,7 +212,14 @@ extern "C" {
             MCPWM_GEN_COMPARE_EVENT_ACTION(
                 MCPWM_TIMER_DIRECTION_UP,
                 comparatorHandle,
-                MCPWM_GEN_ACTION_TOGGLE
+                MCPWM_GEN_ACTION_HIGH
+            )
+        ));
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
+            MCPWM_GEN_COMPARE_EVENT_ACTION(
+                MCPWM_TIMER_DIRECTION_DOWN,
+                comparatorHandle,
+                MCPWM_GEN_ACTION_LOW
             )
         ));
         // ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
