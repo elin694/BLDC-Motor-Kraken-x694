@@ -9,21 +9,20 @@ int rawData = 0;
 portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
 void debugLog(void * startTick2){
-  int tracker = 0;
   char buf[400];
   TickType_t startTick = *(TickType_t*)startTick2;
   xTaskDelayUntil(&startTick,initializationLatency);
   uint32_t esp_timer_log_counter = 0;
   uint32_t task_list_log_counter = 0;
   for(;;){
-    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod*200)); 
+    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod*50)); 
     #ifdef debug_printRPS
     taskENTER_CRITICAL(&stepPeriodMux);
-    // int k = global.dir;
     int gp = global.blockPeriod;
+    int tempCoast = global.setMotorFreeTemporarily.load(std::memory_order::relaxed);
+    int stateIsCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
     taskEXIT_CRITICAL(&stepPeriodMux);
-    // esp_rom_printf("a∂c","%4d " cyan "TRPM:%5d" green " BPeriod %d I2c:%4d G:%s\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal, ghgl[global.sectorTarget]);
-    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal);
+    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d TCoast%d,%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast);
     #endif
     if((esp_timer_log_counter++%8 )==0){
       esp_rom_printf(blue); esp_timer_dump(stdout);

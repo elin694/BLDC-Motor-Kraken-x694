@@ -41,8 +41,6 @@ watchdog and sys checks - 4 or 5 (either)*/
 #define useESPTimerLoopOverFreeRTOSLoop
 volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
-volatile inline DRAM_ATTR int rA[10000];
-volatile inline DRAM_ATTR std::atomic<int> rindx =0; //new, old
 #define cBufSize 8
 
 volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
@@ -52,7 +50,7 @@ volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 /*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
-#define startingDuty static_cast<float>(1- .4 ) //The Duty cycle is 1 - this.Value, normally .8
+#define startingDuty static_cast<float>(1- .1 ) //The Duty cycle is 1 - this.Value, normally .8
 
 #define estimatedI2CReadTimeInMicros (uint32_t)(250)
 #define i2cClockSpeed 1000000

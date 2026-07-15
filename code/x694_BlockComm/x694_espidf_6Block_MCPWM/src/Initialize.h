@@ -32,7 +32,7 @@ inline i2c_master_bus_config_t busSetup = {
     .trans_queue_depth =2,
     .flags={
       .enable_internal_pullup = true,
-      .allow_pd =true
+      // .allow_pd =true
    }
 };
 inline i2c_master_bus_handle_t busHandle;

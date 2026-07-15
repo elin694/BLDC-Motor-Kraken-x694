@@ -14,13 +14,11 @@ void mcpwmSetup(int startingTargetSector){
     // synchrISR(VTimerTrigger, ""); //0-1us ,Post-intr_ena VT Sync
     tVal[0] =MCPWM0.timer[0].timer_status.timer_value; //block
     tVal[1] =MCPWM0.timer[1].timer_status.timer_value;  //low
-    // tVal[2] =MCPWM0.timer[2].timer_status.timer_value;  //velecoty
     esp_rom_printf(red "Bc %5d Lc %5d (ot,nt): %d, %d \n", tVal[0], tVal[1], global.oldSectorTarget, global.sectorTarget);
     ESP_LOGW("gcc"," maximum target RPs; %6.3f, minimum target RPS: %6.3f \n\n",fMin, fMax);
 }
 
 void setCountValueAndPeriod(int startingTargetSector){
-//SET PERIOD TICKS
 //    phaseTimerSetupHigh.period_ticks =(uint32_t)(activePwmPeriod);
     I2CReadTimerSetup.period_ticks =(uint32_t)(SetLTimerPollPeriod); //1 phase every change int
     globalTimerSetupLow.period_ticks =(uint32_t)(SetLTimerPollPeriod);//causes execute gate isr
@@ -82,32 +80,18 @@ void initializeHighGate(int staartingTargetSector, uint32_t comparatorOff_Duty){
     }
     //putting command of setting lowGate Low and high gate High (by comparator action event) into buffer
     for (int i = 0; i <3; i++){
-        // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_compare_event(motorH[i].pwmGate0,
-        //     MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
-        //         motorH[i].comparator0,
-        //         MCPWM_GEN_ACTION_HIGH 
-        //     ),
-        //     MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, 
-        //         motorH[i].comparator0,
-        //         MCPWM_GEN_ACTION_LOW
-        //     ),
-        //     MCPWM_GEN_COMPARE_EVENT_ACTION_END()
-        // ));
-        // ESP_ERROR_CHECK(mcpwm_generator_set_actions_on_timer_event( motorH[i].pwmGate0,
-        //         MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_LOW),
-        //         MCPWM_GEN_TIMER_EVENT_ACTION_END()
-        //     )
-        // );
         ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motorH[i].pwmGate0,
             MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
                 motorH[i].comparator0,
-                MCPWM_GEN_ACTION_TOGGLE
+                MCPWM_GEN_ACTION_HIGH
             )
         ));
-        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event( motorH[i].pwmGate0,
-                MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_LOW)
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motorH[i].pwmGate0,
+            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, 
+                motorH[i].comparator0,
+                MCPWM_GEN_ACTION_LOW
             )
-        );
+        ));
     }
 }
   
@@ -264,11 +248,6 @@ void IRAM_ATTR executeGates(bool freeSpin){
     #ifdef debug_hyperFastPrintsWithPot
     int bp = global.blockPeriod;
     esp_rom_printf(" p%d\n", bp);
-    // esp_rom_printf(" p%d:%d,%d,%d,%d\n", bp,rA[0],rA[1],rA[2],rA[3]);
-    // for(int i=0; i<4;i++){
-    //     rA[i]=0;
-    // }
-    // rindx.store(0);
     #else
     esp_rom_printf("\n"); 
     #endif

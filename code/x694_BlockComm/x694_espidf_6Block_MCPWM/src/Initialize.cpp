@@ -6,7 +6,7 @@ bool changeFlag = true;
 #define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
 TickType_t pxPreviousWakeTime;
-UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
+// UBaseType_t thisTaskPriority;
 TaskHandle_t initializeI2CTask= NULL;
 void initialize(void * parameter){   
    pinSetup();
@@ -102,7 +102,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
       } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
          if(global.readAS5600.exchange(false)){ //core 0
             if(global.newPhaseSwitchFlag.exchange(false)){
-               //if global.readA S5600==false, the read is taking too long, so might as well let motor freespin
+               //if global.readA S5600==false, the read is taking too long, so might as well let motor coast
                /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
                executeGates(false);
             }
@@ -241,7 +241,7 @@ void as5600initialize(void * parameter) {
 void IRAM_ATTR getSectorNumber(void * startTick1){
    TickType_t startTick = *(TickType_t*)startTick1;
    xTaskDelayUntil(&startTick,initializationLatency-pdMS_TO_TICKS(1));
-
+   uint32_t i2cTransmitStatusCounter = 0;
    while(1){
       //uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
       uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1));
@@ -256,7 +256,11 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       }
       #endif
 
-      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
+      esp_err_t valRequestStatus= 1234567;
+      valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
+      if((i2cTransmitStatusCounter++%2048)==1){
+         esp_rom_printf("+%d,f%d\n",(int)valRequestStatus,file1);
+      }
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;

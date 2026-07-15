@@ -6,7 +6,7 @@
 
 #define countingFrequency (4e6) //2432
 #define timerPeriod (countingFrequency/20000)
-#define dutyCycle (float)(1-(.1))
+#define dutyCycle (float)(1-(.9))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
 esp_timer_handle_t etimerHandle;
@@ -30,20 +30,25 @@ void read(void*parameter){
 
     uint32_t timer =0;
     // bool timerFlag =false;
+    uint32_t i2cTransmitStatusCounter=0;
 std::atomic<bool> timerFlag =false;
     for(;;){
         // esp_timer_start_once(etimerHandle,250);
-        // uint32_t file1 =ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
+        uint32_t file1 =ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1));
         timer = esp_cpu_get_cycle_count();
         if((counter++ %256)==0){
             timerFlag =true;//trouble
         }
-        esp_err_t result = i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 1);
+        esp_err_t result = 1234567;
+        result= i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 1);
         // uint32_t i2cReadDuration =esp_cpu_get_cycle_count() -timer;
         // if(timerFlag.exchange(false)){
         //     esp_rom_printf("us:%d\n",i2cReadDuration);
         //     // esp_rom_printf("Pos:%4d|T:%6d|F:%d|us:%d\n", angle, counter,failCounter,timer);
         // }
+        if((i2cTransmitStatusCounter++%2048)==1){
+            esp_rom_printf("%d\n",(int)result);
+        }
         if(result ==ESP_OK){
             angle = (( read_buffer[0] << 8) | read_buffer[1]);
             if((printCounter++ %256)==0){
@@ -240,6 +245,6 @@ extern "C" {
         xTaskCreatePinnedToCore(read,"i2c reader",4000, NULL, 21, &readTask, 1);
         xTaskCreatePinnedToCore(debug,"debug log",2000,NULL, 15,&debugTask,0);
         esp_timer_create(&etimerSetup, &etimerHandle);
-        // esp_timer_start_once(etimerHandle,250);
+        esp_timer_start_once(etimerHandle,250);
     } 
 } 
