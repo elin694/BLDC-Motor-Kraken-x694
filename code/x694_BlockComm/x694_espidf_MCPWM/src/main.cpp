@@ -6,7 +6,7 @@
 
 #define countingFrequency (4e6) //2432
 #define timerPeriod (countingFrequency/20000)
-#define dutyCycle (float)(1-(.9))
+#define dutyCycle (float)(1-(.1))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
 esp_timer_handle_t etimerHandle;
