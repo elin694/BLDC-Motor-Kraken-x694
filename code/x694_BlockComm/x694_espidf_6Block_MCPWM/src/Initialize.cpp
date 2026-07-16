@@ -9,11 +9,10 @@ TickType_t pxPreviousWakeTime;
 TaskHandle_t initializeI2CTask= NULL;
 void initialize(void * parameter){   
    pinSetup();
-   //aplePIE
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
    xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
-   mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
+   mcpwmSetup(global.sectorTarget); 
    ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
 
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -45,15 +44,13 @@ void pinSetup(){
 
 void initializeInterruptEnablePin(){
    ESP_ERROR_CHECK(mcpwm_timer_start_stop(velocityTrackerTimer, MCPWM_TIMER_START_NO_STOP));
-   mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
-    MCPWMx->int_clr.val=  clearReg.val;
-   //  MCPWMx->int_ena.timer1_Ptez_int_ena = 1; //timer 1= LTimer, (ie change from block 3-4), 2^4 = 16
-    MCPWMx->int_ena.timer2_tez_int_ena = 1;
-   //  ESP_ERROR_CHECK(esp_intr_enable(oneBlockISR)); //Starting AS5600 read ISR
+   mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
+   MCPWMx->int_clr.val=  clearReg.val;
+   MCPWMx->int_ena.timer0_tez_int_ena = 1; 
 }
 
 void initializeISR(){
-mcpwm_int_clr_reg_t clearReg = {.val = ~(static_cast<uint32_t>(0x00000000))};
+mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
     MCPWMx->int_ena.val = 0x00000000;
     MCPWMx->int_clr.val=  clearReg.val;
     ESP_ERROR_CHECK(esp_intr_alloc(
@@ -73,40 +70,17 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
    if(tempStatusReg.val){ //in case of ghost interrupts
 
-      if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
-         if(global.newPhaseSwitchFlag.load()){
-            tag(blue "B ");
-            xHigherPriorityTaskWoken =pdFALSE;
-            vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
-            MCPWMx-> int_clr.val = tempClearR1.val;
-            if(xHigherPriorityTaskWoken == pdTRUE){
-               portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-            }
-         }else{
-            MCPWMx-> int_clr.val = tempClearR1.val;
-         }
-         return;
-         /*CASE 1 ABOVE*/
-
-      } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
+      if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS VTIMER
+         tag(cyan "V");
          if(global.readAS5600.exchange(false)){ //core 0
-            if(global.newPhaseSwitchFlag.exchange(false)){
                //if global.readA S5600==false, the read is taking too long, so might as well let motor coast
                /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
                executeGates(false);
-            }
          }
-         MCPWMx->int_clr.val = (tempClearR2.val | tempClearR3.val);
-         return;
-         /*CASE 2 ABOVE*/
-
-      } else if(tempStatusReg.timer2_tez_int_st){
-        tag(cyan "V");
-         global.newPhaseSwitchFlag.store(true);
-         MCPWMx-> int_clr.val = tempClearR3.val;
+         MCPWMx->int_clr.val = tempClearR1.val;
          portYIELD_FROM_ISR();
-         /*CASE 3 ABOVE*/
-      }
+         return;
+      } 
    }  
 }
 

@@ -94,7 +94,7 @@ uint32_t readPotOnce(bool filter, int averager){
       }
       global.newVelPotValue =true; 
       taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
-      tag("Rp ");
+      // tag("Rp ");
       //prints after reading a new pot value
     }
 

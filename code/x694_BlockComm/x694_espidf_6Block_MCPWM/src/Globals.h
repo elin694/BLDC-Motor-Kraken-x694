@@ -17,7 +17,7 @@
 #include <cinttypes>
 #include <atomic>
 #include "ANSI_escape_sequences.h"
-#define debug_useTagFlag
+// #define debug_useTagFlag
 //============================= INTERRUPT PRIORITY=============================
 #define MCPWM_HighsideIntrPriority 1 //tep,tez
 #define MCPWM_LowsideIntrPriority 1 //tep,tez
@@ -40,7 +40,6 @@ volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
 
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(3)
-/*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal dlay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 #define startingDuty (float)(1- .9 ) //The Duty cycle is 1 - this.Value, normally .8
@@ -48,12 +47,12 @@ volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
 //.6-->189 in 114s = 1.658
 //.9 --> 292 in 192 = 1.52  
 
-#define estimatedI2CReadTimeInMicros (uint32_t)(200)
+#define estimatedI2CReadTimeInMicros (uint32_t)(250)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define SetLTimerPollPeriod 100 //period ticks
 #define mcpwm_lowSideGroupPrescaler 40
-#define timerResolution  (uint32_t)(16e7/mcpwm_lowSideGroupPrescaler) //125ns , must not simple ratio
+#define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) //125ns , must not simple ratio
 #define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
 /*minimum and maximum RPS */
@@ -75,16 +74,12 @@ inline DRAM_ATTR volatile std::atomic<uint32_t> isr2CurrentCounter =0;
 inline DRAM_ATTR volatile std::atomic<uint32_t> isr2i =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define estimatedI2CReadTimeInTicks (uint32_t)(ceil((estimatedI2CReadTimeInMicros-30)/ticksToµs))
-#define activePwmPeriod (uint32_t)(timerResolution/20000)  //change to 20khz when high
+#define activePwmPeriod (uint32_t)(HighTimerResolution/20000)  //change to 20khz when high
 #define startingGateCmpValue (uint32_t)(startingDuty*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 #define maxDuty 0.95f
 #define minDuty 0.03f
 #define maxRPS 30
 #define minRPS 1
-#define ticksToµs (float)((1e6)/timerResolution)
-#define µsToTicks (float)(timerResolution/1e6) //ontime * this = tick = 8
-#define µsToTicksInt (int)(timerResolution/1e6) //ontime * this = tick
 
 // constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
 constexpr int activeHighGate[6]= {1,2,2,0,0,1}; //given index of current sector, tells which phase is high
@@ -136,7 +131,6 @@ typedef struct{
     int sectorTarget = 0; //for stator current vector
     std::atomic<uint32_t> blockPeriod = 10000;
     std::atomic<bool> newVelPotValue = false;
-    volatile std::atomic<bool> newPhaseSwitchFlag = false;
     std::atomic<bool> readAS5600 = false;
     std::atomic<bool> setMotorFreeSpin = false;
     std::atomic<bool> setMotorFreeTemporarily = false;
@@ -173,8 +167,6 @@ extern TaskHandle_t initializeI2CTask;
 inline TaskHandle_t getSectorNumberTask= NULL;
 inline TaskHandle_t mathItOutTask= NULL;
 inline TaskHandle_t d_blockCyclingTask= NULL;
-inline mcpwm_timer_handle_t blockTimer=NULL;
-inline mcpwm_timer_handle_t globalLowTimer =NULL;
 inline mcpwm_timer_handle_t velocityTrackerTimer =NULL;
 
 /*DO NOT CHANGE VALUE*/

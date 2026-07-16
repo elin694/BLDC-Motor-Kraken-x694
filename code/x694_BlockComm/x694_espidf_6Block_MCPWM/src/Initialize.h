@@ -69,12 +69,12 @@ constexpr adc_oneshot_chan_cfg_t adcChannelSetup = {
 constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR1 = { 
    .timer0_tez_int_clr =1,
 };
-constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR2 = { 
-   .timer1_tez_int_clr =1,
-};
-constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR3 = { 
-   .timer2_tez_int_clr =1
-};
+// constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR2 = { 
+//    .timer1_tez_int_clr =1,
+// };
+// constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR3 = { 
+//    .timer2_tez_int_clr =1
+// };
 
 esp_timer_handle_t gsnTimerHandle;
 esp_timer_create_args_t gsnTimerSetup= {
