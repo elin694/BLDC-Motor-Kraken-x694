@@ -3,7 +3,7 @@
 // #include "GC.h"
 #include "esp_intr_alloc.h"
 bool changeFlag = true;
-#define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
+#define SECTOR_PER_BITS (float)(1 / (4096.0f / (electricalCycles* 6.0f)))
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
 TickType_t pxPreviousWakeTime;
 // UBaseType_t thisTaskPriority;
@@ -13,12 +13,6 @@ void initialize(void * parameter){
    //aplePIE
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
-   #ifdef debug_dontReadVelocityPot
-   global.targetVelocity=VTimerResolution/(18.0f* debug_dontReadVelocityPot);
-   (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
-   global.blockPeriod = debug_dontReadVelocityPot;//does not affect
-   global.newVelPotValue =true; //nti
-   #endif
    xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
    mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
    ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
@@ -215,6 +209,7 @@ void as5600initialize(void * parameter) {
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
 
    isr2CurrentTime =esp_timer_get_time();
+   //read current settings
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
       fthRegister, //address to start on
       (size_t)1, //write 1 byte's woth from fthRegister
@@ -224,7 +219,7 @@ void as5600initialize(void * parameter) {
    );
    
    isr2CurrentTime2 =esp_timer_get_time()-isr2CurrentTime;
-   
+   //The watchdog timer allows saving power by switching into LMP3 if the angle stays within the watchdog threshold of 4 LSB for at least one minute, as
    fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //rese
    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister,(size_t)2, fthRegisterData, (size_t)1, /*alpha*/20*i2cWaitout));
    isr2CurrentTime =esp_timer_get_time()-isr2CurrentTime;
@@ -244,8 +239,8 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       //uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
       uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1));
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
-      #if (defined(debug_spamPrintTimeISR1))
-      if((isr2CurrentCounter++%256)==0){ 
+      #if (defined(debug_spamPrintTimeISR1) || defined(debug_useTagFlag))
+      if((isr2CurrentCounter++%64)==0){ 
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
          isr2CurrentCounterCounted =true;
          #ifdef debug_useTagFlag
@@ -255,11 +250,12 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       #endif
 
       esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
-      #if defined(debug_spamPrintTimeISR1)
+      #if (defined(debug_spamPrintTimeISR1) || defined(debug_useTagFlag))
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
-         #ifdef debug_useTagFlag
          tagFlag(false, isr2CurrentTime2); //tags before and after transmit
+         #if (!defined(debug_spamPrintTimeISR1) && defined(debug_useTagFlag))
+            isr2CurrentCounterCounted =false;
          #endif
       }
       #endif

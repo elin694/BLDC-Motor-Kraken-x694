@@ -35,40 +35,41 @@ void debugLog(void * startTick2){
 }
 
 void readPotRepeat(void * startTick3){
-  bool changeV =true;
   TickType_t startTick = *(TickType_t*)startTick3;
   xTaskDelayUntil(&startTick,initializationLatency);
+  int history[4] = {-1,-1,-1,-1};
+  uint32_t counterIndex= 0;
   for(;;){
-    readPotOnce((void *)&changeV);
-    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
+    if(history[3] ==-1){
+      history[counterIndex++%4] = readPotOnce(false,0);
+    }else{
+      int sum=0;
+      for(int i =-1; i>-4;i--){
+        sum+=history[(counterIndex+i)%4];
+      }
+      history[counterIndex++%4] = readPotOnce(true,sum);
+    }
+    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod));  
   }
 }
 
 
 /*https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=*/
 uint32_t vbPeriod_temp;
-void readPotOnce(void * parameter){
-  bool flagOn = *(bool *)parameter;
+uint32_t readPotOnce(bool filter, int averager){
   ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
   rawData = (rawData/2)*2;
-  #ifdef debug_dontReadVelocityPot
-  vbPeriod_temp = debug_dontReadVelocityPot;
-  if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment
-    esp_rom_printf("ENTIRNG CRITICAL"); 
-    global.targetVelocity=VTimerResolution/(18.0f* vbPeriod_temp);
-    (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
-    taskENTER_CRITICAL(&stepPeriodMux); //don't read v pot, core 0
-    global.blockPeriod = vbPeriod_temp;
-    global.newVelPotValue =true;
-    taskEXIT_CRITICAL(&stepPeriodMux);
-  }
-  #endif
-
-  #if (!defined(debug_dontReadVelocityPot))
   if(global.controlMethod == VELOCITY_CONTROL){
-    global.targetVelocity = (fMin+(fMax-fMin)*(float)rawData/4096);
+    if(filter){
+      int processedData = (averager+rawData)/(4);
+      global.targetVelocity = (fMin+(fMax-fMin)*processedData/4096.0f);
+    }else{
+      float processedData= rawData/4096.0f;
+      global.targetVelocity = (fMin+(fMax-fMin)*processedData);
+
+    }
     vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
-    
+
     bool notlegal = vbPeriod_temp >minf_HTimerPeriod;
     if(notlegal){
       // ESP_LOGI("F","SPIN");
@@ -83,9 +84,7 @@ void readPotOnce(void * parameter){
         global.setMotorFreeSpin.store(false);
         global.blockPeriod = vbPeriod_temp;
       }
-      if(flagOn){
-        global.newVelPotValue =true; 
-      }
+      global.newVelPotValue =true; 
       taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
       tag("Rp ");
       //prints after reading a new pot value
@@ -98,7 +97,7 @@ void readPotOnce(void * parameter){
     }else if(global.controlMethod == POSITION_CONTROL){
       global.targetPosition = (pMin+(pMax-pMin)*(float)rawData/4096);
     }
-    #endif
+    return rawData;
 }
 
 extern "C"{

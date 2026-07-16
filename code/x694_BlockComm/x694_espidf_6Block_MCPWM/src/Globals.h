@@ -46,11 +46,10 @@ volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
 volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(3)
-// #define debug_dontReadVelocityPot 22133 //affect block period
 /*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
-#define startingDuty static_cast<float>(1- .9 ) //The Duty cycle is 1 - this.Value, normally .8
+#define startingDuty (float)(1- .9 ) //The Duty cycle is 1 - this.Value, normally .8
 //.03 ->56 in 612 =.0915
 //.6-->189 in 114s = 1.658
 //.9 --> 292 in 192 = 1.52  
@@ -64,17 +63,17 @@ volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 #define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
 /*minimum and maximum RPS */
-#define maxf_HTimerPeriod (1111) //200--> 111.11rps
+#define maxf_HTimerPeriod (1111/2) //200--> 111.11rps, 1111-->20rps
 #define minf_HTimerPeriod (uint32_t)(65535/2)
-// #define fMin static_cast<float>(VTimerResolution/(18.0f*minf_HTimerPeriod))
-#define fMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
-#define fMax static_cast<float>(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
+// #define fMin (float)(VTimerResolution/(18.0f*minf_HTimerPeriod))
+#define fMin (float)(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
+#define fMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
 
-#define aMin static_cast<float>(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
-#define aMax static_cast<float>(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
+#define aMin (float)(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
+#define aMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
 
-#define pMin static_cast<float>(0)
-#define pMax static_cast<float>(3*3.141592653/2)
+#define pMin (float)(0)
+#define pMax (float)(3*3.141592653/2)
 
 inline DRAM_ATTR int isr2CurrentTime =0; //t1
 inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
@@ -88,9 +87,9 @@ inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 #define minDuty 0.03f
 #define maxRPS 30
 #define minRPS 1
-#define ticksToµs static_cast<float>((1e6)/timerResolution)
-#define µsToTicks static_cast<float>(timerResolution/1e6) //ontime * this = tick = 8
-#define µsToTicksInt static_cast<int>(timerResolution/1e6) //ontime * this = tick
+#define ticksToµs (float)((1e6)/timerResolution)
+#define µsToTicks (float)(timerResolution/1e6) //ontime * this = tick = 8
+#define µsToTicksInt (int)(timerResolution/1e6) //ontime * this = tick
 
 // constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
 constexpr int activeHighGate[6]= {1,2,2,0,0,1}; //given index of current sector, tells which phase is high
@@ -133,9 +132,14 @@ constexpr float kPID[3][3] = {
 };
 
 typedef struct{
-    uint32_t oldSectorTarget = 0;
+    const char* darray[100000];
+    std::atomic<uint32_t> i=0; //new, old
+}debugStruct;
+
+typedef struct{
+    int oldSectorTarget = 0;
     int sectorTarget = 0; //for stator current vector
-    std::atomic<uint32_t> blockPeriod = 1035;
+    std::atomic<uint32_t> blockPeriod = 15000;
     std::atomic<bool> newVelPotValue = false;
     volatile std::atomic<bool> newPhaseSwitchFlag = false;
     std::atomic<bool> readAS5600 = false;
@@ -173,6 +177,7 @@ inline TaskHandle_t setupTask= NULL;
 extern TaskHandle_t initializeI2CTask;
 inline TaskHandle_t getSectorNumberTask= NULL;
 inline TaskHandle_t mathItOutTask= NULL;
+inline TaskHandle_t d_blockCyclingTask= NULL;
 inline mcpwm_timer_handle_t blockTimer=NULL;
 inline mcpwm_timer_handle_t globalLowTimer =NULL;
 inline mcpwm_timer_handle_t velocityTrackerTimer =NULL;
@@ -186,7 +191,9 @@ inline mcpwm_timer_handle_t velocityTrackerTimer =NULL;
 //calibrated value CHAL at dir Pin low give 3388
 //top view of physical motor has ABC going ccw, [-30 degrees, 30 degrees) = block 0
 #define as5600CalibrationRawValue (3388) //38 not 37 because +0.5 and trucnate = round up,30degrees to sector_per_bits is only .5, not 1.
-#define as5600CalibratedOffset static_cast<int>((4096.0)*(38.0/36.0) - (4096-as5600CalibrationRawValue) /*remove mutliples of 1 electrical cycle*/)  
+#define as5600CalibratedOffset (int)((4096.0)*(38.0/36.0) - (4096-as5600CalibrationRawValue) /*remove mutliples of 1 electrical cycle*/)  
+/*4323+as5600CalibrationRawValue*/
+//((4096-global.rotorVal)+(int)((4096.0)*(38.0/36.0) - (4096-(3388)) )) ==> (4096/18+3388-val)*18/4096==>>(7711.5-v)*0.00439453
 #ifdef as5600DirPinHigh //not during calibration
 #define getRotorValAdjusted(x) (as5600CalibratedOffset+x)
 #else
@@ -199,15 +206,12 @@ DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5
 DRAM_ATTR constexpr const char* dgdir[6] = {"∅","D?","+","D?","NOT-","-"};
 #endif
 
-// #if (estimatedI2CReadTimeInTicks > SetLTimerPollPeriod)
-// #warnings "SetLTimerPollPeriod too brief; shorter than i2c read time"
-// #endif
 //====================FUNCTION DECLARATION =======================
 void readPotRepeat(void * parameter);
-void readPotOnce(void * parameter);
+uint32_t readPotOnce(bool filter, int averager);
 void getTimerCountNow(const char* str);
 void spamSearchCV(void *parameter);
 void initialize(void *parameter);      
 void tag(const char* tag);
 void tagFlag(bool start, int timer);
-
+void d_blockCycling(void * startTick5);
