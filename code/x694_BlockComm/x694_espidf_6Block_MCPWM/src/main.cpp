@@ -74,26 +74,27 @@ uint32_t readPotOnce(bool filter, int averager){
     }else{
       float processedData= rawData/4096.0f;
       global.targetVelocity = (fMin+(fMax-fMin)*processedData);
-
     }
     vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
-
-    bool notlegal = vbPeriod_temp >minf_HTimerPeriod;
-    if(notlegal){
-      // ESP_LOGI("F","SPIN");
-    }
+    
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-      taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
-      (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
-      if(notlegal){
-        global.setMotorFreeSpin.store(true); //spinlock
-        global.blockPeriod  =minf_HTimerPeriod; //spinlock
-      }else{
+      int dirWaitingLine = (global.targetVelocity < 0) ? (5) : (2);
+      bool legal = vbPeriod_temp <= minf_HTimerPeriod;
+      if(legal){
+        taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
         global.setMotorFreeSpin.store(false);
         global.blockPeriod = vbPeriod_temp;
+        global.dir = dirWaitingLine;
+        taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
+        tag("gsnTVf");               //set new block value on period ONLY WHEN POT HAS READ SMTH new, and updates period period on empty
+        ESP_ERROR_CHECK(mcpwm_timer_set_period(VTimer, vbPeriod_temp));  
+      }else{
+        taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
+        global.setMotorFreeSpin.store(true); //spinlock
+        global.blockPeriod  =minf_HTimerPeriod; //spinlock
+        global.dir = dirWaitingLine;
+        taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
       }
-      global.newVelPotValue =true; 
-      taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
       // tag("Rp ");
       //prints after reading a new pot value
     }

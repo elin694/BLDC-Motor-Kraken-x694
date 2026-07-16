@@ -11,7 +11,7 @@
 phaseMcpwm motorH[3];
 phaseMcpwm motorL[3];
 
-void setCountValueAndPeriod(int startingTargetSector);
+void setCountValueAndPeriod();
 void synchrISR(mcpwm_sync_handle_t handle, const char* name);
 
 mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks

@@ -1,8 +1,6 @@
 #include "Initialize.h"
 #include "GateControl.h"
-// #include "GC.h"
 #include "esp_intr_alloc.h"
-bool changeFlag = true;
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
 TickType_t pxPreviousWakeTime;
 // UBaseType_t thisTaskPriority;
@@ -11,10 +9,13 @@ void initialize(void * parameter){
    pinSetup();
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
-   xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
-   mcpwmSetup(global.sectorTarget); 
-   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
 
+   ulTaskNotifyValueClear(NULL, 0xffffffff);
+   xTaskNotifyStateClear(NULL);
+
+   xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
+   mcpwmSetup(); 
+   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
    pxPreviousWakeTime = xTaskGetTickCount();
    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
@@ -34,6 +35,7 @@ void initialize(void * parameter){
 }
 // // // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &pxPreviousWakeTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
 
+
 void pinSetup(){
    for(int i = 0; i<6; i++){
       gpio_reset_pin(gateArray[i]);
@@ -43,10 +45,12 @@ void pinSetup(){
 }
 
 void initializeInterruptEnablePin(){
-   ESP_ERROR_CHECK(mcpwm_timer_start_stop(velocityTrackerTimer, MCPWM_TIMER_START_NO_STOP));
+   ESP_ERROR_CHECK(mcpwm_timer_start_stop(VTimer, MCPWM_TIMER_START_NO_STOP));
+   #ifndef lastResort
    mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
    MCPWMx->int_clr.val=  clearReg.val;
    MCPWMx->int_ena.timer0_tez_int_ena = 1; 
+   #endif
 }
 
 void initializeISR(){
@@ -67,6 +71,20 @@ void IRAM_ATTR runOnESPTimerIntr(void * globe) {
    esp_timer_isr_dispatch_need_yield();
 }
 
+#ifdef lastResort
+bool IRAM_ATTR VTimerCallback(mcpwm_timer_handle_t timer, const mcpwm_timer_event_data_t *edata, void *user_ctx) {
+   gVar_t masterVar = (gVar_t*)user_ctx;
+   tag(cyan "V");
+   if(masterVar->readAS5600.exchange(false)){ //core 0
+         //if global.readA S5600==false, the read is taking too long, so might as well let motor coast
+         /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
+         executeGates(false);
+         portYIELD_FROM_ISR();
+         return true;
+      }
+      return false;
+}
+#else
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
    if(tempStatusReg.val){ //in case of ghost interrupts
@@ -78,103 +96,14 @@ void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
                /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
                executeGates(false);
          }
-         MCPWMx->int_clr.val = tempClearR1.val;
          portYIELD_FROM_ISR();
+         MCPWMx->int_clr.val = tempClearR1.val;
          return;
       } 
    }  
 }
+#endif
 
-void mathItOut(void * startTick4){ //updates arrrays with new ifo
-   TickType_t startTick = *(TickType_t*)startTick4;
-   xTaskDelayUntil(&startTick,initializationLatency);
-   float dt  = estimatedI2CReadTimeInMicros;
-   for(;;){
-      // index shuld stay in here
-      //cahgne init as5600 read &&&||||| move to next index then save
-      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(100));
-      int previousPos = global.measuredPos[(global.pindex.fetch_add(1))%cBufSize];
-      float previousVel = global.measuredVel[(global.vindex.fetch_add(1))%cBufSize];
-      float previousAccel = global.measuredAccel[(global.aindex.fetch_add(1))%cBufSize];
-      
-      uint32_t vidx = global.vindex;
-      uint32_t pidx = global.pindex;
-      //*assuming dir is always at ground
-      // global.measuredPos[pidx%cBufSize] = global.rotorVal;
-      // float newVel = global.measuredVel[vidx%cBufSize] = ((global.rotorVal-previousPos)%4096)/dt;
-      // global.measuredAccel[global.aindex%cBufSize] = (newVel-previousVel)/dt;
-      taskYIELD();
-   }
-}
-
-void setTorque(float targetTorque){
-      if(global.controlMethod <= TORQUE_CONTROL){
-         float magnitude = fabsf(targetTorque);
-         if(magnitude < minDuty || magnitude > maxDuty){
-            global.setMotorFreeSpin = true; //rmeove delay between this and freespining in the future
-         } else{
-            for(int i=2; i>-1; i--){
-               // ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0,(1-magnitude)*(activePwmPeriod/2.0)));
-            }
-         }
-         if(targetTorque < 0){
-            global.dir = 5;
-         }else{
-            global.dir = 2;
-         }
-      }
-}
-
-void setVelocity(float targetVelocity){
-   for(;;){
-         /* +error = ahead of target ccw*/
-         if(global.controlMethod <= VELOCITY_CONTROL){
-            float dt  = estimatedI2CReadTimeInMicros;
-            uint32_t vidx = global.vindex;
-            float errorVel =targetVelocity- global.measuredVel[vidx%cBufSize];/////////////////
-            float prevError = global.lastVelError;
-            global.totalVelChange = global.totalVelChange + errorVel*dt;
-
-            float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
-            float errorI = kPID[VELOCITY_CONTROL][1]*global.totalVelChange; /*-area*k, */
-            float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
-            /*finally changes set cmpVal*/
-            float errorTotal  = errorP +errorI+errorD; //⍺
-            if(errorTotal > maxDuty){
-               errorTotal = maxDuty;
-            } else if (errorTotal < -maxDuty){
-               errorTotal = -maxDuty;
-            }
-            setTorque(errorTotal);
-            ///remember to set prev Erorr and other past var
-         }
-      }
-}
-
-void setPosition(float targetPosition){
-   for(;;){
-      if(global.controlMethod <= POSITION_CONTROL){
-         float dt  = estimatedI2CReadTimeInMicros;
-         uint32_t pidx = global.pindex;
-         float errorPos =global.targetPosition- global.measuredPos[pidx%cBufSize];/////////////////
-         float prevError = global.lastPosError;
-         global.totalPosChange = global.totalPosChange + errorPos*dt;
-
-         float errorP = kPID[POSITION_CONTROL][0]*errorPos;
-         float errorI = kPID[POSITION_CONTROL][1]*global.totalPosChange; /*-area*k, */
-         float errorD = kPID[POSITION_CONTROL][2]*(errorPos-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
-         /*finally changes set cmpVal*/
-         float errorTotal  = errorP +errorI+errorD; //⍺
-         if(errorTotal > maxRPS){
-            errorTotal = maxRPS;
-         } else if (errorTotal < -maxRPS){
-            errorTotal = -maxRPS;
-         }
-         setVelocity(errorTotal);
-         //error can theoretically go from 0 to infinity for 1 c. ->
-      }
-   }
-}
 
 void as5600initialize(void * parameter) {
    ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
@@ -200,6 +129,8 @@ void as5600initialize(void * parameter) {
    //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
    ESP_LOGI(magenta "init.cpp", "as5600 Fast Fillter Threshold Set: %d \n", (int)fthRegisterData[0]);
    xTaskNotifyGive(setupTask);
+   
+
    vTaskDelete(NULL);
 }
 
@@ -246,7 +177,6 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
          global.setMotorFreeTemporarily.store(true, std::memory_order::relaxed);
          tag("#F ");
       }
-      // preloadGates();
       global.readAS5600.store(true); //core 1
 
       #if defined(debug_spamPrintTimeISR1)

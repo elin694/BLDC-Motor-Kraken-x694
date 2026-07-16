@@ -167,7 +167,7 @@ extern TaskHandle_t initializeI2CTask;
 inline TaskHandle_t getSectorNumberTask= NULL;
 inline TaskHandle_t mathItOutTask= NULL;
 inline TaskHandle_t d_blockCyclingTask= NULL;
-inline mcpwm_timer_handle_t velocityTrackerTimer =NULL;
+inline mcpwm_timer_handle_t VTimer =NULL;
 
 /*DO NOT CHANGE VALUE*/
 #define electricalCycles 3 //constexpr is defineable compile time costant 
