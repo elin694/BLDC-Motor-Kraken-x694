@@ -257,9 +257,6 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       #endif
 
       esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
-      // if((i2cTransmitStatusCounter++%2048)==1){
-      //    esp_rom_printf("+%d,f%d\n",(int)valRequestStatus,file1);
-      // }
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
