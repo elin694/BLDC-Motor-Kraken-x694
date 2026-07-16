@@ -42,10 +42,9 @@ std::atomic<bool> timerFlag =false;
         }
         esp_err_t result = i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 1);
         uint32_t i2cReadDuration =esp_cpu_get_cycle_count() -timer;
-        if(timerFlag.exchange(false, std::memory_order::relaxed)){
-            esp_rom_printf("us:%d\n",i2cReadDuration);
-            // esp_rom_printf("Pos:%4d|T:%6d|F:%d|us:%d\n", angle, counter,failCounter,timer);
-        }
+        // if(timerFlag.exchange(false, std::memory_order::relaxed)){
+        //     esp_rom_printf("us:%d\n",i2cReadDuration);
+        // }
         if(result ==ESP_OK){
             angle = (( read_buffer[0] << 8) | read_buffer[1]);
             if((printCounter++ %256)==0){

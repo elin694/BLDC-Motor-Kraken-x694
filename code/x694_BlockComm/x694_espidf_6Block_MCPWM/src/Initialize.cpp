@@ -57,7 +57,7 @@ mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
         ETS_PWM0_INTR_SOURCE,
         runOnMCPWMIntrPriority | ESP_INTR_FLAG_IRAM,
         runOnMCPWMIntr,
-        (void *)&global,
+        NULL,
         &oneBlockISR
     ));
 }
@@ -66,6 +66,7 @@ void IRAM_ATTR runOnESPTimerIntr(void * globe) {
    vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
    esp_timer_isr_dispatch_need_yield();
 }
+
 void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
    if(tempStatusReg.val){ //in case of ghost interrupts
@@ -206,11 +207,11 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
    TickType_t startTick = *(TickType_t*)startTick1;
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTimeInMicros));
    xTaskDelayUntil(&startTick,initializationLatency);
-   // uint32_t i2cTransmitStatusCounter = 0;
    while(1){
       //uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
       uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1));
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
+
       #if (defined(debug_spamPrintTimeISR1) || defined(debug_useTagFlag))
       if((isr2CurrentCounter.fetch_add(1,std::memory_order::relaxed)%128)==0){ 
          /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
@@ -220,22 +221,23 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
          #endif
       }
       #endif
-
-      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
+      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, as5600RawDataBuf, 2, i2cWaitout);
       #if (defined(debug_spamPrintTimeISR1) || defined(debug_useTagFlag))
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
-         tagFlag(false, isr2CurrentTime2); //tags before and after transmit
          #if (!defined(debug_spamPrintTimeISR1) && defined(debug_useTagFlag))
+         tagFlag(false, isr2CurrentTime2); //tags before and after transmit
             isr2CurrentCounterCounted =false;
          #endif
       }
       #endif
+
       if(valRequestStatus == ESP_OK){
          isr2i.fetch_add(1,std::memory_order::relaxed);
          global.oldSectorTarget = global.sectorTarget;
          
          uint32_t reading = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
+         esp_rom_printf("**%d\n",reading);
          global.rotorVal = reading;
          global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading)+global.dir) % 6; //0- bitsPerSector --> smaller sector
          global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);

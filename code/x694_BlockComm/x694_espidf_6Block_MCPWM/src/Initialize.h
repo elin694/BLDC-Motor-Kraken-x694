@@ -52,7 +52,7 @@ constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
 inline uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 #define as5600ReadSize  2
 
-#define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
+#define fth_sf_set_mask (0b00000000 | 0b00000011) //.5 bit error at 11 =sf
 uint8_t fthRegisterData[1] = {0x00};
 uint8_t fthRegister[2] = {0x07, 0x00};
 //==================+++++++ADC AND MCPWM CLEAR REG
