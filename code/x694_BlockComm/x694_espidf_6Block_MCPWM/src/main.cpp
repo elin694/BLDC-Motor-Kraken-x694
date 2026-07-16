@@ -27,11 +27,11 @@ void debugLog(void * startTick2){
     if((esp_timer_log_counter++%8 )==0){
       esp_rom_printf(blue); esp_timer_dump(stdout);
     }
-    if((task_list_log_counter++%8 )==0){
-      vTaskList(buf); ESP_LOGI(" ","\n%s",buf);
-    }
+  //   if((task_list_log_counter++%8 )==0){
+  //     vTaskList(buf); ESP_LOGI(" ","\n%s",buf);
+  //   }
+
   }
-  
 }
 
 void readPotRepeat(void * startTick3){

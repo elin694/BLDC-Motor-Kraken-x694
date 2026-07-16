@@ -25,12 +25,10 @@ void initialize(void * parameter){
 
    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(200000));
    pxPreviousWakeTime = xTaskGetTickCount();
-   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
-   xTaskNotifyStateClear(getSectorNumberTask); 
-   ulTaskNotifyValueClear(getSectorNumberTask, 0);
+   xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
+
    // // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &pxPreviousWakeTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
-   // // xTaskNotifyStateClearIndexed(mathItOutTask,0);
-   // // ulTaskNotifyValueClear(mathItOutTask,0);
+
    #ifdef enableReadPotRepeat
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &pxPreviousWakeTime, 6, NULL,0);
    #endif 
@@ -42,6 +40,7 @@ void initialize(void * parameter){
    int c=global.newVelPotValue;
    ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d", b, c);//nti
    esp_intr_dump(stdout);
+
    vTaskDelete(NULL);
 }
 
@@ -241,8 +240,8 @@ void as5600initialize(void * parameter) {
 
 void IRAM_ATTR getSectorNumber(void * startTick1){
    TickType_t startTick = *(TickType_t*)startTick1;
-   xTaskDelayUntil(&startTick,initializationLatency-pdMS_TO_TICKS(1));
-   uint32_t i2cTransmitStatusCounter = 0;
+   xTaskDelayUntil(&startTick,initializationLatency);
+   // uint32_t i2cTransmitStatusCounter = 0;
    while(1){
       //uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
       uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1));
@@ -257,11 +256,10 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       }
       #endif
 
-      esp_err_t valRequestStatus= 1234567;
-      valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, as5600RawDataBuf, 2, i2cWaitout);
-      if((i2cTransmitStatusCounter++%2048)==1){
-         esp_rom_printf("+%d,f%d\n",(int)valRequestStatus,file1);
-      }
+      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, (uint8_t*)as5600RawDataBuf, 2, i2cWaitout);
+      // if((i2cTransmitStatusCounter++%2048)==1){
+      //    esp_rom_printf("+%d,f%d\n",(int)valRequestStatus,file1);
+      // }
       #if defined(debug_spamPrintTimeISR1)
       if(isr2CurrentCounterCounted){
          isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;

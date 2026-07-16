@@ -45,7 +45,7 @@ volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
 
 volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
-#define initializationLatency pdMS_TO_TICKS(2)
+#define initializationLatency pdMS_TO_TICKS(3)
 // #define debug_dontReadVelocityPot 22133 //affect block period
 /*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
