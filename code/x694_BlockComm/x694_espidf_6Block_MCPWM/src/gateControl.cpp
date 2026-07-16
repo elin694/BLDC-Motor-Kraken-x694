@@ -158,48 +158,49 @@ void IRAM_ATTR tag(const char* tag){
 }
 
 void tagFlag(bool start,int time){
-    // taskENTER_CRITICAL(&stepPeriodMux);
-    // // int bp = global.blockPeriod;
-    // int currentTargetSector = global.sectorTarget;
-    // bool readPotFlag = global.newVelPotValue.load(std::memory_order::relaxed);
-    // bool phaseSwitchFlag = global.newPhaseSwitchFlag.load(std::memory_order::relaxed);
-    // bool finishedAs5600 = global.readAS5600.load(std::memory_order::relaxed); //core 1
-    // bool i2cfailed= global.setMotorFreeTemporarily.load(std::memory_order::relaxed);
-    // bool setMotorCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
-    // taskEXIT_CRITICAL(&stepPeriodMux);
-    //  if(start){
-    //     esp_rom_printf("<%d%d%d%d%d",
-    //         readPotFlag,
-    //         phaseSwitchFlag,
-    //         finishedAs5600,
-    //         i2cfailed,
-    //         setMotorCoast
-    //     );
-    // }else {
-    //     esp_rom_printf("^%d%d%d%d%d>%d\n",
-    //         readPotFlag,
-    //         phaseSwitchFlag,
-    //         finishedAs5600,
-    //         i2cfailed,
-    //         setMotorCoast,
-    //         currentTargetSector
-    //         // time
-    //     );
-    // }
     taskENTER_CRITICAL(&stepPeriodMux);
     // int bp = global.blockPeriod;
-    int previousRotorVal = global.rotorVal;
-    int previousTargetSector = global.oldSectorTarget;
     int currentTargetSector = global.sectorTarget;
+    bool readPotFlag = global.newVelPotValue.load(std::memory_order::relaxed);
+    bool phaseSwitchFlag = global.newPhaseSwitchFlag.load(std::memory_order::relaxed);
+    bool finishedAs5600 = global.readAS5600.load(std::memory_order::relaxed); //core 1
+    bool i2cfailed= global.setMotorFreeTemporarily.load(std::memory_order::relaxed);
+    bool setMotorCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
     taskEXIT_CRITICAL(&stepPeriodMux);
      if(start){
+        esp_rom_printf("<%d%d%d%d%d",
+            readPotFlag,
+            phaseSwitchFlag,
+            finishedAs5600,
+            i2cfailed,
+            setMotorCoast
+        );
     }else {
-        esp_rom_printf("%d, %d\n",
-            previousTargetSector,
+        esp_rom_printf("^%d%d%d%d%d>%d\n",
+            readPotFlag,
+            phaseSwitchFlag,
+            finishedAs5600,
+            i2cfailed,
+            setMotorCoast,
             currentTargetSector
             // time
         );
     }
+    
+    // taskENTER_CRITICAL(&stepPeriodMux);
+    // // int bp = global.blockPeriod;
+    // int previousRotorVal = global.rotorVal;
+    // int previousTargetSector = global.oldSectorTarget;
+    // int currentTargetSector = global.sectorTarget;
+    // taskEXIT_CRITICAL(&stepPeriodMux);
+    //  if(start){
+    // }else {
+    //     esp_rom_printf("%d, %d\n",
+    //         previousTargetSector,
+    //         currentTargetSector
+    //         // time
+    //     );
+    // }
 }
 
 void IRAM_ATTR getTimerCountNow(const char* str){

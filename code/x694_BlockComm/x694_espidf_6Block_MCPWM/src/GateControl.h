@@ -2,7 +2,7 @@
 #include "Globals.h"
 
 inline mcpwm_comparator_config_t phaseComparatorSetup = {
-    .intr_priority = MCPWM_HighsideComparatorIntrPriority,
+    .intr_priority = MCPWM_HighsideIntrPriority,
     .flags ={
         .update_cmp_on_tez = 1,
         .update_cmp_on_tep = 0,

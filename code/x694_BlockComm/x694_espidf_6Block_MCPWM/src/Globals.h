@@ -17,16 +17,10 @@
 #include <cinttypes>
 #include <atomic>
 #include "ANSI_escape_sequences.h"
-// #define debug_fastPrints //isr indicator and BLOCK#
-// #define debug_useTagFlag
+#define debug_useTagFlag
 //============================= INTERRUPT PRIORITY=============================
-//originally (high) 000 (low)20 (intr)1
-#define MCPWM_HighsideTimerIntrPriority 0 //tep,tez
-#define MCPWM_HighsideOperatorIntrPriority 0
-#define MCPWM_HighsideComparatorIntrPriority 0 //tea //has to be the same as all of the above breh
-
-#define MCPWM_LowsideTimerIntrPriority 2
-#define MCPWM_LowsideOperatorIntrPriority 0
+#define MCPWM_HighsideIntrPriority 1 //tep,tez
+#define MCPWM_LowsideIntrPriority 1 //tep,tez
 
 #define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
 #define i2c_intrPriority 3
@@ -35,6 +29,7 @@ freertos timer source lvl 1 or 3 (1)
 watchdog and sys checks - 4 or 5 (either)*/
 /*=============================DEBUG CONTROL PANEL=============================*/
 #define debug_printRPS 
+// #define debug_fastPrints //isr indicator and BLOCK#
 // #define debug_hyperFastPrints
 // #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
@@ -43,10 +38,9 @@ volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
 #define cBufSize 8
 
-volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(3)
-/*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
+/*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal dlay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
 #define startingDuty (float)(1- .9 ) //The Duty cycle is 1 - this.Value, normally .8
@@ -54,7 +48,7 @@ volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 //.6-->189 in 114s = 1.658
 //.9 --> 292 in 192 = 1.52  
 
-#define estimatedI2CReadTimeInMicros (uint32_t)(250)
+#define estimatedI2CReadTimeInMicros (uint32_t)(200)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define SetLTimerPollPeriod 100 //period ticks
@@ -77,7 +71,8 @@ volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 
 inline DRAM_ATTR int isr2CurrentTime =0; //t1
 inline DRAM_ATTR int isr2CurrentTime2 =0; //t1
-inline DRAM_ATTR uint32_t isr2CurrentCounter =0;
+inline DRAM_ATTR volatile std::atomic<uint32_t> isr2CurrentCounter =0;
+inline DRAM_ATTR volatile std::atomic<uint32_t> isr2i =0;
 inline DRAM_ATTR bool isr2CurrentCounterCounted =0;
 //++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
 #define estimatedI2CReadTimeInTicks (uint32_t)(ceil((estimatedI2CReadTimeInMicros-30)/ticksToµs))
@@ -139,7 +134,7 @@ typedef struct{
 typedef struct{
     int oldSectorTarget = 0;
     int sectorTarget = 0; //for stator current vector
-    std::atomic<uint32_t> blockPeriod = 15000;
+    std::atomic<uint32_t> blockPeriod = 10000;
     std::atomic<bool> newVelPotValue = false;
     volatile std::atomic<bool> newPhaseSwitchFlag = false;
     std::atomic<bool> readAS5600 = false;
@@ -188,6 +183,7 @@ inline mcpwm_timer_handle_t velocityTrackerTimer =NULL;
 #define lowSideGroup 0
 
 // ===================CONTROL PANEL TOGGLE BACKEND=====================
+#define SECTOR_PER_BITS (float)(1 / (4096.0f / (electricalCycles* 6.0f)))
 //calibrated value CHAL at dir Pin low give 3388
 //top view of physical motor has ABC going ccw, [-30 degrees, 30 degrees) = block 0
 #define as5600CalibrationRawValue (3388) //38 not 37 because +0.5 and trucnate = round up,30degrees to sector_per_bits is only .5, not 1.
@@ -195,9 +191,9 @@ inline mcpwm_timer_handle_t velocityTrackerTimer =NULL;
 /*4323+as5600CalibrationRawValue*/
 //((4096-global.rotorVal)+(int)((4096.0)*(38.0/36.0) - (4096-(3388)) )) ==> (4096/18+3388-val)*18/4096==>>(7711.5-v)*0.00439453
 #ifdef as5600DirPinHigh //not during calibration
-#define getRotorValAdjusted(x) (as5600CalibratedOffset+x)
+#define getRotorValAdjusted(x) (as5600CalibratedOffset+x)*SECTOR_PER_BITS
 #else
-#define getRotorValAdjusted(x) ((4096-x)+as5600CalibratedOffset)
+#define getRotorValAdjusted(x) ((4096-x)+as5600CalibratedOffset)*SECTOR_PER_BITS
 #endif
 
 // DRAM_ATTR constexpr const char* ghgl[6] = {"0BAu2","1CAd3","2CBd2","3ABd1","4ACu0","5BCu1"};

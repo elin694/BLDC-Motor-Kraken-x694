@@ -3,7 +3,7 @@
 // #include "driver/gpio.h"
 //timer setups, operator , syncs
 //comparator in gateControl.h
-#define isrTickDeadTime static_cast<uint32_t>(timerResolution/1e6 *.5) //isr 700ns responds time
+#define isrTickDeadTime (uint32_t)0 //isr 700ns responds time
 #define relativeDeadTime 5
 
 // gpio 19- miso, b High side is tx2
@@ -21,7 +21,7 @@ mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
     .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
     .period_ticks =activePwmPeriod,
-    .intr_priority = MCPWM_HighsideTimerIntrPriority,
+    .intr_priority = MCPWM_HighsideIntrPriority,
     .flags = {
         .update_period_on_empty = 0,
         .update_period_on_sync = 1 
@@ -33,7 +33,7 @@ mcpwm_timer_config_t I2CReadTimerSetup = { //onces per step/block
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = timerResolution,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
-    .intr_priority = MCPWM_LowsideTimerIntrPriority,
+    .intr_priority = MCPWM_LowsideIntrPriority,
     .flags = {
         .update_period_on_empty = 0,
         .update_period_on_sync = 1
@@ -71,7 +71,7 @@ const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
 };
 const mcpwm_operator_config_t operatorSetupHigh = {
     .group_id = highSideGroup,
-    .intr_priority = MCPWM_HighsideOperatorIntrPriority,
+    .intr_priority = MCPWM_HighsideIntrPriority,
     .flags = {
         .update_gen_action_on_tez = 1,
         .update_gen_action_on_tep = 0,
@@ -91,7 +91,7 @@ const mcpwm_dead_time_config_t lowGateDeadTimeSetup = {
 };
 const mcpwm_operator_config_t operatorSetupLow = {
     .group_id = lowSideGroup,
-    .intr_priority = MCPWM_LowsideOperatorIntrPriority,
+    .intr_priority = MCPWM_LowsideIntrPriority,
     .flags = {
         .update_gen_action_on_tez = 0,
         .update_gen_action_on_tep = 0,
