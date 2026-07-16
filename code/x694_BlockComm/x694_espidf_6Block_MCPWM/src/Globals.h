@@ -21,7 +21,6 @@
 //============================= INTERRUPT PRIORITY=============================
 #define MCPWM_HighsideIntrPriority 1 //tep,tez
 #define MCPWM_LowsideIntrPriority 1 //tep,tez
-
 #define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
 #define i2c_intrPriority 3
 /*esp timer intr 1-3, gsn read  (2)

@@ -73,7 +73,7 @@ void IRAM_ATTR runOnESPTimerIntr(void * globe) {
 
 #ifdef lastResort
 bool IRAM_ATTR VTimerCallback(mcpwm_timer_handle_t timer, const mcpwm_timer_event_data_t *edata, void *user_ctx) {
-   gVar_t masterVar = (gVar_t*)user_ctx;
+   gVar_t *masterVar = (gVar_t*)user_ctx;
    tag(cyan "V");
    if(masterVar->readAS5600.exchange(false)){ //core 0
          //if global.readA S5600==false, the read is taking too long, so might as well let motor coast
