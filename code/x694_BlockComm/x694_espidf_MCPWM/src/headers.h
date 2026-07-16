@@ -58,7 +58,7 @@ i2c_device_config_t dev_config = {
     .dev_addr_length = I2C_ADDR_BIT_LEN_7,
     .device_address = as5600,   
     .scl_speed_hz = 1000000,
-    .scl_wait_us =50,
+    .scl_wait_us =10,
     .flags = {
         .disable_ack_check = false
     }

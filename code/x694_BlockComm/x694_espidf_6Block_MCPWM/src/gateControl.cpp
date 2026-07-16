@@ -61,6 +61,7 @@ void initializeLowGate(int startingTargetSector){
 }
 
 void initializeHighGate(int staartingTargetSector, uint32_t comparatorOff_Duty){
+    ESP_LOGE("CMP Value","%d ", comparatorOff_Duty);
     for (int i = 0; i <3 ; i++){
         motorH[i] = {
             .timerConfig = phaseTimerSetupHigh,

@@ -45,8 +45,6 @@ void initialize(void * parameter){
 }
 
 void pinSetup(){
-   gpio_reset_pin(clockPin);
-   gpio_reset_pin(dataPin);
    for(int i = 0; i<6; i++){
       gpio_reset_pin(gateArray[i]);
       gpio_set_direction(gateArray[i], GPIO_MODE_INPUT_OUTPUT);
@@ -277,7 +275,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
          global.setMotorFreeTemporarily.store(true, std::memory_order::relaxed);
          tag("#F ");
       }
-      preloadGates();
+      // preloadGates();
       global.readAS5600.store(true,std::memory_order::relaxed); //core 1
 
       #if defined(debug_spamPrintTimeISR1)

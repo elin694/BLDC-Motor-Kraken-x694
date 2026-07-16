@@ -36,7 +36,7 @@ watchdog and sys checks - 4 or 5 (either)*/
 /*=============================DEBUG CONTROL PANEL=============================*/
 #define debug_printRPS 
 // #define debug_hyperFastPrints
-#define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
+// #define debug_spamPrintTimeISR1 //print how long it takes to do i2c transmit recieve+prelo8ad
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 #define useESPTimerLoopOverFreeRTOSLoop
 volatile inline DRAM_ATTR const char* darray[10000];
@@ -50,9 +50,12 @@ volatile inline DRAM_ATTR int as5600BfieldVectorSector =0;
 /*initialize ... --> isr3--> isr1[pass,getSectorNumber] --> preloadGates] --> optimally minimal delay--> isr2[pass, when newPhaseSwitch flag -->executeGates ] */
 /*=============================USER SETTING CONTROL PANEL=============================*/
 #define enableReadPotRepeat
-#define startingDuty static_cast<float>(1- .1 ) //The Duty cycle is 1 - this.Value, normally .8
+#define startingDuty static_cast<float>(1- .9 ) //The Duty cycle is 1 - this.Value, normally .8
+//.03 ->56 in 612 =.0915
+//.6-->189 in 114s = 1.658
+//.9 --> 292 in 192 = 1.52  
 
-#define estimatedI2CReadTimeInMicros (uint32_t)(500)
+#define estimatedI2CReadTimeInMicros (uint32_t)(250)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define SetLTimerPollPeriod 100 //period ticks
