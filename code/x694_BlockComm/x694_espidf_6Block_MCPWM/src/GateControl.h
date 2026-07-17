@@ -52,11 +52,6 @@ constexpr mcpwm_timer_event_callbacks_t callbackFamily = {
 };
 #endif
 
-#if (lowSideGroup == 1)
-   #define MCPWMx ((mcpwm_dev_t * )&MCPWM1)
-#elif (lowSideGroup == 0)
-   #define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
-#endif
 /*
 Hardware prioriy:
 - Fault/Brake

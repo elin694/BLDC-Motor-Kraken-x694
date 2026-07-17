@@ -15,14 +15,12 @@ void initialize(void * parameter){
 
    xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
    mcpwmSetup(); 
-   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup,&gsnTimerHandle));
+   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup, &gsnTimerHandle));
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
    pxPreviousWakeTime = xTaskGetTickCount();
    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
    xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
-   #ifdef enableReadPotRepeat
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &pxPreviousWakeTime, 6, NULL,0);
-   #endif 
 
    initializeInterruptEnablePin(); //after isr init  and L sync 
    int b = global.blockPeriod.load(std::memory_order::relaxed);

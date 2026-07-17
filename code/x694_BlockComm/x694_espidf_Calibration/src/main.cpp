@@ -1,12 +1,12 @@
 //CAILBRATE AS5600 MAGNET
 #include "headers.h"
 
-#define generatorGPIO phaseAHighPort //tx2 = bh= 17
-#define phaseLowGate phaseCLowPort //outwards
+#define generatorGPIO phaseCHighPort //tx2 = bh= 17
+#define phaseLowGate phaseALowPort //outwards
 
 #define countingFrequency (4e6) //2432
 #define timerPeriod (countingFrequency/20000)
-#define dutyCycle (float)(1-(.9))
+#define dutyCycle (float)(1-(.97))
 
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
 esp_timer_handle_t etimerHandle;

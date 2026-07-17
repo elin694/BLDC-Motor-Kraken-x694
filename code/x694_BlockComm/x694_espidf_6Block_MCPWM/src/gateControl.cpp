@@ -1,11 +1,12 @@
 #include "GateControl.h"
 #include "GC.h"
+
 void mcpwmSetup(){
     int tVal[3] ={0,0,0};
     setCountValueAndPeriod();
     initializeLowGate(); // suppress Lgate to OFF
     initializeHighGate( startingGateCmpValue ); //suppress Hgate to OFF, CMRA0 NEVER actually used
-    #ifndef lastResort
+    #ifndef lastResort 
     initializeISR();
     #endif
     initializeTimer();  //sets and starts B and L timer

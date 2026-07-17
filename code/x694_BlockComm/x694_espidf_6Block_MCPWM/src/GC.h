@@ -5,6 +5,9 @@
 //comparator in gateControl.h
 #define isrTickDeadTime (uint32_t)0 //isr 700ns responds time
 #define relativeDeadTime 5
+#define highSideGroup 1 
+#define lowSideGroup 0
+
 
 // gpio 19- miso, b High side is tx2
 

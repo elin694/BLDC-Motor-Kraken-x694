@@ -75,7 +75,7 @@ uint32_t readPotOnce(bool filter, int averager){
       float processedData= rawData/4096.0f;
       global.targetVelocity = (fMin+(fMax-fMin)*processedData);
     }
-    vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
+    vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*electricalCycles));
     
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
       int dirWaitingLine = (global.targetVelocity < 0) ? (5) : (2);
