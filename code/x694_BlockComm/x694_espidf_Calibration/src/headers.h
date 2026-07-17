@@ -4,36 +4,33 @@
 //================== #INSTALL MCPWM ==================
 #define generatorGPIO phaseCHighPort //tx2 = bh= 17
 #define phaseLowGate phaseALowPort //outwards
-#define countingFrequency (4e6) //2432
-#define timerPeriod (countingFrequency/20000)
-#define dutyCycle (float)(1-(.85))
-#define i2cReadPeriod 200
+#define HighTimerResolution (4e6) //2432
+#define activePwmPeriod (uint32_t)(HighTimerResolution/20000)  //change to 20khz when high
+#define startingDuty (0.8) 
+#define estimatedI2CReadTime_us 200
+
+#define highSideGroup 1 
+#define MCPWM_HighsideIntrPriority 1
+
+
+
 
 constexpr int id =  1;
-mcpwm_timer_config_t timerSetup = {
-    .group_id = id,
+mcpwm_timer_config_t HTimerSetup = {
+    .group_id = highSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
-    .resolution_hz = static_cast<uint32_t>(countingFrequency),
+    .resolution_hz = (uint32_t)(HighTimerResolution),
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
-    .period_ticks =static_cast<uint32_t>(timerPeriod),//
-    .intr_priority =1,
+    .period_ticks =(uint32_t)(activePwmPeriod),//
+    .intr_priority =MCPWM_HighsideIntrPriority,
     .flags = {
         .update_period_on_empty = 1,
         .update_period_on_sync = 0, //these 2 determine when set_period takes effect
         // .allow_pd =true
     }
 }; 
-static mcpwm_timer_handle_t timerHandle;
 
-mcpwm_generator_config_t genSetup = {
-    .gen_gpio_num = generatorGPIO,
-    .flags = {
-        .invert_pwm = false,
-    }
-};
-mcpwm_gen_handle_t genHandle;
-
-mcpwm_operator_config_t operatorSetup = {
+mcpwm_operator_config_t HOperatorSetup = {
     .group_id = id,
     // .intr_priority = 1,
     .flags = {
@@ -45,17 +42,37 @@ mcpwm_operator_config_t operatorSetup = {
         .update_dead_time_on_sync = 0,
     },
 };
-mcpwm_oper_handle_t operatorHandle;
 
-const mcpwm_comparator_config_t comparatorSetup = {
-    .intr_priority = 1,
+inline mcpwm_comparator_config_t HComparatorSetup = {
+    .intr_priority = MCPWM_HighsideIntrPriority,
     .flags ={
         .update_cmp_on_tez = 1,
         .update_cmp_on_tep = 0,
         .update_cmp_on_sync = 0
     }
 };
-mcpwm_cmpr_handle_t comparatorHandle;
+
+inline mcpwm_generator_config_t HPWMSetup = {
+    .flags = {
+        .invert_pwm = false
+    }
+};
+
+typedef struct {
+    mcpwm_timer_config_t timerConfig;
+    mcpwm_operator_config_t opConfig;
+    mcpwm_comparator_config_t compConfig = HComparatorSetup;
+    mcpwm_generator_config_t pwmConfig = HPWMSetup;
+
+    mcpwm_timer_handle_t timer = NULL;
+    mcpwm_oper_handle_t operatorModule= NULL;
+    mcpwm_cmpr_handle_t comparator0 = NULL;
+    mcpwm_cmpr_handle_t comparator1 = NULL; //null for high
+    mcpwm_gen_handle_t pwmGate0 = NULL;
+    mcpwm_gen_handle_t pwmGate1 = NULL;// stays null
+    //shoutout gemini for suggest changing countval
+} phaseMcpwm;
+phaseMcpwm motorH[3];
 
 #define isrTickDeadTime 0
 const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
@@ -65,7 +82,8 @@ const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
         // invert_output = 1;
     }
 };
-uint32_t compareValue = dutyCycle*.5*timerPeriod;
+
+#define startingGateCmpValue (uint32_t)((1-startingDuty)*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 //=======================================I2C=====================================
 #define as5600Address 0x36
 constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
@@ -79,8 +97,8 @@ uint8_t fthRegister[2] = {0x07, 0x00};
 
 i2c_master_bus_config_t master_config = {
     .i2c_port = -1,
-    .sda_io_num = DATA,
-    .scl_io_num = CLOCK,
+    .sda_io_num = dataPin,
+    .scl_io_num = clockPin,
     .clk_source = I2C_CLK_SRC_DEFAULT,
     .glitch_ignore_cnt = 7,
     .intr_priority=3,
@@ -131,6 +149,6 @@ esp_timer_handle_t padTimerHandle;
 
 TaskHandle_t initializeI2CTask;
 TaskHandle_t debugTask;
-TaskHandle_t readTask;
+TaskHandle_t getSectorNumberTask;
 TaskHandle_t setupTask;
 

@@ -54,10 +54,9 @@ void initializeHighGate(uint32_t comparatorOff_Duty){
     ESP_LOGI("High Gate CMP Value","%d ", comparatorOff_Duty);
     for (int i = 0; i <3 ; i++){
         motorH[i] = {
-            .timerConfig = phaseTimerSetupHigh,
-            .opConfig = operatorSetupHigh,
+            .timerConfig = HTimerSetup,
+            .opConfig = HOperatorSetup,
         };
-        motorH[i].compConfig.flags.update_cmp_on_tez =1; //allow duty cycle adjustment
         motorH[i].pwmConfig.gen_gpio_num = gateArray[2*i];
         ESP_ERROR_CHECK(mcpwm_new_timer(&motorH[i].timerConfig, &motorH[i].timer));
         ESP_ERROR_CHECK(mcpwm_new_operator(&motorH[i].opConfig, &motorH[i].operatorModule));

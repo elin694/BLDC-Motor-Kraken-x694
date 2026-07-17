@@ -16,7 +16,7 @@ phaseMcpwm motorL[3];
 
 void setCountValueAndPeriod();
 
-mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
+mcpwm_timer_config_t HTimerSetup = { //Grass with peaks
     .group_id = highSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = HighTimerResolution,
@@ -50,7 +50,7 @@ const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
         // invert_output = 1;
     }
 };
-const mcpwm_operator_config_t operatorSetupHigh = {
+const mcpwm_operator_config_t HOperatorSetup = {
     .group_id = highSideGroup,
     .intr_priority = MCPWM_HighsideIntrPriority,
     .flags = {

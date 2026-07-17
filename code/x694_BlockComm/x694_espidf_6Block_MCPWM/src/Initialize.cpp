@@ -3,7 +3,7 @@
 #define isMinutelyCheckup(x) ((x % 1024) == 0)
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
 BaseType_t xHigherPriorityTaskWoken2 = pdFALSE; 
-TickType_t pxPreviousWakeTime;
+TickType_t synchronizedTime;
 // UBaseType_t thisTaskPriority;
 TaskHandle_t initializeI2CTask= NULL;
 void initialize(void * parameter){   
@@ -23,12 +23,12 @@ void initialize(void * parameter){
    xTaskCreatePinnedToCore(executeGates, "gsn", 3000, NULL,  15, &executeGatesTask, 0);
 
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-   pxPreviousWakeTime = xTaskGetTickCount();
+   synchronizedTime = xTaskGetTickCount();
    int now1 = esp_timer_get_time();
-   xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &pxPreviousWakeTime,  15, &getSectorNumberTask, 1);
-   xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
-   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &pxPreviousWakeTime, 6, NULL,0);
-   xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &pxPreviousWakeTime, 6, NULL, 0);
+   xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &synchronizedTime,  15, &getSectorNumberTask, 1);
+   xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &synchronizedTime, 3, NULL, 0);
+   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0);
+   xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &synchronizedTime, 6, NULL, 0);
    esp_intr_dump(stdout);
    esp_timer_dump(stdout);
    esp_err_t probeCheck = i2c_master_probe(busHandle, as5600Address, 1);
@@ -36,13 +36,14 @@ void initialize(void * parameter){
    ESP_LOGI("init", "TaskCreation(us): %d, Probe Check %d", now2, probeCheck);
    vTaskDelete(NULL);
 }
-// xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &pxPreviousWakeTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
+// xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &synchronizedTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
 
 void pinSetup(){
    for(int i = 0; i<6; i++){
       gpio_reset_pin(gateArray[i]);
       gpio_set_direction(gateArray[i], GPIO_MODE_INPUT_OUTPUT);
       gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
+      gpio_set_level(gateArray[i], 0);
    }
 }
 
@@ -152,7 +153,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
     uint32_t file1 =0;
     uint32_t angle = 0;
 
-   ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTime_us));
+   ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTime_us));
    xTaskDelayUntil(&startTick,initializationLatency);
    while(1){
       file1 = file1 + ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1))-1;

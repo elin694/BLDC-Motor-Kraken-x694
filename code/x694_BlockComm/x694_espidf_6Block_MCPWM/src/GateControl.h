@@ -1,7 +1,7 @@
 #pragma once 
 #include "Globals.h"
 
-inline mcpwm_comparator_config_t phaseComparatorSetup = {
+inline mcpwm_comparator_config_t HComparatorSetup = {
     .intr_priority = MCPWM_HighsideIntrPriority,
     .flags ={
         .update_cmp_on_tez = 1,
@@ -9,7 +9,7 @@ inline mcpwm_comparator_config_t phaseComparatorSetup = {
         .update_cmp_on_sync = 0
     }
 };
-inline mcpwm_generator_config_t phasePwmSetup = {
+inline mcpwm_generator_config_t HPWMSetup = {
     .flags = {
         .invert_pwm = false
     }
@@ -17,8 +17,8 @@ inline mcpwm_generator_config_t phasePwmSetup = {
 typedef struct {
     mcpwm_timer_config_t timerConfig;
     mcpwm_operator_config_t opConfig;
-    mcpwm_comparator_config_t compConfig = phaseComparatorSetup;
-    mcpwm_generator_config_t pwmConfig = phasePwmSetup;
+    mcpwm_comparator_config_t compConfig = HComparatorSetup;
+    mcpwm_generator_config_t pwmConfig = HPWMSetup;
 
     mcpwm_timer_handle_t timer = NULL;
     mcpwm_oper_handle_t operatorModule= NULL;

@@ -25,15 +25,15 @@
 #define phaseCLowPort GPIO_NUM_32
 #define freePort1 GPIO_NUM_18
 #define freePort2 GPIO_NUM_19
-#define CLOCK GPIO_NUM_22
-#define DATA GPIO_NUM_21
+#define clockPin GPIO_NUM_22
+#define dataPin GPIO_NUM_21
 
-gpio_num_t gateArray[8]= { phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort, CLOCK, DATA};
+gpio_num_t gateArray[6]= { phaseAHighPort, phaseALowPort, phaseBHighPort, phaseBLowPort, phaseCHighPort, phaseCLowPort};
 
 void cbk(void * parameter);
 void setup(void * parameter);
-void setupMCPWM();
-void groundSetup();
+void initializeHighGate(uint32_t startingGateCmpValue);
+void pinSetup();
 void debug(void*parameter);
 void as5600initialize(void * parameter) ;
-void read(void*parameter);
+void getSectorNumber(void*parameter);

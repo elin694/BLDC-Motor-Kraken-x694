@@ -3,62 +3,65 @@
 
 BaseType_t pxHigherPriorityTaskWoken =pdFALSE;
 
-void groundSetup(){
-   for(gpio_num_t gate : gateArray){
-      gpio_reset_pin(gate);
-      gpio_set_direction(gate,GPIO_MODE_OUTPUT);
-      gpio_set_pull_mode(gate, GPIO_PULLDOWN_ONLY);
-      gpio_set_level(gate, 0);
+void pinSetup(){
+   for(int i = 0; i<6; i++){
+      gpio_reset_pin(gateArray[i]);
+      gpio_set_direction(gateArray[i], GPIO_MODE_INPUT_OUTPUT);
+      gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
+      gpio_set_level(gateArray[i], 0);
    }
-    gpio_reset_pin(phaseLowGate);
-    gpio_set_direction(static_cast<gpio_num_t>(phaseLowGate),GPIO_MODE_OUTPUT);
-    gpio_set_level(phaseLowGate, 1);
 }
 
-void setupMCPWM(){
-    ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
-    ESP_LOGE("DEBUG", "period ticks %d", timerSetup.period_ticks);
-    ESP_LOGE("DEBUG", "timer resol: %d", timerSetup.resolution_hz);
-    ESP_ERROR_CHECK(mcpwm_new_timer(&timerSetup, &timerHandle));
-    // int g_prescale =100; //gives current toal rpescaler
-    // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;
-    // MCPWM0.timer[0].timer_cfg0.timer_prescale= (16e7/countingFrequency)*5-1;
-    ESP_ERROR_CHECK(mcpwm_new_operator(&operatorSetup, &operatorHandle));
-    ESP_ERROR_CHECK(mcpwm_new_comparator(operatorHandle, &comparatorSetup, &comparatorHandle));
-    ESP_ERROR_CHECK(mcpwm_new_generator(operatorHandle, &genSetup, &genHandle));
-    ESP_ERROR_CHECK(mcpwm_generator_set_dead_time(genHandle, genHandle, &highGateDeadTimeSetup));
-    
-    ESP_ERROR_CHECK(mcpwm_operator_connect_timer(operatorHandle, timerHandle)); //--
-    ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparatorHandle,compareValue)); 
-    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
-        MCPWM_GEN_COMPARE_EVENT_ACTION(
-            MCPWM_TIMER_DIRECTION_UP,
-            comparatorHandle,
-            MCPWM_GEN_ACTION_HIGH
-        )
-    ));
-    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
-        MCPWM_GEN_COMPARE_EVENT_ACTION(
-            MCPWM_TIMER_DIRECTION_DOWN,
-            comparatorHandle,
-            MCPWM_GEN_ACTION_LOW
-        )
-    ));
+void initializeHighGate(uint32_t comparatorOff_Duty){
+    ESP_LOGI("High Gate CMP Value","%d ", comparatorOff_Duty);
+    for (int i = 0; i <1 ; i++){
+        motorH[i] = {
+            .timerConfig = HTimerSetup,
+            .opConfig = HOperatorSetup
+        };
+        motorH[i].pwmConfig.gen_gpio_num = gateArray[2*i];
+        ESP_ERROR_CHECK(mcpwm_new_timer(&motorH[i].timerConfig, &motorH[i].timer));
+        // int g_prescale =100; //gives current toal rpescaler
+        // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;
+        // MCPWM0.timer[0].timer_cfg0.timer_prescale= (16e7/HighTimerResolution)*5-1;
+        ESP_ERROR_CHECK(mcpwm_new_operator(&motorH[i].opConfig, &motorH[i].operatorModule));
+        ESP_ERROR_CHECK(mcpwm_new_comparator(motorH[i].operatorModule, &motorH[i].compConfig, &motorH[i].comparator0)); //igh needs only 1 gen and cmra
+        ESP_ERROR_CHECK(mcpwm_new_generator(motorH[i].operatorModule, &motorH[i].pwmConfig, &motorH[i].pwmGate0));
+        ESP_ERROR_CHECK(mcpwm_generator_set_dead_time(motorH[i].pwmGate0, motorH[i].pwmGate0, &highGateDeadTimeSetup));
+        
+        ESP_ERROR_CHECK(mcpwm_operator_connect_timer(motorH[i].operatorModule, motorH[i].timer)); 
+        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0, comparatorOff_Duty)); //set to max to be off
+        // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
+    }
+    //putting command of setting lowGate Low and high gate High (by comparator action event) into buffer
+    for (int i = 0; i <1; i++){
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motorH[i].pwmGate0,
+            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, 
+                motorH[i].comparator0,
+                MCPWM_GEN_ACTION_HIGH
+            )
+        ));
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motorH[i].pwmGate0,
+            MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, 
+                motorH[i].comparator0,
+                MCPWM_GEN_ACTION_LOW
+            )
+        ));
+    }
 }
 
 TickType_t synchronizedTime;
 void setup(void * parameter){
     ets_delay_us(100);
-    groundSetup();
-    setupMCPWM();
-    ESP_ERROR_CHECK(mcpwm_timer_enable(timerHandle));
+    pinSetup();
+    initializeHighGate(startingGateCmpValue);
+    ESP_ERROR_CHECK(mcpwm_timer_enable(motorH[0].timer));
     xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
         
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     synchronizedTime = xTaskGetTickCount();
     int now1 = esp_timer_get_time();
-    xTaskCreatePinnedToCore(read,"i2c reader",4000, &synchronizedTime, 15, &readTask, 1);
+    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &synchronizedTime,  15, &getSectorNumberTask, 1);
     xTaskCreatePinnedToCore(debug,"debug log",2000,&synchronizedTime, 6,&debugTask,0);
 
     esp_intr_dump(stdout);
@@ -104,7 +107,7 @@ void as5600initialize(void * parameter) {
 void debug(void*parameter){
     TickType_t st = *(TickType_t *)parameter;
     xTaskDelayUntil(&st,LATENCY);
-    ESP_ERROR_CHECK(mcpwm_timer_start_stop(timerHandle, MCPWM_TIMER_START_NO_STOP));
+    ESP_ERROR_CHECK(mcpwm_timer_start_stop(motorH[0].timer, MCPWM_TIMER_START_NO_STOP));
     for(;;){
         esp_rom_printf("\n" white);
         esp_timer_dump(stdout);
@@ -113,7 +116,7 @@ void debug(void*parameter){
     }       
 }
 
-void read(void*parameter){
+void getSectorNumber(void*parameter){
     TickType_t st = *(TickType_t *)parameter;
     uint32_t counter =0;
     uint32_t failCounter =0;
@@ -123,7 +126,7 @@ void read(void*parameter){
     uint32_t angle = 0;
 
     esp_timer_create(&etimerSetup, &etimerHandle);
-    esp_timer_start_periodic(etimerHandle, i2cReadPeriod);
+    esp_timer_start_periodic(etimerHandle, estimatedI2CReadTime_us);
     xTaskDelayUntil(&st,LATENCY);
     for(;;){
         // esp_timer_start_once(etimerHandle,250);
@@ -145,7 +148,7 @@ void read(void*parameter){
 }
 
 IRAM_ATTR void cbk(void * parameter){
-    vTaskNotifyGiveFromISR(readTask, &pxHigherPriorityTaskWoken);
+    vTaskNotifyGiveFromISR(getSectorNumberTask, &pxHigherPriorityTaskWoken);
     esp_timer_isr_dispatch_need_yield();
 }
 
