@@ -20,7 +20,6 @@ void initialize(void * parameter){
    pxPreviousWakeTime = xTaskGetTickCount();
    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &pxPreviousWakeTime,  21, &getSectorNumberTask, 1);
    xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
-
    #ifdef enableReadPotRepeat
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &pxPreviousWakeTime, 6, NULL,0);
    #endif 
