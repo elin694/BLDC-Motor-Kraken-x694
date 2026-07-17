@@ -118,10 +118,6 @@ void initializeTimer(){
     ESP_LOGI(blue "GC6", "======ENABLES AND STARTS counting on 4 timers ");
 }
 
-void IRAM_ATTR synchrISR(mcpwm_sync_handle_t handle, const char* name){ 
-    //if code only activites sync, execution time <1us
-    ESP_ERROR_CHECK(mcpwm_soft_sync_activate(handle)); //0-1us
-}
 void IRAM_ATTR tag(const char* tag){
     #ifdef debug_fastPrints
     esp_rom_printf(tag);

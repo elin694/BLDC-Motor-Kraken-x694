@@ -6,7 +6,9 @@
 adc_oneshot_unit_handle_t adcHandle = NULL;
 int rawData = 0;
 // portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
-#define espTimer_isMinutelyCheckup(x) ((x % 16) == 1)
+
+#define esp_timer_cycle 16
+#define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 1)
 
 void debugLog(void * startTick2){
   // char buf[400];
@@ -14,8 +16,7 @@ void debugLog(void * startTick2){
   TickType_t startTick = *(TickType_t*)startTick2;
   uint32_t esp_timer_log_counter = 0;
   TickType_t loopStartTick ;
-  
-  #define esp_timer_cycle 8
+
   ESP_LOGI("Main.cpp","Printing time log every %d ms!",esp_timer_cycle*velPotReadPeriod*50);
   xTaskDelayUntil(&startTick,initializationLatency);
   for(;;){
@@ -33,7 +34,7 @@ void debugLog(void * startTick2){
     #endif
 
     if(espTimer_isMinutelyCheckup(esp_timer_log_counter++)){
-      esp_rom_printf("\n" blue); esp_timer_dump(stdout);
+      ESP_LOGI("\n", blue); esp_timer_dump(stdout);
     }
   //   if((task_list_log_counter++%8 )==0){
   //     vTaskList(buf); ESP_LOGI(" ","\n%s",buf);

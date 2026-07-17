@@ -1,31 +1,123 @@
-//CAILBRATE AS5600 MAGNET
 #include "headers.h"
+//CAILBRATE AS5600 MAGNET
 
-#define generatorGPIO phaseCHighPort //tx2 = bh= 17
-#define phaseLowGate phaseALowPort //outwards
+BaseType_t pxHigherPriorityTaskWoken =pdFALSE;
 
-#define countingFrequency (4e6) //2432
-#define timerPeriod (countingFrequency/20000)
-#define dutyCycle (float)(1-(.97))
+void groundSetup(){
+   for(gpio_num_t gate : gateArray){
+      gpio_reset_pin(gate);
+      gpio_set_direction(gate,GPIO_MODE_OUTPUT);
+      gpio_set_pull_mode(gate, GPIO_PULLDOWN_ONLY);
+      gpio_set_level(gate, 0);
+   }
+    gpio_reset_pin(phaseLowGate);
+    gpio_set_direction(static_cast<gpio_num_t>(phaseLowGate),GPIO_MODE_OUTPUT);
+    gpio_set_level(phaseLowGate, 1);
+}
 
-uint32_t compareValue = dutyCycle*.5*timerPeriod;
-esp_timer_handle_t etimerHandle;
-esp_timer_handle_t padTimerHandle;
-esp_timer_create_args_t padTimerSetup ={
-    .callback = cbk,
-    .arg=NULL,
-    .dispatch_method = ESP_TIMER_ISR,
-    .name = "i2cPadTimer",
-    .skip_unhandled_events = true
-};
+void setupMCPWM(){
+    ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
+    ESP_LOGE("DEBUG", "period ticks %d", timerSetup.period_ticks);
+    ESP_LOGE("DEBUG", "timer resol: %d", timerSetup.resolution_hz);
+    ESP_ERROR_CHECK(mcpwm_new_timer(&timerSetup, &timerHandle));
+    // int g_prescale =100; //gives current toal rpescaler
+    // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;
+    // MCPWM0.timer[0].timer_cfg0.timer_prescale= (16e7/countingFrequency)*5-1;
+    ESP_ERROR_CHECK(mcpwm_new_operator(&operatorSetup, &operatorHandle));
+    ESP_ERROR_CHECK(mcpwm_new_comparator(operatorHandle, &comparatorSetup, &comparatorHandle));
+    ESP_ERROR_CHECK(mcpwm_new_generator(operatorHandle, &genSetup, &genHandle));
+    ESP_ERROR_CHECK(mcpwm_generator_set_dead_time(genHandle, genHandle, &highGateDeadTimeSetup));
+    
+    ESP_ERROR_CHECK(mcpwm_operator_connect_timer(operatorHandle, timerHandle)); //--
+    ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparatorHandle,compareValue)); 
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
+        MCPWM_GEN_COMPARE_EVENT_ACTION(
+            MCPWM_TIMER_DIRECTION_UP,
+            comparatorHandle,
+            MCPWM_GEN_ACTION_HIGH
+        )
+    ));
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
+        MCPWM_GEN_COMPARE_EVENT_ACTION(
+            MCPWM_TIMER_DIRECTION_DOWN,
+            comparatorHandle,
+            MCPWM_GEN_ACTION_LOW
+        )
+    ));
+}
 
-TaskHandle_t readTask;
+TickType_t synchronizedTime;
+void setup(void * parameter){
+    ets_delay_us(100);
+    groundSetup();
+    setupMCPWM();
+    ESP_ERROR_CHECK(mcpwm_timer_enable(timerHandle));
+    xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
+        
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    synchronizedTime = xTaskGetTickCount();
+    xTaskCreatePinnedToCore(read,"i2c reader",4000, &synchronizedTime, 15, &readTask, 1);
+    xTaskCreatePinnedToCore(debug,"debug log",2000,&synchronizedTime, 6,&debugTask,0);
+
+    vTaskDelete(NULL);
+}
+
+void as5600initialize(void * parameter) {
+    ESP_ERROR_CHECK(i2c_new_master_bus(&master_config, &bus_handle));
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+    
+    int startWatch  =esp_timer_get_time();
+    //read current settings
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev_handle, 
+        fthRegister, //address to start on
+        (size_t)1, //write 1 byte's woth from fthRegister
+        fthRegisterData, //where to save the read data
+        (size_t)1, //read 1 byte
+        -1)
+    );
+    
+    int lapWatch =esp_timer_get_time()-startWatch;
+    fthRegister[1]= (fthRegisterData[0] & fth_sf_clear_mask) | fth_sf_set_mask; //rese
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev_handle, fthRegister, 2, fthRegisterData, 1, -1));
+    int lapWatch2 =esp_timer_get_time()-startWatch;
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev_handle, fthRegister, 1, fthRegisterData, 1, -1));
+    int lapWatch3 =esp_timer_get_time()-startWatch;
+    ESP_LOGI(magenta "CALIB", "\nas5600 Fast Fillter Threshold Set to %d\n1st REG read time:%4d \nSF-FTH write time:%4d REG_Check time:%4d ", 
+        (int)fthRegisterData[0],
+        lapWatch,
+        lapWatch2,
+        lapWatch3
+    );
+    
+    xTaskNotifyGive(setupTask);
+    vTaskDelete(NULL);
+}
+
+void debug(void*parameter){
+    TickType_t st = *(TickType_t *)parameter;
+    xTaskDelayUntil(&st,LATENCY);
+    ESP_ERROR_CHECK(mcpwm_timer_start_stop(timerHandle, MCPWM_TIMER_START_NO_STOP));
+    for(;;){
+        esp_rom_printf("\n" white);
+        esp_timer_dump(stdout);
+        esp_rom_printf("\n" blue);
+        vTaskDelay(pdMS_TO_TICKS(3000));
+    }       
+}
+
 void read(void*parameter){
+    TickType_t st = *(TickType_t *)parameter;
     uint32_t counter =0;
     uint32_t failCounter =0;
 
     uint32_t startTimer =0;
     uint32_t file1 =0;
+    uint32_t angle = 0;
+
+    esp_timer_create(&etimerSetup, &etimerHandle);
+    esp_timer_start_periodic(etimerHandle, i2cReadPeriod);
+    xTaskDelayUntil(&st,LATENCY);
     for(;;){
         // esp_timer_start_once(etimerHandle,250);
         file1 = file1 + ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1))-1;
@@ -41,103 +133,10 @@ void read(void*parameter){
         }else{
             failCounter++;
         }
-// #define pd (250*240)
-//         uint32_t periodBetweenIterations = esp_cpu_get_cycle_count() -timer; //time elapsed in 240Mhz ticks
-//         // int usRemaining = 250 - (int)(periodBetweenIterations/240.0f);
-//         if(periodBetweenIterations <pd){
-//             uint32_t papap=(pd-periodBetweenIterations);
-//             ets_delay_us(papap/240.0f);
-//         }
 
     }       
 }
 
-TaskHandle_t debugTask;
-void debug(void*parameter){
-    for(;;){
-        esp_rom_printf("\n" white);
-        esp_timer_dump(stdout);
-        esp_rom_printf("\n" blue);
-       vTaskDelay(pdMS_TO_TICKS(3000));
-    }       
-}
-
-void groundSetup(){
-    gpio_num_t gateArray[8]= {
-      phaseAHighPort,
-      phaseALowPort,
-      phaseBHighPort,
-      phaseBLowPort,
-      phaseCHighPort,
-      phaseCLowPort,
-      CLOCK,
-      DATA
-   };
-   for(gpio_num_t gate : gateArray){
-      gpio_reset_pin(gate);
-      gpio_set_direction(gate,GPIO_MODE_OUTPUT);
-      ets_delay_us(10);
-      gpio_set_pull_mode(gate, GPIO_PULLDOWN_ONLY);
-      gpio_set_level(gate, 0);
-   }
-    gpio_reset_pin(phaseLowGate);
-    gpio_set_direction(static_cast<gpio_num_t>(phaseLowGate),GPIO_MODE_OUTPUT);
-    gpio_set_level(phaseLowGate, 1);
-}
-
-mcpwm_timer_config_t timerSetup = {
-    .group_id = id,
-    .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
-    .resolution_hz = static_cast<uint32_t>(countingFrequency),
-    .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
-    .period_ticks =static_cast<uint32_t>(timerPeriod),//
-    // .intr_priority =1,
-    .flags = {
-        .update_period_on_empty = 1,
-        .update_period_on_sync = 0, //these 2 determine when set_period takes effect
-        // .allow_pd =true
-    }
-};
-
-mcpwm_generator_config_t genSetup = {
-    .gen_gpio_num = generatorGPIO,
-    .flags = {
-        .invert_pwm = false,
-    }
-};
-mcpwm_gen_handle_t genHandle;
-
-void setupMCPWM(){
-    ets_delay_us(20);
-    groundSetup();
-    ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
-    ESP_LOGE("DEBUG", "period ticks %d", timerSetup.period_ticks);
-    ESP_LOGE("DEBUG", "timer resol: %d", timerSetup.resolution_hz);
-    ESP_ERROR_CHECK(mcpwm_new_timer(&timerSetup, &timerHandle));
-    // int g_prescale =100; //gives current toal rpescaler
-    // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;
-    // MCPWM0.timer[0].timer_cfg0.timer_prescale= (16e7/countingFrequency)*5-1;
-    ESP_ERROR_CHECK(mcpwm_new_operator(&operatorSetup, &operatorHandle));
-    ESP_ERROR_CHECK(mcpwm_new_comparator(operatorHandle, &comparatorSetup, &comparatorHandle));
-    ESP_ERROR_CHECK(mcpwm_new_generator(operatorHandle, &genSetup, &genHandle));
-
-/*I@C*/
-        ESP_ERROR_CHECK(i2c_new_master_bus(&master_config, &bus_handle));
-        ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
-}
-
-esp_timer_create_args_t etimerSetup ={
-    .callback = cbk,
-    .arg=NULL,
-    .dispatch_method = ESP_TIMER_ISR,
-    .name = "i2ctimer",
-    .skip_unhandled_events = true
-};
-
-
-
-
-BaseType_t pxHigherPriorityTaskWoken =pdFALSE;
 IRAM_ATTR void cbk(void * parameter){
     vTaskNotifyGiveFromISR(readTask, &pxHigherPriorityTaskWoken);
     esp_timer_isr_dispatch_need_yield();
@@ -145,36 +144,6 @@ IRAM_ATTR void cbk(void * parameter){
 
 extern "C" {
     void app_main() {
-        setupMCPWM();
-        
-        /*RUNTIME FUNCTIONS*/
-        // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(genHandle, 0, true)); // Force low until ready
-        ESP_ERROR_CHECK(mcpwm_operator_connect_timer(operatorHandle, timerHandle)); //--
-        // compareValue=49;
-        ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
-        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparatorHandle,compareValue)); 
-
-        
-        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
-            MCPWM_GEN_COMPARE_EVENT_ACTION(
-                MCPWM_TIMER_DIRECTION_UP,
-                comparatorHandle,
-                MCPWM_GEN_ACTION_HIGH
-            )
-        ));
-        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(genHandle,
-            MCPWM_GEN_COMPARE_EVENT_ACTION(
-                MCPWM_TIMER_DIRECTION_DOWN,
-                comparatorHandle,
-                MCPWM_GEN_ACTION_LOW
-            )
-        ));
-        ESP_ERROR_CHECK(mcpwm_timer_enable(timerHandle));
-        ESP_ERROR_CHECK(mcpwm_timer_start_stop(timerHandle, MCPWM_TIMER_START_NO_STOP));
-        xTaskCreatePinnedToCore(read,"i2c reader",4000, NULL, 21, &readTask, 1);
-        xTaskCreatePinnedToCore(debug,"debug log",2000,NULL, 15,&debugTask,0);
-        esp_timer_create(&etimerSetup, &etimerHandle);
-        // esp_timer_start_once(etimerHandle,250);
-        esp_timer_start_periodic(etimerHandle,200);
+        xTaskCreatePinnedToCore(setup, "Setup", 9000, NULL, 22, &setupTask, 0); 
     } 
 } 

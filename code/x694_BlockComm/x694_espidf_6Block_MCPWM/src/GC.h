@@ -15,7 +15,6 @@ phaseMcpwm motorH[3];
 phaseMcpwm motorL[3];
 
 void setCountValueAndPeriod();
-void synchrISR(mcpwm_sync_handle_t handle, const char* name);
 
 mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
     .group_id = highSideGroup,
@@ -25,8 +24,8 @@ mcpwm_timer_config_t phaseTimerSetupHigh = { //Grass with peaks
     .period_ticks =activePwmPeriod,
     .intr_priority = MCPWM_HighsideIntrPriority,
     .flags = {
-        .update_period_on_empty = 0,
-        .update_period_on_sync = 1 
+        .update_period_on_empty = 1,
+        .update_period_on_sync = 0 
     }
 };
 
@@ -57,10 +56,10 @@ const mcpwm_operator_config_t operatorSetupHigh = {
     .flags = {
         .update_gen_action_on_tez = 1,
         .update_gen_action_on_tep = 0,
-        .update_gen_action_on_sync= 1,
+        .update_gen_action_on_sync= 0,
         .update_dead_time_on_tez = 1,
         .update_dead_time_on_tep = 0,
-        .update_dead_time_on_sync = 1,
+        .update_dead_time_on_sync = 0,
     },
 };
 

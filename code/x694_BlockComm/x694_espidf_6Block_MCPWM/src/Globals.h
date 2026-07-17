@@ -13,7 +13,7 @@
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(30)
 /*=============================USER SETTING CONTROL PANEL=============================*/
-#define startingDuty (0.25) //, normally .8
+#define startingDuty (0.85) //, normally .8
 //.03 ->56 in 612 =.0915
 //.6-->189 in 114s = 1.658
 //.9 --> 292 in 192 = 1.52  
@@ -23,7 +23,7 @@
 #define i2cWaitout 1 //in ms
 #define mcpwm_lowSideGroupPrescaler 40
 #define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) //125ns , must not simple ratio
-#define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*300)) //125ns , must not simple ratio
+#define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
 /*minimum and maximum RPS */
 #define maxf_HTimerPeriod (1111/2) //200--> 111.11rps, 1111-->20rps

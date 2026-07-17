@@ -6,20 +6,15 @@ inline mcpwm_comparator_config_t phaseComparatorSetup = {
     .flags ={
         .update_cmp_on_tez = 1,
         .update_cmp_on_tep = 0,
-        .update_cmp_on_sync = 1
+        .update_cmp_on_sync = 0
     }
 };
 inline mcpwm_generator_config_t phasePwmSetup = {
     .flags = {
-        .invert_pwm = false,
-        // .io_loop_back = 0,
-        // .io_od_mode = 0, //pull low or float only
-        // .pull_up = 0,
-        // .pull_down= 1
+        .invert_pwm = false
     }
 };
 typedef struct {
-    int node; //a,b,c
     mcpwm_timer_config_t timerConfig;
     mcpwm_operator_config_t opConfig;
     mcpwm_comparator_config_t compConfig = phaseComparatorSetup;
