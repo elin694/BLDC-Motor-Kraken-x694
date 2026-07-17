@@ -62,3 +62,7 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 #define inlineShuntA 39 //Vn
 #define potL 34
 #define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
+
+#define time() esp_timer_get_time()
+#define time240() esp_cpu_get_cycle_count()
+#

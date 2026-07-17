@@ -24,7 +24,7 @@ void initialize(void * parameter){
    pxPreviousWakeTime = xTaskGetTickCount();
    int now1 = esp_timer_get_time();
    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &pxPreviousWakeTime,  15, &getSectorNumberTask, 1);
-   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
+   xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
    // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &pxPreviousWakeTime, 6, NULL,0);
    xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &pxPreviousWakeTime, 6, NULL, 0);
    esp_intr_dump(stdout);
@@ -81,16 +81,21 @@ void IRAM_ATTR runOnMCPWMIntr(void * user_ctx) {
    }  
 }
 #endif
+
+volatile bool oneTimeFlag = true;
 bool runActualISR(void * data){
-   #define ACCEPTABLE_I2C_READ_WINDOW 200
+   #define ACCEPTABLE_I2C_READ_WINDOW 230
    gVar_t *masterVar = (gVar_t*)data;
-   tag(cyan "V");
+   // tag(cyan "V");
    int timeNow = esp_timer_get_time();
    if((timeNow - masterVar->tlog_readAS5600.load()) < ACCEPTABLE_I2C_READ_WINDOW ){
       // tag(cyan "V");
       //if global.readA S5600==false, the read is taking too long, so might as well let motor coast
       /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
-      executeGates(false);
+      if(oneTimeFlag){
+         executeGates(false);
+         oneTimeFlag =false;
+      }
       portYIELD_FROM_ISR();
       return true;
    }
@@ -135,7 +140,7 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
    int startTime =0;
    uint32_t printCounter=0;
 
-   ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTimeInMicros));
+   ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle,estimatedI2CReadTime_us));
    xTaskDelayUntil(&startTick,initializationLatency);
    // ESP_ERROR_CHECK(i2c_master_probe(busHandle, as5600Address, 1));
    while(1){

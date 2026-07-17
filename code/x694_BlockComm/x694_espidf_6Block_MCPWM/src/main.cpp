@@ -8,10 +8,10 @@ int rawData = 0;
 // portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
 #define esp_timer_cycle 16
-#define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 1)
+#define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 0)
 
-void debugLog(void * startTick2){
-  // char buf[400];
+void debugMonitor(void * startTick2){
+  char buf[800];
   // uint32_t task_list_log_counter = 0;
   TickType_t startTick = *(TickType_t*)startTick2;
   uint32_t esp_timer_log_counter = 0;
@@ -35,6 +35,9 @@ void debugLog(void * startTick2){
 
     if(espTimer_isMinutelyCheckup(esp_timer_log_counter++)){
       ESP_LOGI("\n", blue); esp_timer_dump(stdout);
+      esp_rom_printf("\n\n");
+      vTaskGetRunTimeStats(buf);
+      esp_rom_printf(buf);
     }
   //   if((task_list_log_counter++%8 )==0){
   //     vTaskList(buf); ESP_LOGI(" ","\n%s",buf);
@@ -111,6 +114,15 @@ uint32_t readPotOnce(bool filter, int averager){
 
 extern "C"{
   void app_main(){
+    // uint32_t t1 = xPortGetRunTimeCounterValue();
+    // uint32_t t2 =time();
+    // ESP_LOGI("\n YEEEE","\n %d,  %d\n",(int)t1,t2);
+
+    // vTaskDelay(694);
+    // t1 = xPortGetRunTimeCounterValue();
+    // t2 =time();
+    // ESP_LOGI("\n YEEEE","\n %d,  %d\n",(int)t1,t2);
+    // vTaskDelay(10000000);
     vTaskDelay(pdMS_TO_TICKS(100)); //To let gate driver setup
     xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 20, &setupTask, 0); 
     ulTaskNotifyValueClear(setupTask, 0xffffffff);

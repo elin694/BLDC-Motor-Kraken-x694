@@ -9,16 +9,16 @@
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 
+#define startingDuty (0.8) //, normally .8
 #define cBufSize 8
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(30)
 /*=============================USER SETTING CONTROL PANEL=============================*/
-#define startingDuty (0.85) //, normally .8
 //.03 ->56 in 612 =.0915
 //.6-->189 in 114s = 1.658
 //.9 --> 292 in 192 = 1.52  
 
-#define estimatedI2CReadTimeInMicros (uint32_t)(200)
+#define estimatedI2CReadTime_us (uint32_t)(200)
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define mcpwm_lowSideGroupPrescaler 40
@@ -75,7 +75,7 @@ typedef struct{
 typedef struct{
     int oldSectorTarget = 0;
     int sectorTarget = 0; //for stator current vector
-    std::atomic<uint32_t> blockPeriod = 65535;
+    std::atomic<uint32_t> blockPeriod = 20000;
     std::atomic<uint32_t> tlog_readAS5600 = 0;
     std::atomic<bool> newVelPotValue = false;
     std::atomic<bool> setMotorFreeSpin = false;

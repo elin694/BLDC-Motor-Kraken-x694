@@ -3,7 +3,7 @@
 
 // void mathItOut(void * startTick4){ //updates arrrays with new ifo
 //    TickType_t startTick = *(TickType_t*)startTick4;
-//    float dt  = estimatedI2CReadTimeInMicros;
+//    float dt  = estimatedI2CReadTime_us;
    
 //    xTaskDelayUntil(&startTick,initializationLatency);
 //    for(;;){
@@ -46,7 +46,7 @@
 //    for(;;){
 //          /* +error = ahead of target ccw*/
 //          if(global.controlMethod <= VELOCITY_CONTROL){
-//             float dt  = estimatedI2CReadTimeInMicros;
+//             float dt  = estimatedI2CReadTime_us;
 //             uint32_t vidx = global.vindex;
 //             float errorVel =targetVelocity- global.measuredVel[vidx%cBufSize];/////////////////
 //             float prevError = global.lastVelError;
@@ -71,7 +71,7 @@
 // void setPosition(float targetPosition){
 //    for(;;){
 //       if(global.controlMethod <= POSITION_CONTROL){
-//          float dt  = estimatedI2CReadTimeInMicros;
+//          float dt  = estimatedI2CReadTime_us;
 //          uint32_t pidx = global.pindex;
 //          float errorPos =global.targetPosition- global.measuredPos[pidx%cBufSize];/////////////////
 //          float prevError = global.lastPosError;

@@ -13,7 +13,7 @@ void initializeInterruptEnablePin(void * startTick6);
 void runOnESPTimerIntr(void * globe);
 bool runActualISR(void * data);
 
-void debugLog(void * parameter);
+void debugMonitor(void * parameter);
 
 void getSectorNumber(void *returnValue);
 inline DRAM_ATTR mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };

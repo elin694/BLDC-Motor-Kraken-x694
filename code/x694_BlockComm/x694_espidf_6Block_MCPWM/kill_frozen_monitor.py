@@ -4,8 +4,7 @@ import subprocess
 Import("env")
 
 
-def print_bright_green_time():
-    # Fetch the current system time
+def print_bright_green_t():
     current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
     
     # ANSI Sequences: 
@@ -47,4 +46,4 @@ def kill_serial_process(source, target, env):
 env.AddPreAction("upload", kill_serial_process)
 
 # Example execution call
-print_bright_green_time()
+print_bright_green_t()
