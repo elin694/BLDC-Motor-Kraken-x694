@@ -37,7 +37,7 @@ void initializeTimer();
 void initializeISR();
 bool VTimerCallback(mcpwm_timer_handle_t timer, const mcpwm_timer_event_data_t *edata, void *user_ctx);
 void runOnMCPWMIntr(void *returnValue);
-void executeGates(bool freeSpin);
+void executeGates(void * parameter);
 
 #ifdef lastResort
 constexpr mcpwm_timer_event_callbacks_t callbackFamily = {

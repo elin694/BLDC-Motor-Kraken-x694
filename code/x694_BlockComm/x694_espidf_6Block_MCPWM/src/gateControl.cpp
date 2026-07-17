@@ -171,67 +171,76 @@ void IRAM_ATTR getTimerCountNow(const char* str){
     esp_rom_printf(magenta"%s V:%5d\n", str, vt1);
 }
 
-void IRAM_ATTR executeGates(bool freeSpin){
-    
-    if(freeSpin){
-        tag(yellow "EgTfre ");
-        for(int i =2; i>-1; i--){
-            ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
-            // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 1, true));
-        }
-    }else{
+void IRAM_ATTR executeGates(void * parameter){
+    for(int i =4; i>-1; i-=2){
+    int hlvl = -1*gateLevelCycle[global.sectorTarget][i];
+    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, hlvl, true));
+    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
+    }
 
-        if(global.setMotorFreeTemporarily.load() ||global.setMotorFreeSpin.load()){ //don't esrase these valeus
-            tag(yellow "EgFTFree ");
+    for(;;){
+        uint32_t notif= ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        bool freeSpin = (notif == ExecuteGate__FreeSpin_NotifVal);
+        if (freeSpin){
+            tag(yellow "EgTfre ");
             for(int i =2; i>-1; i--){
                 ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
                 // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 1, true));
             }
+        } else {
 
-        } else {  //not freespinning = active control
-            #define snap() time240()
-            int temp[7];
-            int in =0;
-            tag(yellow "EgFFSw ");
-            temp[0] = snap();
-            //when motor is off (freespinnig), nPSF still runs, but no changes are made
-            for(int i =4; i>-1; i-=2){
-                int hlvl;
-                if(gateLevelCycle[global.sectorTarget][i] == 1){
-                    hlvl =-1;
-                }else{
-                    hlvl =0;
+            if(global.setMotorFreeTemporarily.load() ||global.setMotorFreeSpin.load()){ //don't esrase these valeus
+                tag(yellow "EgFTFree ");
+                for(int i =2; i>-1; i--){
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
+                    // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 1, true));
                 }
-                temp[++in] =  snap()-temp[0];
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, hlvl, true));
-                temp[++in] =  snap()-temp[0];
-                ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
-            }
-            esp_rom_printf("#%d$%d$%d\n%d$%d$%d\n%d",temp[0], temp[1], temp[2], temp[3],temp[4], temp[5], temp[6]);
-        }
-    }
 
-    #ifdef debug_fastPrints
-    esp_rom_printf(white "|%s,%d" red "|L\n" ghgl[global.sectorTarget],global.dir);
-    #elif defined(debug_hyperFastPrints)
-    // int t1= esp_timer_get_time();
-    tag(red);
-    tag(ghgl[global.sectorTarget]);
-    tag(dgdir[global.dir]);
-    
-    for(int hfp = dindex[1];hfp<dindex[0];hfp++ ){
-        esp_rom_printf("%s",darray[hfp]);
+            } else {  //not freespinning = active control
+                #define snap() time240()
+                tag(yellow "EgFFSw ");
+                // int temp[7]; //take 12us
+                // int in =0;
+                // temp[0] = snap();
+                //when motor is off (freespinnig), nPSF still runs, but no changes are made
+                for(int i =4; i>-1; i-=2){
+                    int hlvl;
+                    if(gateLevelCycle[global.sectorTarget][i] == 1){
+                        hlvl =-1;
+                    }else{
+                        hlvl =0;
+                    }
+                    // temp[++in] =  snap()-temp[0];
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, hlvl, true));
+                    // temp[++in] =  snap()-temp[0];
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
+                }
+                // esp_rom_printf("#%d$%d$%d\n%d$%d$%d\n%d",temp[0], temp[1], temp[2], temp[3],temp[4], temp[5], temp[6]);
+            }
+        }
+
+        #ifdef debug_fastPrints
+        esp_rom_printf(white "|%s,%d" red "|L\n" ghgl[global.sectorTarget],global.dir);
+        #elif defined(debug_hyperFastPrints)
+        // int t1= esp_timer_get_time();
+        tag(red);
+        tag(ghgl[global.sectorTarget]);
+        tag(dgdir[global.dir]);
+        
+        for(int hfp = dindex[1];hfp<dindex[0];hfp++ ){
+            esp_rom_printf("%s",darray[hfp]);
+        }
+        #ifdef debug_hyperFastPrintsWithPot
+        int bp = global.blockPeriod;
+        esp_rom_printf(" p%d\n", bp);
+        #else
+        esp_rom_printf("\n"); 
+        #endif
+        
+        // t1= esp_timer_get_time() - t1;esp_rom_printf("T1: %d\n",t1);
+        dindex[1].fetch_and(0x00);
+        dindex[0].fetch_and(0x00);
+        #endif
     }
-    #ifdef debug_hyperFastPrintsWithPot
-    int bp = global.blockPeriod;
-    esp_rom_printf(" p%d\n", bp);
-    #else
-    esp_rom_printf("\n"); 
-    #endif
-    
-    // t1= esp_timer_get_time() - t1;esp_rom_printf("T1: %d\n",t1);
-    dindex[1].fetch_and(0x00);
-    dindex[0].fetch_and(0x00);
-    #endif
     
 }

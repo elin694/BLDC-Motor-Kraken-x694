@@ -1,7 +1,8 @@
 #include "Initialize.h"
 #include "GateControl.h"
-#define isMinutelyCheckup(x) ((x % 1024) == 1)
+#define isMinutelyCheckup(x) ((x % 1024) == 0)
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
+BaseType_t xHigherPriorityTaskWoken2 = pdFALSE; 
 TickType_t pxPreviousWakeTime;
 // UBaseType_t thisTaskPriority;
 TaskHandle_t initializeI2CTask= NULL;
@@ -19,12 +20,13 @@ void initialize(void * parameter){
    int b = global.blockPeriod.load(std::memory_order::relaxed);
    int c=global.newVelPotValue.load(std::memory_order::relaxed);
    ESP_LOGI("init.cpp ","blockPeriod %d| new velocityflag: %d", b, c);//nti
+   xTaskCreatePinnedToCore(executeGates, "gsn", 3000, NULL,  15, &executeGatesTask, 0);
 
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
    pxPreviousWakeTime = xTaskGetTickCount();
    int now1 = esp_timer_get_time();
    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &pxPreviousWakeTime,  15, &getSectorNumberTask, 1);
-   xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
+   // xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &pxPreviousWakeTime, 3, NULL, 0);
    // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &pxPreviousWakeTime, 6, NULL,0);
    xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &pxPreviousWakeTime, 6, NULL, 0);
    esp_intr_dump(stdout);
@@ -34,8 +36,7 @@ void initialize(void * parameter){
    ESP_LOGI("init", "TaskCreation(us): %d, Probe Check %d", now2, probeCheck);
    vTaskDelete(NULL);
 }
-// // // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &pxPreviousWakeTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
-
+// xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &pxPreviousWakeTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
 
 void pinSetup(){
    for(int i = 0; i<6; i++){
@@ -61,6 +62,7 @@ void initializeInterruptEnablePin(void * startTick6){
 void IRAM_ATTR runOnESPTimerIntr(void * globe) {
    vTaskNotifyGiveFromISR(getSectorNumberTask, &xHigherPriorityTaskWoken);
    if(xHigherPriorityTaskWoken == pdTRUE){
+      xHigherPriorityTaskWoken =pdFALSE;
       esp_timer_isr_dispatch_need_yield();
    }
 }
@@ -82,7 +84,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * user_ctx) {
 }
 #endif
 
-volatile bool oneTimeFlag = true;
+volatile bool oneTimeFlag = false;
 bool runActualISR(void * data){
    #define ACCEPTABLE_I2C_READ_WINDOW 230
    gVar_t *masterVar = (gVar_t*)data;
@@ -92,11 +94,14 @@ bool runActualISR(void * data){
       // tag(cyan "V");
       //if global.readA S5600==false, the read is taking too long, so might as well let motor coast
       /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
-      if(oneTimeFlag){
-         executeGates(false);
-         oneTimeFlag =false;
-      }
-      portYIELD_FROM_ISR();
+      // if(oneTimeFlag){
+      //    oneTimeFlag =false;
+      //    xTaskNotifyFromISR(executeGatesTask, 0, eIncrement, &xHigherPriorityTaskWoken2);
+      // }
+      // if(xHigherPriorityTaskWoken2 == pdTRUE) {
+      //    xHigherPriorityTaskWoken2 = pdFALSE;
+      //    portYIELD_FROM_ISR();
+      // }
       return true;
    }
    return false;

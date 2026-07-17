@@ -18,7 +18,7 @@
 //.6-->189 in 114s = 1.658
 //.9 --> 292 in 192 = 1.52  
 
-#define estimatedI2CReadTime_us (uint32_t)(200)
+#define estimatedI2CReadTime_us (uint32_t)(200) //694
 #define i2cClockSpeed 1000000
 #define i2cWaitout 1 //in ms
 #define mcpwm_lowSideGroupPrescaler 40
@@ -75,7 +75,7 @@ typedef struct{
 typedef struct{
     int oldSectorTarget = 0;
     int sectorTarget = 0; //for stator current vector
-    std::atomic<uint32_t> blockPeriod = 20000;
+    std::atomic<uint32_t> blockPeriod = 400; //6941
     std::atomic<uint32_t> tlog_readAS5600 = 0;
     std::atomic<bool> newVelPotValue = false;
     std::atomic<bool> setMotorFreeSpin = false;
@@ -110,11 +110,12 @@ extern adc_oneshot_unit_handle_t adcHandle;
 extern TaskHandle_t initializeI2CTask;
 
 extern  intr_handle_t oneBlockISR;
+inline mcpwm_timer_handle_t VTimer =NULL;
 
 inline TaskHandle_t setupTask= NULL;
 inline TaskHandle_t getSectorNumberTask= NULL;
 inline TaskHandle_t mathItOutTask= NULL;
-inline mcpwm_timer_handle_t VTimer =NULL;
+inline TaskHandle_t executeGatesTask= NULL;
 //====================FUNCTION DECLARATION =======================
 void readPotRepeat(void * parameter);
 uint32_t readPotOnce(bool filter, int averager);
@@ -124,6 +125,8 @@ void initialize(void *parameter);
 void tag(const char* tag);
 void tagFlag(bool start, int timer);
 void d_blockCycling(void * startTick5);
+
+#define ExecuteGate__FreeSpin_NotifVal 0x0000FFFF
 //
 #ifdef debug_hyperFastPrints
 volatile inline DRAM_ATTR const char* darray[10000];

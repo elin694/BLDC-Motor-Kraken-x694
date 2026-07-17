@@ -65,4 +65,4 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 
 #define time() esp_timer_get_time()
 #define time240() esp_cpu_get_cycle_count()
-#
+#define print(x) esp_rom_printf(x)
