@@ -67,7 +67,7 @@ const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
 };
 uint32_t compareValue = dutyCycle*.5*timerPeriod;
 //=======================================I2C=====================================
-#define as5600 0x36
+#define as5600Address 0x36
 constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
 inline uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 // #define fth_sf_set_mask (0b00000000 | 0b00000011) //.5 bit error at 11 =sf
@@ -90,18 +90,18 @@ i2c_master_bus_config_t master_config = {
         // .allow_pd =true
     }
 };
-i2c_master_bus_handle_t bus_handle;  
+i2c_master_bus_handle_t busHandle;  
 
-i2c_device_config_t dev_config = {
+i2c_device_config_t as5600Setup = {
     .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-    .device_address = as5600,   
+    .device_address = as5600Address,   
     .scl_speed_hz = 1000000,
     .scl_wait_us =10,
     .flags = {
         .disable_ack_check = false
     }
 };
-i2c_master_dev_handle_t dev_handle;
+i2c_master_dev_handle_t as5600Handle;
 
 constexpr uint8_t write_buffer = 0x0e;
 inline uint8_t read_buffer[2];

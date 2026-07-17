@@ -57,19 +57,26 @@ void setup(void * parameter){
         
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     synchronizedTime = xTaskGetTickCount();
+    int now1 = esp_timer_get_time();
     xTaskCreatePinnedToCore(read,"i2c reader",4000, &synchronizedTime, 15, &readTask, 1);
     xTaskCreatePinnedToCore(debug,"debug log",2000,&synchronizedTime, 6,&debugTask,0);
+
+    esp_intr_dump(stdout);
+   esp_timer_dump(stdout);
+   esp_err_t probeCheck = i2c_master_probe(busHandle, as5600Address, 1);
+   int now2 = esp_timer_get_time()-now1;
+   ESP_LOGI("init", "TaskCreation(us): %d, Probe Check %d", now2, probeCheck);
 
     vTaskDelete(NULL);
 }
 
 void as5600initialize(void * parameter) {
-    ESP_ERROR_CHECK(i2c_new_master_bus(&master_config, &bus_handle));
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+    ESP_ERROR_CHECK(i2c_new_master_bus(&master_config, &busHandle));
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
     
     int startWatch  =esp_timer_get_time();
     //read current settings
-    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev_handle, 
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
         fthRegister, //address to start on
         (size_t)1, //write 1 byte's woth from fthRegister
         fthRegisterData, //where to save the read data
@@ -79,9 +86,9 @@ void as5600initialize(void * parameter) {
     
     int lapWatch =esp_timer_get_time()-startWatch;
     fthRegister[1]= (fthRegisterData[0] & fth_sf_clear_mask) | fth_sf_set_mask; //rese
-    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev_handle, fthRegister, 2, fthRegisterData, 1, -1));
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 2, fthRegisterData, 1, -1));
     int lapWatch2 =esp_timer_get_time()-startWatch;
-    ESP_ERROR_CHECK(i2c_master_transmit_receive(dev_handle, fthRegister, 1, fthRegisterData, 1, -1));
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 1, fthRegisterData, 1, -1));
     int lapWatch3 =esp_timer_get_time()-startWatch;
     ESP_LOGI(magenta "CALIB", "\nas5600 Fast Fillter Threshold Set to %d\n1st REG read time:%4d \nSF-FTH write time:%4d REG_Check time:%4d ", 
         (int)fthRegisterData[0],
@@ -123,7 +130,7 @@ void read(void*parameter){
         file1 = file1 + ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1))-1;
         startTimer = esp_timer_get_time();
         counter++;
-        esp_err_t result = i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 1);
+        esp_err_t result = i2c_master_transmit_receive(as5600Handle, &write_buffer, 1, read_buffer, data_length, 1);
         uint32_t lap1 =esp_timer_get_time() -startTimer;
         if(result ==ESP_OK){
             angle = (( read_buffer[0] << 8) | read_buffer[1]);
