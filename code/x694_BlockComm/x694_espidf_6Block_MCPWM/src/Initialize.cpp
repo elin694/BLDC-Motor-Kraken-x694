@@ -41,7 +41,7 @@ void initialize(void * parameter){
 void pinSetup(){
    for(int i = 0; i<6; i++){
       gpio_reset_pin(gateArray[i]);
-      gpio_set_direction(gateArray[i], GPIO_MODE_INPUT_OUTPUT);
+      gpio_set_direction(gateArray[i], GPIO_MODE_OUTPUT);
       gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
       gpio_set_level(gateArray[i], 0);
    }
