@@ -21,35 +21,22 @@ esp_timer_create_args_t padTimerSetup ={
 
 TaskHandle_t readTask;
 void read(void*parameter){
-    // uint32_t pastAngle =0;
     uint32_t counter =0;
     uint32_t failCounter =0;
-    uint32_t printCounter=0;
 
-    uint32_t timer =0;
-    // bool timerFlag =false;
-    uint32_t i2cTransmitStatusCounter=0;
+    uint32_t startTimer =0;
     uint32_t file1 =0;
-    uint32_t folder1 = 0;
-std::atomic<bool> timerFlag =false;
     for(;;){
         // esp_timer_start_once(etimerHandle,250);
-        file1 += ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1));
-        folder1++;
-        timer = esp_cpu_get_cycle_count();
-        if((counter++ %256)==0){
-            timerFlag =true;//trouble
-        }
+        file1 = file1 + ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1))-1;
+        startTimer = esp_timer_get_time();
+        counter++;
         esp_err_t result = i2c_master_transmit_receive(dev_handle, &write_buffer, 1, read_buffer, data_length, 1);
-        uint32_t i2cReadDuration =esp_cpu_get_cycle_count() -timer;
-        // if(timerFlag.exchange(false, std::memory_order::relaxed)){
-        //     esp_rom_printf("us:%d\n",i2cReadDuration);
-        // }
+        uint32_t lap1 =esp_timer_get_time() -startTimer;
         if(result ==ESP_OK){
             angle = (( read_buffer[0] << 8) | read_buffer[1]);
-            if((printCounter++ %256)==0){
-                uint32_t totalmissedTimerInterruptHandoff = file1-folder1;
-                esp_rom_printf("Pos:%4d|T:%6d|F:%d,%d\n", angle, counter, failCounter, totalmissedTimerInterruptHandoff);
+            if((counter %1024)==0){
+                esp_rom_printf("Pos:%4d C:%6d F:%d t-time:%d FailedHandoffs:%3d\n", angle, counter, failCounter, lap1, file1);
             }
         }else{
             failCounter++;
@@ -71,7 +58,7 @@ void debug(void*parameter){
         esp_rom_printf("\n" white);
         esp_timer_dump(stdout);
         esp_rom_printf("\n" blue);
-       vTaskDelay(pdMS_TO_TICKS(2000));
+       vTaskDelay(pdMS_TO_TICKS(3000));
     }       
 }
 
@@ -121,11 +108,11 @@ mcpwm_generator_config_t genSetup = {
 mcpwm_gen_handle_t genHandle;
 
 void setupMCPWM(){
-    ets_delay_us(100);
+    ets_delay_us(20);
     groundSetup();
-    ESP_LOGE("DEBUG2easd", "period ticks %d", timerSetup.period_ticks);
-    ESP_LOGE("DEBUG2easd", "resol: %d", timerSetup.resolution_hz);
     ESP_LOGE("DEBUG", "cmpvalue: %d", compareValue);
+    ESP_LOGE("DEBUG", "period ticks %d", timerSetup.period_ticks);
+    ESP_LOGE("DEBUG", "timer resol: %d", timerSetup.resolution_hz);
     ESP_ERROR_CHECK(mcpwm_new_timer(&timerSetup, &timerHandle));
     // int g_prescale =100; //gives current toal rpescaler
     // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;

@@ -1,25 +1,21 @@
 #pragma once
-#define as5600Address 0x36
 #include "Globals.h"
 #include "driver/i2c_master.h"
-#define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
+#include "esp_intr_alloc.h"
 
+
+#define as5600Address 0x36
 void pinSetup();
 void initializeGPIO();
 
 void as5600initialize(void* parameter);
-void initializeInterruptEnablePin(); 
+void initializeInterruptEnablePin(void * startTick6); 
 void runOnESPTimerIntr(void * globe);
-void runOnMCPWMIntr(void *returnValue);
-void getSectorNumber(void *returnValue);
+bool runActualISR(void * data);
+
 void debugLog(void * parameter);
 
-void mathItOut(void *parameter);
-void setPosition(float targetPosition);
-void setVelocity(float targetVelocity);
-
-intr_handle_t oneBlockISR = NULL;
-
+void getSectorNumber(void *returnValue);
 inline DRAM_ATTR mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
 //+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++
 inline i2c_master_bus_config_t busSetup = { 
@@ -52,7 +48,11 @@ constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
 inline uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 #define as5600ReadSize  2
 
-#define fth_sf_set_mask (0b00000000 | 0b00000011) //.5 bit error at 11 =sf
+// #define fth_sf_set_mask (0b00000000 | 0b00000011) //.5 bit error at 11 =sf
+#define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
+#define fth_sf_clear_mask (0b11000000) // Bit pos 5 (0 index) Watchdog off - don't save power
+//The watchdog timer allows saving power by switching into LMP3 if the angle stays within the watchdog threshold of 4 LSB for at least one minute
+
 uint8_t fthRegisterData[1] = {0x00};
 uint8_t fthRegister[2] = {0x07, 0x00};
 //==================+++++++ADC AND MCPWM CLEAR REG

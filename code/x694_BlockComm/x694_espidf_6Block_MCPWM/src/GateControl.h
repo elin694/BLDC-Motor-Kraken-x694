@@ -39,11 +39,9 @@ void mcpwmSetup();
 void initializeHighGate( uint32_t comparatorOff_Duty);
 void initializeLowGate();
 void initializeTimer();
-void firstPreload(phaseMcpwm * motorHigh, phaseMcpwm  * motorLow);
 void initializeISR();
 bool VTimerCallback(mcpwm_timer_handle_t timer, const mcpwm_timer_event_data_t *edata, void *user_ctx);
-
-void preloadGates();
+void runOnMCPWMIntr(void *returnValue);
 void executeGates(bool freeSpin);
 
 #ifdef lastResort

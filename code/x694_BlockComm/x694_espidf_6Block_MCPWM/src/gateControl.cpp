@@ -1,5 +1,6 @@
 #include "GateControl.h"
 #include "GC.h"
+intr_handle_t oneBlockISR = NULL;
 
 void mcpwmSetup(){
     int tVal[3] ={0,0,0};
@@ -12,7 +13,7 @@ void mcpwmSetup(){
     initializeTimer();  //sets and starts B and L timer
     
     tVal[0] =MCPWM0.timer[0].timer_status.timer_value; //block
-    esp_rom_printf(red "VTIMER%d, (ot,nt): %d, %d \n", tVal[0], global.oldSectorTarget, global.sectorTarget);
+    esp_rom_printf(cyan "VTIMER%d\nOldSector: %d NewSector %d\n", tVal[0], global.oldSectorTarget, global.sectorTarget);
     ESP_LOGW("gcc"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
 }
 
@@ -47,11 +48,10 @@ void initializeLowGate(){
     ESP_ERROR_CHECK(mcpwm_new_soft_sync_src(&VTimerTriggerSetup, &VTimerTrigger));
     VTimerOnSync.sync_src = VTimerTrigger;    
     ESP_ERROR_CHECK(mcpwm_timer_set_phase_on_sync(VTimer, &VTimerOnSync));
-    ESP_LOGW("GC3", "=====Linked all Low timer Submodules===== ");
 }
 
 void initializeHighGate(uint32_t comparatorOff_Duty){
-    ESP_LOGE("CMP Value","%d ", comparatorOff_Duty);
+    ESP_LOGI("High Gate CMP Value","%d ", comparatorOff_Duty);
     for (int i = 0; i <3 ; i++){
         motorH[i] = {
             .timerConfig = phaseTimerSetupHigh,
@@ -90,6 +90,19 @@ void initializeHighGate(uint32_t comparatorOff_Duty){
     }
 }
   
+void initializeISR(){
+mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
+    MCPWMx->int_ena.val = 0x00000000;
+    MCPWMx->int_clr.val=  clearReg.val;
+    ESP_ERROR_CHECK(esp_intr_alloc(
+        ETS_PWM0_INTR_SOURCE,
+        runOnMCPWMIntrPriority | ESP_INTR_FLAG_IRAM,
+        runOnMCPWMIntr,
+        (void*)&global,
+        &oneBlockISR
+    ));
+}
+
 void initializeTimer(){
     for (int i= 0; i<3; i++){
         ESP_ERROR_CHECK(mcpwm_timer_enable(motorH[i].timer));
@@ -122,21 +135,18 @@ void tagFlag(bool start,int time){
     // int bp = global.blockPeriod;
     int currentTargetSector = global.sectorTarget;
     // bool readPotFlag = global.newVelPotValue.load(std::memory_order::relaxed);
-    bool finishedAs5600 = global.readAS5600.load(std::memory_order::relaxed); //core 1
     bool i2cfailed= global.setMotorFreeTemporarily.load(std::memory_order::relaxed);
     bool setMotorCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
     taskEXIT_CRITICAL(&stepPeriodMux);
      if(start){
         esp_rom_printf("<%d%d%d%d",
             // readPotFlag,
-            finishedAs5600,
             i2cfailed,
             setMotorCoast
         );
     }else {
         esp_rom_printf("^%d%d%d%d>%d\n",
             // readPotFlag,
-            finishedAs5600,
             i2cfailed,
             setMotorCoast,
             currentTargetSector
@@ -164,17 +174,6 @@ void IRAM_ATTR getTimerCountNow(const char* str){
     int vt1 = MCPWM0.timer[0].timer_status.timer_value;
     esp_rom_printf(magenta"%s V:%5d\n", str, vt1);
 }
-
-/*==============================================================================================*/
-// void IRAM_ATTR preloadGates(){ //part of GSN
-//     if(global.newVelPotValue.exchange(false,std::memory_order::relaxed)){
-//         uint32_t bp =global.blockPeriod.load(std::memory_order::relaxed);
-//         if( bp < minf_HTimerPeriod){ 
-//             tag("gsnTVf");               //set new block value on period ONLY WHEN POT HAS READ SMTH new, and updates period period on empty
-//             ESP_ERROR_CHECK(mcpwm_timer_set_period(VTimer, bp));   
-//         }
-//     }
-// }
 
 void IRAM_ATTR executeGates(bool freeSpin){
     if(freeSpin){

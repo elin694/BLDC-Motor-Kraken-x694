@@ -4,9 +4,9 @@
 //Ti sinusoidal : https://www.youtube.com/watch?v=-By_vt27Xhs&t=21s
 
 adc_oneshot_unit_handle_t adcHandle = NULL;
-uint32_t potBuffer[128];
 int rawData = 0;
-portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
+// portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
+#define espTimer_isMinutelyCheckup(x) ((x % 16) == 1)
 
 void debugLog(void * startTick2){
   // char buf[400];
@@ -32,7 +32,7 @@ void debugLog(void * startTick2){
     esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast,numGsnCycled);
     #endif
 
-    if((esp_timer_log_counter++%esp_timer_cycle )==0){
+    if(espTimer_isMinutelyCheckup(esp_timer_log_counter++)){
       esp_rom_printf("\n" blue); esp_timer_dump(stdout);
     }
   //   if((task_list_log_counter++%8 )==0){
@@ -47,6 +47,7 @@ void readPotRepeat(void * startTick3){
   xTaskDelayUntil(&startTick,initializationLatency);
   int history[4] = {-1,-1,-1,-1};
   uint32_t counterIndex= 0;
+
   for(;;){
     if(history[3] ==-1){
       history[counterIndex++%4] = readPotOnce(false,0);
@@ -63,40 +64,38 @@ void readPotRepeat(void * startTick3){
 
 
 /*https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=*/
-uint32_t vbPeriod_temp;
 uint32_t readPotOnce(bool filter, int averager){
+  uint32_t vbPeriod_temp;
+
   ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
   rawData = (rawData/2)*2;
   if(global.controlMethod == VELOCITY_CONTROL){
-    if(filter){
-      int processedData = (averager+rawData)/(4);
-      global.targetVelocity = (fMin+(fMax-fMin)*processedData/4096.0f);
-    }else{
-      float processedData= rawData/4096.0f;
-      global.targetVelocity = (fMin+(fMax-fMin)*processedData);
-    }
-    vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*electricalCycles));
+    int processedData = (filter) ? (averager+rawData)/(4) : rawData;
+    float localTargetVelocity = (fMin+(fMax-fMin)*processedData/4096.0f);
+    vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(localTargetVelocity*electricalCycles));
     
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-      int dirWaitingLine = (global.targetVelocity < 0) ? (5) : (2);
+      int dirWaitingLine = (localTargetVelocity < 0) ? (5) : (2);
       bool legal = vbPeriod_temp <= minf_HTimerPeriod;
+
       if(legal){
         taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
         global.setMotorFreeSpin.store(false);
         global.blockPeriod = vbPeriod_temp;
         global.dir = dirWaitingLine;
+        global.targetVelocity = localTargetVelocity;
         taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
-        tag("gsnTVf");               //set new block value on period ONLY WHEN POT HAS READ SMTH new, and updates period period on empty
         ESP_ERROR_CHECK(mcpwm_timer_set_period(VTimer, vbPeriod_temp));  
+        tag("newVel");               //set new block value on period ONLY WHEN POT HAS READ SMTH new, and updates period period on empty
       }else{
         taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
         global.setMotorFreeSpin.store(true); //spinlock
         global.blockPeriod  =minf_HTimerPeriod; //spinlock
         global.dir = dirWaitingLine;
+        global.targetVelocity = localTargetVelocity;
         taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
       }
-      // tag("Rp ");
-      //prints after reading a new pot value
+
     }
 
     }else if(global.controlMethod == TORQUE_CONTROL){
@@ -111,8 +110,8 @@ uint32_t readPotOnce(bool filter, int averager){
 
 extern "C"{
   void app_main(){
-    vTaskDelay(pdMS_TO_TICKS(10)); //To let gate driver setup
-    xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 12, &setupTask, 0); 
+    vTaskDelay(pdMS_TO_TICKS(100)); //To let gate driver setup
+    xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 20, &setupTask, 0); 
     ulTaskNotifyValueClear(setupTask, 0xffffffff);
     xTaskNotifyStateClear(setupTask);
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
