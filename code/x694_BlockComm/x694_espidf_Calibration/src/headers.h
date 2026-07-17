@@ -10,12 +10,15 @@
 #define estimatedI2CReadTime_us 200
 
 #define highSideGroup 1 
+#define lowSideGroup 0
 #define MCPWM_HighsideIntrPriority 1
+#define MCPWM_LowsideIntrPriority 1
 
 
 
 
-constexpr int id =  1;
+
+
 mcpwm_timer_config_t HTimerSetup = {
     .group_id = highSideGroup,
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
@@ -31,7 +34,7 @@ mcpwm_timer_config_t HTimerSetup = {
 }; 
 
 mcpwm_operator_config_t HOperatorSetup = {
-    .group_id = id,
+    .group_id = highSideGroup,
     // .intr_priority = 1,
     .flags = {
         .update_gen_action_on_tez = 1,
@@ -42,6 +45,19 @@ mcpwm_operator_config_t HOperatorSetup = {
         .update_dead_time_on_sync = 0,
     },
 };
+const mcpwm_operator_config_t LOperatorSetup = {
+    .group_id = lowSideGroup,
+    .intr_priority = MCPWM_LowsideIntrPriority,
+    .flags = {
+        .update_gen_action_on_tez = 0,
+        .update_gen_action_on_tep = 0,
+        .update_gen_action_on_sync= 1,
+        .update_dead_time_on_tez = 0,
+        .update_dead_time_on_tep = 0,
+        .update_dead_time_on_sync = 1,
+    },
+};
+
 
 inline mcpwm_comparator_config_t HComparatorSetup = {
     .intr_priority = MCPWM_HighsideIntrPriority,
@@ -73,8 +89,11 @@ typedef struct {
     //shoutout gemini for suggest changing countval
 } phaseMcpwm;
 phaseMcpwm motorH[3];
+phaseMcpwm motorL[3];
+
 
 #define isrTickDeadTime 0
+#define relativeDeadTime 5
 const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
     .posedge_delay_ticks = isrTickDeadTime,
     .negedge_delay_ticks = isrTickDeadTime,
@@ -82,7 +101,13 @@ const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
         // invert_output = 1;
     }
 };
-
+const mcpwm_dead_time_config_t lowGateDeadTimeSetup = {
+    .posedge_delay_ticks = isrTickDeadTime + relativeDeadTime,
+    .negedge_delay_ticks = isrTickDeadTime,
+    .flags = {
+        // invert_output = 1;
+    }
+};
 #define startingGateCmpValue (uint32_t)((1-startingDuty)*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 //=======================================I2C=====================================
 #define as5600Address 0x36
@@ -126,25 +151,27 @@ inline uint8_t read_buffer[2];
 #define data_length 2
 //=====================================ESP_TIMER==================================
 
-esp_timer_create_args_t etimerSetup ={
-    .callback = cbk,
-    .arg=NULL,
-    .dispatch_method = ESP_TIMER_ISR,
-    .name = "i2ctimer",
-    .skip_unhandled_events = true
-};
-
-esp_timer_create_args_t padTimerSetup ={
-    .callback = cbk,
-    .arg=NULL,
-    .dispatch_method = ESP_TIMER_ISR,
-    .name = "i2cPadTimer",
-    .skip_unhandled_events = true
-};
+BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
+BaseType_t xHigherPriorityTaskWoken2 = pdFALSE; 
+esp_timer_handle_t gsnTimerHandle;
+esp_timer_create_args_t gsnTimerSetup= {
+   .callback=runOnESPTimerIntr,
+   .arg =NULL,
+   .dispatch_method=ESP_TIMER_ISR,
+   .name= "i2ctimer",
+   .skip_unhandled_events = true
+   
+}; 
+// esp_timer_create_args_t padTimerSetup ={
+//     .callback = runOnESPTimerIntr,
+//     .arg=NULL,
+//     .dispatch_method = ESP_TIMER_ISR,
+//     .name = "i2cPadTimer",
+//     .skip_unhandled_events = true
+// };
 
 #define LATENCY pdMS_TO_TICKS(30)
 //=======================================HANDLES=====================================
-esp_timer_handle_t etimerHandle;
 esp_timer_handle_t padTimerHandle;
 
 TaskHandle_t initializeI2CTask;

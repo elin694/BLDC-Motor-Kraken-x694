@@ -9,7 +9,23 @@ void pinSetup(){
       gpio_set_direction(gateArray[i], GPIO_MODE_INPUT_OUTPUT);
       gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
       gpio_set_level(gateArray[i], 0);
-   }
+    }
+}
+
+void initializeLowGate(){
+    for (int i = 0; i <1; i++){
+        motorL[i] = { .opConfig = LOperatorSetup};
+        motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
+    }
+    motorL[0].pwmConfig.gen_gpio_num = phaseLowGate;
+    for (int i = 0; i <1; i++){
+        ESP_ERROR_CHECK(mcpwm_new_operator(&motorL[i].opConfig, &motorL[i].operatorModule));
+        ESP_ERROR_CHECK(mcpwm_new_generator(motorL[i].operatorModule, &motorL[i].pwmConfig, &motorL[i].pwmGate0));
+        ESP_ERROR_CHECK(mcpwm_generator_set_dead_time(motorL[i].pwmGate0, motorL[i].pwmGate0, &lowGateDeadTimeSetup));
+
+        // ESP_ERROR_CHECK(mcpwm_operator_connect_timer(motorL[i].operatorModule, globalLowTimer)); 
+        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
+    }
 }
 
 void initializeHighGate(uint32_t comparatorOff_Duty){
@@ -19,7 +35,7 @@ void initializeHighGate(uint32_t comparatorOff_Duty){
             .timerConfig = HTimerSetup,
             .opConfig = HOperatorSetup
         };
-        motorH[i].pwmConfig.gen_gpio_num = gateArray[2*i];
+        motorH[i].pwmConfig.gen_gpio_num = generatorGPIO;
         ESP_ERROR_CHECK(mcpwm_new_timer(&motorH[i].timerConfig, &motorH[i].timer));
         // int g_prescale =100; //gives current toal rpescaler
         // MCPWM0.clk_cfg.clk_prescale = g_prescale-1;
@@ -54,10 +70,12 @@ TickType_t synchronizedTime;
 void setup(void * parameter){
     ets_delay_us(100);
     pinSetup();
+    initializeLowGate();
     initializeHighGate(startingGateCmpValue);
     ESP_ERROR_CHECK(mcpwm_timer_enable(motorH[0].timer));
     xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
         
+    vTaskDelay(200);
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     synchronizedTime = xTaskGetTickCount();
     int now1 = esp_timer_get_time();
@@ -108,15 +126,17 @@ void debug(void*parameter){
     TickType_t st = *(TickType_t *)parameter;
     xTaskDelayUntil(&st,LATENCY);
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(motorH[0].timer, MCPWM_TIMER_START_NO_STOP));
+    // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[0].pwmGate0, 1, true));
+    gpio_set_level(phaseLowGate, 1);
     for(;;){
-        esp_rom_printf("\n" white);
-        esp_timer_dump(stdout);
-        esp_rom_printf("\n" blue);
+        // esp_rom_printf("\n" white);
+        // esp_timer_dump(stdout);
+        // esp_rom_printf("\n" blue);
         vTaskDelay(pdMS_TO_TICKS(3000));
     }       
 }
 
-void getSectorNumber(void*parameter){
+void getSectorNumber(void*parameter){//gsng
     TickType_t st = *(TickType_t *)parameter;
     uint32_t counter =0;
     uint32_t failCounter =0;
@@ -125,8 +145,8 @@ void getSectorNumber(void*parameter){
     uint32_t file1 =0;
     uint32_t angle = 0;
 
-    esp_timer_create(&etimerSetup, &etimerHandle);
-    esp_timer_start_periodic(etimerHandle, estimatedI2CReadTime_us);
+    esp_timer_create(&gsnTimerSetup, &gsnTimerHandle);
+    esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTime_us);
     xTaskDelayUntil(&st,LATENCY);
     for(;;){
         // esp_timer_start_once(etimerHandle,250);
@@ -135,21 +155,25 @@ void getSectorNumber(void*parameter){
         counter++;
         esp_err_t result = i2c_master_transmit_receive(as5600Handle, &write_buffer, 1, read_buffer, data_length, 1);
         uint32_t lap1 =esp_timer_get_time() -startTimer;
+        if((counter %1024)==0){
+            esp_rom_printf("lap%d | Pos:%4d C:%6d F:%d FailedHandoffs:%3d\n", lap1, angle, counter, failCounter, file1);
+        }
         if(result ==ESP_OK){
             angle = (( read_buffer[0] << 8) | read_buffer[1]);
-            if((counter %1024)==0){
-                esp_rom_printf("Pos:%4d C:%6d F:%d t-time:%d FailedHandoffs:%3d\n", angle, counter, failCounter, lap1, file1);
-            }
-        }else{
+        } else {
             failCounter++;
         }
-
+        // ESP_ERROR_CHECK(result);
+        
     }       
 }
 
-IRAM_ATTR void cbk(void * parameter){
-    vTaskNotifyGiveFromISR(getSectorNumberTask, &pxHigherPriorityTaskWoken);
-    esp_timer_isr_dispatch_need_yield();
+void IRAM_ATTR runOnESPTimerIntr(void * globe) {
+   vTaskNotifyGiveFromISR(getSectorNumberTask, &xHigherPriorityTaskWoken);
+   if(xHigherPriorityTaskWoken == pdTRUE){
+      xHigherPriorityTaskWoken =pdFALSE;
+      esp_timer_isr_dispatch_need_yield();
+   }
 }
 
 extern "C" {

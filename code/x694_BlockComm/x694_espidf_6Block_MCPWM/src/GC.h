@@ -62,6 +62,19 @@ const mcpwm_operator_config_t HOperatorSetup = {
         .update_dead_time_on_sync = 0,
     },
 };
+const mcpwm_operator_config_t LOperatorSetup = {
+    .group_id = lowSideGroup,
+    .intr_priority = MCPWM_LowsideIntrPriority,
+    .flags = {
+        .update_gen_action_on_tez = 0,
+        .update_gen_action_on_tep = 0,
+        .update_gen_action_on_sync= 1,
+        .update_dead_time_on_tez = 0,
+        .update_dead_time_on_tep = 0,
+        .update_dead_time_on_sync = 1,
+    },
+};
+
 
 const mcpwm_dead_time_config_t lowGateDeadTimeSetup = {
     .posedge_delay_ticks = isrTickDeadTime + relativeDeadTime,
@@ -70,7 +83,7 @@ const mcpwm_dead_time_config_t lowGateDeadTimeSetup = {
         // invert_output = 1;
     }
 };
-const mcpwm_operator_config_t operatorSetupLow = {
+const mcpwm_operator_config_t LOperatorSetup = {
     .group_id = lowSideGroup,
     .intr_priority = MCPWM_LowsideIntrPriority,
     .flags = {

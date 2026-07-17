@@ -27,7 +27,7 @@ void setCountValueAndPeriod(){
 
 void initializeLowGate(){
     for (int i = 0; i <3; i++){
-        motorL[i] = { .opConfig = operatorSetupLow};
+        motorL[i] = { .opConfig = LOperatorSetup};
         motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
     }
     VTimerSetup.resolution_hz = VTimerResolution;
