@@ -4,29 +4,38 @@
 BaseType_t pxHigherPriorityTaskWoken =pdFALSE;
 
 void pinSetup(){
-   for(int i = 0; i<6; i++){
-      gpio_reset_pin(gateArray[i]);
-      gpio_set_direction(gateArray[i], GPIO_MODE_OUTPUT);
-      gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
-      gpio_set_level(gateArray[i], 0);
-    }
+//    for(int i = 0; i<6; i++){
+//       gpio_reset_pin(gateArray[i]);
+//       gpio_set_direction(gateArray[i], GPIO_MODE_OUTPUT);
+//       gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
+//       gpio_set_level(gateArray[i], 0);
+//     }
+    for(gpio_num_t gate : gateArray){
+      gpio_reset_pin(gate);
+      gpio_set_direction(gate,GPIO_MODE_OUTPUT);
+      gpio_set_pull_mode(gate, GPIO_PULLDOWN_ONLY);
+      gpio_set_level(gate, 0);
+   }
+    gpio_reset_pin(phaseLowGate);
+    gpio_set_direction(static_cast<gpio_num_t>(phaseLowGate),GPIO_MODE_OUTPUT);
+    gpio_set_level(phaseLowGate, 1);
 }
 
-void initializeLowGate(){
-    for (int i = 0; i <1; i++){
-        motorL[i] = { .opConfig = LOperatorSetup};
-        motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
-    }
-    motorL[0].pwmConfig.gen_gpio_num = phaseLowGate;
-    for (int i = 0; i <1; i++){
-        ESP_ERROR_CHECK(mcpwm_new_operator(&motorL[i].opConfig, &motorL[i].operatorModule));
-        ESP_ERROR_CHECK(mcpwm_new_generator(motorL[i].operatorModule, &motorL[i].pwmConfig, &motorL[i].pwmGate0));
-        ESP_ERROR_CHECK(mcpwm_generator_set_dead_time(motorL[i].pwmGate0, motorL[i].pwmGate0, &lowGateDeadTimeSetup));
+// void initializeLowGate(){
+//     for (int i = 0; i <1; i++){
+//         motorL[i] = { .opConfig = LOperatorSetup};
+//         motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
+//     }
+//     motorL[0].pwmConfig.gen_gpio_num = phaseLowGate;
+//     for (int i = 0; i <1; i++){
+//         ESP_ERROR_CHECK(mcpwm_new_operator(&motorL[i].opConfig, &motorL[i].operatorModule));
+//         ESP_ERROR_CHECK(mcpwm_new_generator(motorL[i].operatorModule, &motorL[i].pwmConfig, &motorL[i].pwmGate0));
+//         ESP_ERROR_CHECK(mcpwm_generator_set_dead_time(motorL[i].pwmGate0, motorL[i].pwmGate0, &lowGateDeadTimeSetup));
 
-        // ESP_ERROR_CHECK(mcpwm_operator_connect_timer(motorL[i].operatorModule, globalLowTimer)); 
-        ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
-    }
-}
+//         // ESP_ERROR_CHECK(mcpwm_operator_connect_timer(motorL[i].operatorModule, globalLowTimer)); 
+//         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
+//     }
+// }
 
 void initializeHighGate(uint32_t comparatorOff_Duty){
     ESP_LOGI("High Gate CMP Value","%d ", comparatorOff_Duty);
@@ -70,7 +79,7 @@ TickType_t synchronizedTime;
 void setup(void * parameter){
     ets_delay_us(100);
     pinSetup();
-    initializeLowGate();
+    // initializeLowGate();
     initializeHighGate(startingGateCmpValue);
     ESP_ERROR_CHECK(mcpwm_timer_enable(motorH[0].timer));
     xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
