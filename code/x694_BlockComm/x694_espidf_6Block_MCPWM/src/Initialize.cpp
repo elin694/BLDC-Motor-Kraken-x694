@@ -4,7 +4,6 @@
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
 BaseType_t xHigherPriorityTaskWoken2 = pdFALSE; 
 TickType_t synchronizedTime;
-// UBaseType_t thisTaskPriority;
 TaskHandle_t initializeI2CTask= NULL;
 void initialize(void * parameter){   
    pinSetup();
@@ -27,7 +26,7 @@ void initialize(void * parameter){
    int now1 = esp_timer_get_time();
    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &synchronizedTime,  15, &getSectorNumberTask, 1);
    xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &synchronizedTime, 3, NULL, 0);
-   // xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0);
    xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &synchronizedTime, 6, NULL, 0);
    esp_intr_dump(stdout);
    esp_timer_dump(stdout);
@@ -92,7 +91,7 @@ bool runActualISR(void * data){
    // tag(cyan "V");
    int timeNow = esp_timer_get_time();
    if((timeNow - masterVar->tlog_readAS5600.load()) < ACCEPTABLE_I2C_READ_WINDOW ){
-      // tag(cyan "V");
+      tag(cyan "V");
       //if global.readA S5600==false, the read is taking too long, so might as well let motor coast
       /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
       if(oneTimeFlag.fetch_add(1,std::memory_order::relaxed) <240000){

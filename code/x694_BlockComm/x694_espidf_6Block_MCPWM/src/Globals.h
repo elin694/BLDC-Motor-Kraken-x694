@@ -9,24 +9,24 @@
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 
-#define startingDuty (0.6) //, normally .8
+#define startingDuty (0.85) //, normally .8
 #define cBufSize 8
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(30)
 /*=============================USER SETTING CONTROL PANEL=============================*/
-//.03 ->56 in 612 =.0915
+//.03 ->56 in 612 =.0915 
 //.6-->189 in 114s = 1.658
 //.9 --> 292 in 192 = 1.52  
 
 #define estimatedI2CReadTime_us (uint32_t)(200) //694
-#define i2cClockSpeed 1000000
+#define i2cClockSpeed 1250000
 #define i2cWaitout 1 //in ms
 #define mcpwm_lowSideGroupPrescaler 40
 #define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) //125ns , must not simple ratio
 #define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
 /*minimum and maximum RPS */
-#define maxf_HTimerPeriod (1111/2) //200--> 111.11rps, 1111-->20rps
+#define maxf_HTimerPeriod (1111/3) //200--> 111.11rps, 1111-->20rps
 #define minf_HTimerPeriod (uint32_t)(65535/2)
 // #define fMin (float)(VTimerResolution/(18.0f*minf_HTimerPeriod))
 #define fMin (float)(VTimerResolution/(18.0f*-maxf_HTimerPeriod))

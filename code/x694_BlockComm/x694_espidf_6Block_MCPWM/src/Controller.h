@@ -1,5 +1,3 @@
-// #define lastResort
-
 constexpr float kPID[3][3] = {
     { 1, 1, 1 }, /*Position*/
     { 1.1, 0,0 }, /*Velocity {kp, ki, kd}*/

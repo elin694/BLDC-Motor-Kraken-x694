@@ -7,8 +7,8 @@ adc_oneshot_unit_handle_t adcHandle = NULL;
 int rawData = 0;
 // portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
-#define esp_timer_cycle 32
-#define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 0)
+#define esp_timer_cycle 16
+#define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 15)
 
 void debugMonitor(void * startTick2){
   char buf[600];
