@@ -5,63 +5,58 @@
 
 adc_oneshot_unit_handle_t adcHandle = NULL;
 int rawData = 0;
-// portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
 #define esp_timer_cycle 16
 #define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 15)
 
-void debugMonitor(void * startTick2){
+void debugMonitor (void * startTick2) {
   char buf[600];
   // uint32_t task_list_log_counter = 0;
-  TickType_t startTick = *(TickType_t*)startTick2;
+  TickType_t startTick = *(TickType_t*) startTick2;
   uint32_t esp_timer_log_counter = 0;
   TickType_t loopStartTick ;
+  ESP_LOGI("Main.cpp", "EspTimer log period:%d ms!", esp_timer_cycle * velPotReadPeriod * 40);
 
-  ESP_LOGI("Main.cpp","EspTimer log period:%d ms!",esp_timer_cycle*velPotReadPeriod*40);
   xTaskDelayUntil(&startTick,initializationLatency);
-  ESP_LOGI("main.cpp","GOOO!\n\n");
+  ESP_LOGI("main.cpp", "GOOO!\n\n");
   for(;;){
-    loopStartTick =xTaskGetTickCount();
-    xTaskDelayUntil(&loopStartTick,pdMS_TO_TICKS(velPotReadPeriod*40)); 
+    loopStartTick = xTaskGetTickCount();
+    xTaskDelayUntil(&loopStartTick, pdMS_TO_TICKS(velPotReadPeriod * 40)); 
 
-    #ifdef debug_printRPS
+    //read RPS
     taskENTER_CRITICAL(&stepPeriodMux);
     int gp = global.blockPeriod;
     int tempCoast = global.setMotorFreeTemporarily.load(std::memory_order::relaxed);
     int stateIsCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
     taskEXIT_CRITICAL(&stepPeriodMux);
-     int numGsnCycled=isr2i.load(std::memory_order::relaxed);
+     int numGsnCycled = isr2i.load(std::memory_order::relaxed);
     esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast,numGsnCycled);
-    #endif
 
-    // if(espTimer_isMinutelyCheckup(esp_timer_log_counter++)){
-    //   ESP_LOGI("\n", blue); esp_timer_dump(stdout);
-    //   esp_rom_printf("\n\n");
-    //   vTaskGetRunTimeStats(buf);
-    //   esp_rom_printf(buf);
-    // }
-  //   if((task_list_log_counter++%8 )==0){
-  //     vTaskList(buf); ESP_LOGI(" ","\n%s",buf);
-  //   }
-
+    if(espTimer_isMinutelyCheckup(esp_timer_log_counter++)){
+      ESP_LOGI("\n", blue); esp_timer_dump(stdout);
+      esp_rom_printf("\n\n");
+      vTaskGetRunTimeStats(buf);
+      esp_rom_printf(buf);
+    }
   }
 }
 
-void readPotRepeat(void * startTick3){
+void readPotRepeat (void * startTick3) {
   TickType_t startTick = *(TickType_t*)startTick3;
-  xTaskDelayUntil(&startTick,initializationLatency);
-  int history[4] = {-1,-1,-1,-1};
+  #define adcReadBufferSize 4
+  int history[adcReadBufferSize] = {-1,-1,-1,-1};
   uint32_t counterIndex= 0;
 
+  xTaskDelayUntil(&startTick,initializationLatency);
   for(;;){
-    if(history[3] ==-1){
-      history[counterIndex++%4] = readPotOnce(false,0);
+    if(history[adcReadBufferSize-1] ==-1){
+      history[counterIndex++ % adcReadBufferSize] = readPotOnce(false, 0);
     }else{
       int sum=0;
-      for(int i =-1; i>-4;i--){
-        sum+=history[(counterIndex+i)%4];
+      for(int i = -1; i > (-adcReadBufferSize); i--){
+        sum+=history[(counterIndex + i) % adcReadBufferSize];
       }
-      history[counterIndex++%4] = readPotOnce(true,sum);
+      history[counterIndex++ % adcReadBufferSize] = readPotOnce(true, sum);
     }
     vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod));  
   }
@@ -69,17 +64,18 @@ void readPotRepeat(void * startTick3){
 
 
 /*https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=*/
-uint32_t readPotOnce(bool filter, int averager){
+uint32_t readPotOnce (bool filter, int averager) {
   uint32_t vbPeriod_temp;
 
   ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
   rawData = (rawData/2)*2;
   if(global.controlMethod == VELOCITY_CONTROL){
-    int processedData = (filter) ? (averager+rawData)/(4) : rawData;
-    float localTargetVelocity = (fMin+(fMax-fMin)*processedData/4096.0f);
-    vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(localTargetVelocity*electricalCycles));
+    int processedData = (filter) ? ((averager + rawData) / (4)) : rawData;
+    float localTargetVelocity = (fMin + (((fMax - fMin)/4096.0f) * processedData));
+    vbPeriod_temp= (uint32_t)((VTimerResolution / electricalCycles) / fabsf(localTargetVelocity));
     
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+      ESP_LOGW(yellow, "Tvel:%5.2f per.:%d ft:%d Avgr:%4d", localTargetVelocity, vbPeriod_temp, filter, averager);
       int dirWaitingLine = (localTargetVelocity < 0) ? (5) : (2);
       bool legal = vbPeriod_temp <= minf_HTimerPeriod;
 
@@ -104,11 +100,11 @@ uint32_t readPotOnce(bool filter, int averager){
     }
 
     }else if(global.controlMethod == TORQUE_CONTROL){
-      global.targetAcceleration = (aMin+(aMax-aMin)*(float)rawData/4096);
+      global.targetAcceleration = (aMin + ((aMax - aMin) / 4096.0f) * rawData);
       /*conside case from motor stall - to fMIn*/
 
     }else if(global.controlMethod == POSITION_CONTROL){
-      global.targetPosition = (pMin+(pMax-pMin)*(float)rawData/4096);
+      global.targetPosition = (pMin + ((pMax - pMin) / 4096.0f) * rawData);
     }
     return rawData;
 }
@@ -127,8 +123,7 @@ extern "C"{
     // vTaskDelay(pdMS_TO_TICKS(100)); //To let gate driver setup
     esp_rom_delay_us(100);
     xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 20, &setupTask, 0); 
-    ulTaskNotifyValueClear(setupTask, 0xffffffff);
-    xTaskNotifyStateClear(setupTask);
+    CLEAR_ALL_NOTIFS(setupTask);
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
   }
 }

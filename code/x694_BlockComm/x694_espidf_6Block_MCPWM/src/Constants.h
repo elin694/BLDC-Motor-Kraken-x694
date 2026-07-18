@@ -1,5 +1,4 @@
 #pragma once
-
 #include <stdio.h>
 #include <cmath> 
 #include "freertos/FreeRTOS.h"
@@ -19,7 +18,13 @@
 #include <atomic>
 #include "ANSI_escape_sequences.h"
 
-#define MCPWMx ((mcpwm_dev_t * )&MCPWM0)
+
+#define estimatedI2CReadTime_us (uint32_t)(200) //694
+#define i2cClockSpeed 1250000
+#define i2cWaitout 1 //in ms
+#define mcpwm_lowSideGroupPrescaler 40
+#define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) //125ns , must not simple ratio
+#define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
 
 // constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
 // constexpr int activeLowGate[6]= {0,0,1,1,2,2}; //given index of current sector, tells which phase is high
@@ -32,17 +37,17 @@ DRAM_ATTR constexpr int gateLevelCycle[6][6] = { //ah al bh bl ch cl
     {1, 0, 0, 0, 0, 1},
     {0, 0, 1, 0, 0, 1}
 };
-
+#define MCPWMx ((mcpwm_dev_t * ) &MCPWM0)
 #define electricalCycles 18 //constexpr is defineable compile time costant 
-#define SECTOR_PER_BITS (float)(electricalCycles/4096.0f)
+#define SECTOR_PER_BITS (float)(electricalCycles / 4096.0f)
 #define as5600CalibrationRawValue (1916) //38 not 37 because +0.5 and trucnate = round up,30degrees to sector_per_bits is only .5, not 1.
-#define as5600CalibratedOffset (int)((4096.0)*(38.0/36.0) - (4096-as5600CalibrationRawValue) )  
+#define as5600CalibratedOffset (int)((4096.0) * (38.0 / 36.0) - (4096 - as5600CalibrationRawValue) )  
 //top view of physical motor has ABC going ccw, [-30 degrees, 30 degrees) = block 0
 //((4096-global.rotorVal)+(int)((4096.0)*(38.0/36.0) - (4096-(3388)) )) ==> (4096/18+3388-val)*18/4096==>>(7711.5-v)*0.00439453
 #ifdef as5600DirPinHigh //When motor is running controller code
-#define getRotorValAdjusted(x) (as5600CalibratedOffset+x)*SECTOR_PER_BITS
+#define getRotorValAdjusted(x) (as5600CalibratedOffset + x) * SECTOR_PER_BITS
 #else
-#define getRotorValAdjusted(x) ((4096-x)+as5600CalibratedOffset)*SECTOR_PER_BITS
+#define getRotorValAdjusted(x) ((4096 - x) + as5600CalibratedOffset) * SECTOR_PER_BITS
 #endif
 
 DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "}; //[-30,30) = block 0
@@ -63,6 +68,75 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 #define potL 34
 #define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
 
-#define time() esp_timer_get_time()
+#define SNAP() esp_timer_get_time()
 #define time240() esp_cpu_get_cycle_count()
 #define print(x) esp_rom_printf(x)
+#define CLEAR_ALL_NOTIFS(x) (ulTaskNotifyValueClear(x, 0xffffffff) ||  xTaskNotifyStateClear(x) )
+
+/* //tracking all interstate variables
+tag - darray [dindex #W]  #W
+    int oldSectorTarget = 0;
+    int sectorTarget = 0; //for stator current vector
+    std::atomic<uint32_t> blockPeriod = 10000.0; //6941
+    std::atomic<uint32_t> tlog_readAS5600 = 0;
+    std::atomic<bool> setMotorFreeSpin = false;
+    std::atomic<bool> setMotorFreeTemporarily = false;
+    int dir = 5; 
+    control_type controlMethod = VELOCITY_CONTROL;
+    int rotorVal =0; //needs to inversted
+    float targetPosition =0; //target Position in bits
+    float targetVelocity =0; //target RPS
+    float targetAcceleration =0; //target RPS
+
+runOnESPTimerIntr( ) --> getSectorNumberTask(
+    --------------READ ONLY (CORE ONE)--------------
+    global.dir #R
+    --------------WRITE (CORE ONE)--------------
+    as5600RawDataBuf #WR ++
+    isr2i, #W ++
+    
+    global.oldSectorTarget #W
+    global.sectorTarget #WR
+    global.tlog_readAS5600 #W
+    global.setMotorFreeTemporarily #W
+    global.rotorVal #W
+)
+
+VTIMER TEZ --> VTimerCallback/runOnMCPWMIntr(tempStatusReg #WR) --> runActualISR( 
+--------------READ ONLY--------------
+    global.tlog_readAs5600, #R
+)--> executeGatesTask(
+    --------------READ ONLY--------------
+    
+    global.sectorTarget #R
+    global.setMotorFreeSpin, #R
+    global.setMotorFreeTemporarily, #R
+)
+//===============LOOPED TASKS===========================
+debugMonitor(
+--------------READ ONLY--------------
+    isr2i ++
+    rawData
+
+    global.rotorVal
+    global.blockPeriod
+    global.setMotorFreeSpin
+    global.setMotorFreeTemporarily
+    global.targetVelocity
+) #R 
+
+readPotRepeat(
+    --------------READ ONLY--------------
+    global.controlMethod, #R
+    --------------WRITE--------------
+    rawData, #WR
+
+    global.blockPeriod #WR
+    global.setMotorFreeSpin #W
+    global.dir #W
+    global.targetVelocity #W
+    global.targetAcceleration #W
+    global.targetPosition #W
+    
+)
+*/

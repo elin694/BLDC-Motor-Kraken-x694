@@ -2,47 +2,20 @@
 #include "Constants.h"
 /*=============================DEBUG CONTROL PANEL=============================*/
 #define lastResort
-#define debug_printRPS 
+// #define debug_i2cTransmitTime 
+
 // #define debug_fastPrints //isr indicator and BLOCK#
-#define debug_i2cTransmitTime 
 // #define debug_hyperFastPrints
-#define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
+// #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 
 #define startingDuty (0.85) //, normally .8
 #define cBufSize 8
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(30)
-/*=============================USER SETTING CONTROL PANEL=============================*/
-//.03 ->56 in 612 =.0915 
-//.6-->189 in 114s = 1.658
-//.9 --> 292 in 192 = 1.52  
-
-#define estimatedI2CReadTime_us (uint32_t)(200) //694
-#define i2cClockSpeed 1250000
-#define i2cWaitout 1 //in ms
-#define mcpwm_lowSideGroupPrescaler 40
-#define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) //125ns , must not simple ratio
-#define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) //125ns , must not simple ratio
-
-/*minimum and maximum RPS */
-#define maxf_HTimerPeriod (1111/3) //200--> 111.11rps, 1111-->20rps
-#define minf_HTimerPeriod (uint32_t)(65535/2)
-// #define fMin (float)(VTimerResolution/(18.0f*minf_HTimerPeriod))
-#define fMin (float)(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
-#define fMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
-
-#define aMin (float)(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
-#define aMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
-
-#define pMin (float)(0)
-#define pMax (float)(3*3.141592653/2)
-
-
-inline DRAM_ATTR volatile std::atomic<uint32_t> isr2i =0;
 //============================= INTERRUPT PRIORITY=============================
 #define MCPWM_HighsideIntrPriority 1 //tep,tez
-#define MCPWM_LowsideIntrPriority 1 //tep,tez
+#define MCPWM_LowsideIntrPriority 2 //tep,tez
 #define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
 #define i2c_intrPriority 3
 /*esp timer intr : 1-3, (2)
@@ -57,9 +30,22 @@ watchdog and sys checks :4 or 5 */
 // #warning "DUTY out of bounds!!!!!!!!!!!!!!!!!!!!!!!!!"
 // #endif
 
-#define maxRPS 30
-#define minRPS 1
+/*=============================USER INPUT BOUNDS=============================*/
+/*minimum and maximum RPS */
+#define maxRPS (50)
+#define maxf_HTimerPeriod (VTimerResolution/(maxRPS*18)) //200--> 111.11rps, 1111-->20rps
+#define minf_HTimerPeriod (uint32_t)(65535/2)
+// #define fMin (float)(VTimerResolution/(18.0f*minf_HTimerPeriod))
+#define fMin (float)(VTimerResolution/(-18.0f*maxf_HTimerPeriod))
+#define fMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
 
+#define aMin (float)(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
+#define aMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
+
+#define pMin (float)(0)
+#define pMax (float)(3*3.141592653/2)
+
+inline DRAM_ATTR volatile std::atomic<uint32_t> isr2i =0;
 //+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
 typedef enum {
     POSITION_CONTROL,
@@ -77,10 +63,9 @@ typedef struct{
     int sectorTarget = 0; //for stator current vector
     std::atomic<uint32_t> blockPeriod = 10000.0; //6941
     std::atomic<uint32_t> tlog_readAS5600 = 0;
-    std::atomic<bool> newVelPotValue = false;
     std::atomic<bool> setMotorFreeSpin = false;
     std::atomic<bool> setMotorFreeTemporarily = false;
-    
+    int dir = 5; // 5=cw (-), 2 for ccw(+) (2 for half working AS5600)
     control_type controlMethod = VELOCITY_CONTROL;
     /*PID variables*/
     int rotorVal =0; //needs to inversted
@@ -89,7 +74,7 @@ typedef struct{
     float targetAcceleration =0; //target RPS
 
     uint32_t measuredPos[cBufSize]; //recent values at the front
-    float measuredVel[cBufSize];
+    float measuredVel[cBufSize]; //bits/s
     float measuredAccel[cBufSize];
     std::atomic <uint32_t> pindex= 0;
     std::atomic <uint32_t> vindex= 0;
@@ -100,7 +85,6 @@ typedef struct{
     //Velocity pid
     float lastVelError = 0; //dv/dt
     float totalVelChange = 0; //∫a(t)dt, area
-    int dir = 5; // 5=cw (-), 2 for ccw(+) (2 for half working AS5600)
 } gVar_t;
 volatile DRAM_ATTR inline gVar_t global;
 inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
@@ -119,14 +103,13 @@ inline TaskHandle_t executeGatesTask= NULL;
 //====================FUNCTION DECLARATION =======================
 void readPotRepeat(void * parameter);
 uint32_t readPotOnce(bool filter, int averager);
-void getTimerCountNow(const char* str);
 void spamSearchCV(void *parameter);
 void initialize(void *parameter);      
 void tag(const char* tag);
 void tagFlag(bool start, int timer);
 void d_blockCycling(void * startTick5);
 
-#define ExecuteGate__FreeSpin_NotifVal 0x0000FFFF
+#define ExecuteGate_FreeSpin_NotifVal 0x0000FFFF
 //
 #ifdef debug_hyperFastPrints
 volatile inline DRAM_ATTR const char* darray[10000];

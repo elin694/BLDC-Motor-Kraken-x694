@@ -44,8 +44,8 @@ inline i2c_master_dev_handle_t as5600Handle;
 
 constexpr DRAM_ATTR uint8_t as5600Set = 0x36;
 constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
+inline DRAM_ATTR uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 #define as5600WriteSize 1
-inline uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 #define as5600ReadSize  2
 
 // #define fth_sf_set_mask (0b00000000 | 0b00000011) //.5 bit error at 11 =sf

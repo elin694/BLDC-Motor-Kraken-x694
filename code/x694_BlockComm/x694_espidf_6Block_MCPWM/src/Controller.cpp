@@ -2,6 +2,7 @@
 // #include "Controller.h"
 
 // void mathItOut(void * startTick4){ //updates arrrays with new ifo
+//    CLEAR_ALL_NOTIFS(NULL);
 //    TickType_t startTick = *(TickType_t*)startTick4;
 //    float dt  = estimatedI2CReadTime_us;
    
