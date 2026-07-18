@@ -6,8 +6,8 @@
 adc_oneshot_unit_handle_t adcHandle = NULL;
 int rawData = 0;
 
-#define esp_timer_cycle 16
-#define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 15)
+#define esp_timer_dump_cycle 8
+#define espTimer_isMinutelyCheckup(x) ((x % esp_timer_dump_cycle ) == (esp_timer_dump_cycle - 1))
 
 void debugMonitor (void * startTick2) {
   char buf[600];
@@ -15,7 +15,7 @@ void debugMonitor (void * startTick2) {
   TickType_t startTick = *(TickType_t*) startTick2;
   uint32_t esp_timer_log_counter = 0;
   TickType_t loopStartTick ;
-  ESP_LOGI("Main.cpp", "EspTimer log period:%d ms!", esp_timer_cycle * velPotReadPeriod * 40);
+  ESP_LOGI("Main.cpp", "EspTimer log period:%d ms!", esp_timer_dump_cycle * velPotReadPeriod * 40);
 
   xTaskDelayUntil(&startTick,initializationLatency);
   ESP_LOGI("main.cpp", "GOOO!\n\n");
@@ -46,7 +46,7 @@ void readPotRepeat (void * startTick3) {
   int history[adcReadBufferSize] = {-1,-1,-1,-1};
   uint32_t counterIndex= 0;
 
-  xTaskDelayUntil(&startTick,initializationLatency);
+  xTaskDelayUntil(&startTick, initializationLatency);
   for(;;){
     if(history[adcReadBufferSize-1] ==-1){
       history[counterIndex++ % adcReadBufferSize] = readPotOnce(false, 0);
@@ -70,13 +70,13 @@ uint32_t readPotOnce (bool filter, int averager) {
   rawData = (rawData/2)*2;
   if(global.controlMethod == VELOCITY_CONTROL){
     int processedData = (filter) ? ((averager + rawData) / (4)) : rawData;
-    float localTargetVelocity = (fMin + (((fMax - fMin)/4096.0f) * processedData));
-    vbPeriod_temp= (uint32_t)((VTimerResolution / electricalCycles) / fabsf(localTargetVelocity));
+    float localTargetVelocity = (SL_MIN_VELOCITY + (((SL_MAX_VELOCITY - SL_MIN_VELOCITY)/4096.0f) * processedData));
+    vbPeriod_temp= (uint32_t)(VTICKSF_PER_BLOCK / fabsf(localTargetVelocity));
     
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
       ESP_LOGW(yellow, "Tvel:%5.2f per.:%d ft:%d Avgr:%4d", localTargetVelocity, vbPeriod_temp, filter, averager);
       int dirWaitingLine = (localTargetVelocity < 0) ? (5) : (2);
-      bool legal = vbPeriod_temp <= minf_HTimerPeriod;
+      bool legal = vbPeriod_temp <= SL_MIN_VELOCITY_PERIOD_TICKS;
 
       if(legal){
         taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
@@ -90,7 +90,7 @@ uint32_t readPotOnce (bool filter, int averager) {
       }else{
         taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
         global.setMotorFreeSpin.store(true); //spinlock
-        global.blockPeriod  =minf_HTimerPeriod; //spinlock
+        global.blockPeriod  =SL_MIN_VELOCITY_PERIOD_TICKS; //spinlock
         global.dir = dirWaitingLine;
         global.targetVelocity = localTargetVelocity;
         taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
@@ -99,11 +99,11 @@ uint32_t readPotOnce (bool filter, int averager) {
     }
 
     }else if(global.controlMethod == TORQUE_CONTROL){
-      global.targetAcceleration = (aMin + ((aMax - aMin) / 4096.0f) * rawData);
-      /*conside case from motor stall - to fMIn*/
+      global.targetAcceleration = (SL_MIN_TORQUE + ((SL_MAX_TORQUE - SL_MIN_TORQUE) / 4096.0f) * rawData);
+      /*conside case from motor stall - to SL_MIN_VELOCITY*/
 
     }else if(global.controlMethod == POSITION_CONTROL){
-      global.targetPosition = (pMin + ((pMax - pMin) / 4096.0f) * rawData);
+      global.targetPosition = (TARGET_POSITION_LB + ((TARGET_POSITION_UB - TARGET_POSITION_LB) / 4096.0f) * rawData);
     }
     return rawData;
 }
@@ -120,6 +120,40 @@ extern "C"{
     // ESP_LOGI("\n YEEEE","\n %d,  %d\n",(int)t1,t2);
     // vTaskDelay(10000000);
     // vTaskDelay(pdMS_TO_TICKS(100)); //To let gate driver setup
+
+    static_assert( ( MOTOR_SPEC_MIN_VELOCITY <= SL_MAX_VELOCITY) && (SL_MAX_VELOCITY <= MOTOR_SPEC_MAX_VELOCITY) );
+    static_assert( ( MOTOR_SPEC_MIN_TORQUE <= SL_MAX_TORQUE) && (SL_MAX_TORQUE <= MOTOR_SPEC_MAX_TORQUE) );
+    #ifdef debug_defCheck1
+    static_assert(MOTOR_SPEC_MAX_VELOCITY >= 0xFFFFFFFE);
+    static_assert(MOTOR_SPEC_MIN_VELOCITY >= 0xFFFFFFFE);
+    static_assert(MOTOR_SPEC_MAX_TORQUE >= 0xFFFFFFFE);
+    static_assert(MOTOR_SPEC_MIN_TORQUE >= 0xFFFFFFFE);
+    #endif
+    #ifdef debug_defCheck2
+    static_assert(SL_MAX_VELOCITY >= 0xFFFFFFFE);
+    static_assert(SL_MIN_VELOCITY >= 0xFFFFFFFE);
+    static_assert(SL_MAX_TORQUE >= 0xFFFFFFFE);
+    static_assert(SL_MIN_TORQUE >= 0xFFFFFFFE);
+    #endif
+    #ifdef debug_defCheck3
+    static_assert(TARGET_POSITION_UB >= 0xFFFFFFFE);
+    static_assert(TARGET_POSITION_LB >= 0xFFFFFFFE);
+    static_assert(TARGET_VELOCITY_UB >= 0xFFFFFFFE);
+    static_assert(TARGET_VELOCITY_LB >= 0xFFFFFFFE);
+    static_assert(TARGET_TORQUE_UB >= 0xFFFFFFFE);
+    static_assert(TARGET_TORQUE_LB >= 0xFFFFFFFE);
+    #endif
+    #ifdef debug_defCheck4
+    static_assert(SL_MAX_VELOCITY_PERIOD_TICKS >= 0xFFFFFFFE);
+    static_assert(SL_MIN_VELOCITY_PERIOD_TICKS >= 0xFFFFFFFE);
+    static_assert(VTICKS_PER_BLOCK >= 0xFFFFFFFE);
+    // static_assert(LMAP(3, 4, 3, 0, 0) >= 0xFFFFFFFE);
+    // static_assert(LMAP(3., 4, 3, 0, 0) >= 0xFFFFFFFE);
+    // static_assert(LMAP(3., 4, 3, 0.0, 0) >= 0xFFFFFFFE);
+    // static_assert(LMAP(3, 4, 4, 0, 1) >= 0xFFFFFFFE);
+    // static_assert(LMAP(3., 4, 4, 0, 1) >= 0xFFFFFFFE);
+    #endif
+
     esp_rom_delay_us(100);
     xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 20, &setupTask, 0); 
     CLEAR_ALL_NOTIFS(setupTask);

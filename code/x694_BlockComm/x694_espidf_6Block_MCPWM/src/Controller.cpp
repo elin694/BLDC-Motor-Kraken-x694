@@ -27,8 +27,8 @@ void mathItOut(void * startTick4){ //updates arrrays with new ifo
 
 void setTorque(float targetTorque){ //
     if(global.controlMethod <= TORQUE_CONTROL){
-        float magnitude = fabsf(targetTorque);
-        if(magnitude < minDuty || magnitude > maxDuty){
+        float normalizedMagnitude = fabsf( LMAP(targetTorque, SL_MAX_TORQUE, SL_MIN_TORQUE, 1, 0) );
+        if(normalizedMagnitude < minDuty || normalizedMagnitude > maxDuty){
             global.setMotorFreeSpin = true; //rmeove delay between this and freespining in the future
         } else{
         for(int i=2; i>-1; i--){
@@ -77,12 +77,13 @@ void setPosition(float targetPosition){
          float errorP = kPID[POSITION_CONTROL][0]*errorPos;
          float errorI = kPID[POSITION_CONTROL][1]*global.totalPosChange; /*-area*k, */
          float errorD = kPID[POSITION_CONTROL][2]*(errorPos-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
-         /*finally changes set cmpVal*/
+
          float errorTotal  = errorP +errorI+errorD; //⍺
-         if(errorTotal > maxRPS){
-            errorTotal = maxRPS;
-         } else if (errorTotal < -maxRPS){
-            errorTotal = -maxRPS;
+         #define maxBiPS (SL_MAX_VELOCITY * ROTATIONS_TO_BITS)
+         if(errorTotal > maxBiPS){
+            errorTotal = maxBiPS;
+         } else if (errorTotal < -maxBiPS){
+            errorTotal = -maxBiPS;
          }
          setVelocity(errorTotal);
          //error can theoretically go from 0 to infinity for 1 c. ->

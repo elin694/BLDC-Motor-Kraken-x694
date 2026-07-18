@@ -6,6 +6,7 @@ void mcpwmSetup () { //take ~40ms with all log ddebug
     int tVal[1];
     setCountValueAndPeriod();
     initializeLowGate(); // suppress Lgate to OFF
+    #define startingGateCmpValue (uint32_t)((1-startingDuty)*activePwmPeriod/2.0) //Initialize High gate comparator value;
     initializeHighGate( startingGateCmpValue ); //suppress Hgate to OFF
     #ifndef lastResort 
     initializeISR();
@@ -14,7 +15,7 @@ void mcpwmSetup () { //take ~40ms with all log ddebug
     
     tVal[0] = MCPWM0.timer[0].timer_status.timer_value; //block
     esp_rom_printf(cyan "VTIMER%d\nOldSector: %d NewSector %d\n", tVal[0], global.oldSectorTarget, global.sectorTarget);
-    ESP_LOGW("gcc"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
+    ESP_LOGW("gcc"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",SL_MIN_VELOCITY, SL_MAX_VELOCITY);
 }
 
 void setCountValueAndPeriod () {
@@ -32,10 +33,10 @@ void initializeLowGate () {
         motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
     }
 
-    VTimerSetup.resolution_hz = VTimerResolution;
+    VTimerSetup.resolution_hz = VTIMER_CLOCK;
     ESP_ERROR_CHECK(mcpwm_new_timer(&VTimerSetup, &VTimer)); 
     // MCPWM0.clk_cfg.clk_prescale = mcpwm_lowSideGroupPrescaler-1;
-    // MCPWM0.timer[0].timer_cfg0.timer_prescale= 160e6/VTimerResolution/mcpwm_lowSideGroupPrescaler-1;
+    // MCPWM0.timer[0].timer_cfg0.timer_prescale= 160e6/VTIMER_CLOCK/mcpwm_lowSideGroupPrescaler-1;
     // ESP_LOGW("GC VTimerPrescaler", "%d| GroupPrescaler %d", MCPWM0.timer[0].timer_cfg0.timer_prescale ,mcpwm_lowSideGroupPrescaler);
     for (int i = 0; i <3; i++){
         ESP_ERROR_CHECK(mcpwm_new_operator(&motorL[i].opConfig, &motorL[i].operatorModule));

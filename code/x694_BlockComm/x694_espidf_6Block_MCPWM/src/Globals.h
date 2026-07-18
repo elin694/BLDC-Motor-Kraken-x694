@@ -8,11 +8,13 @@
 // #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 
+
 /* #################### USER SET-SETTINGS #################### */
 #define lastResort
 #define startingDuty (0.85) //, normally .8
 // #define as5600DirPinHigh
 // #define as5600DirPinHighAtCalibration
+
 
 /* #################### RUNTIME VARIABLES #################### */
 /* ========================= C++ STRUCTS ========================= */
@@ -21,7 +23,6 @@ typedef enum {
     VELOCITY_CONTROL,
     TORQUE_CONTROL
 } control_type;
-
 
 typedef struct{
     int oldSectorTarget = 0;
@@ -52,24 +53,20 @@ typedef struct{
     float totalVelChange = 0; //∫a(t)dt, area
 } gVar_t;
 
-
 /* ========================= GLOBAL VARIABLES  ========================= */
 inline DRAM_ATTR volatile std::atomic<uint32_t> isr2i =0;
 volatile DRAM_ATTR inline gVar_t global;
 inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
-
 
 /* ------------------------------ DEBUG-TOGGLED VARIABLES  ------------------------------ */
 #ifdef debug_hyperFastPrints
 volatile inline DRAM_ATTR const char* darray[10000];
 volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
 #endif
-
 #if (defined(debug_hyperFastPrints) || defined(debug_fastPrints))
 DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "}; //[-30,30) = block 0
 DRAM_ATTR constexpr const char* dgdir[6] = {"∅","D?","+","D?","NOT-","-"};
 #endif
-
 /* ------------------------------ HANDLES  ------------------------------ */
 extern adc_oneshot_unit_handle_t adcHandle;
 extern TaskHandle_t initializeI2CTask;
@@ -83,7 +80,6 @@ inline TaskHandle_t mathItOutTask= NULL;
 inline TaskHandle_t executeGatesTask= NULL;
 
 
-
 /* #################### FUNCTION DECLARATIONS #################### */
 void readPotRepeat(void * parameter);
 uint32_t readPotOnce(bool filter, int averager);
@@ -95,6 +91,7 @@ void d_blockCycling(void * startTick5);
 
 
 /*#################### BACKEND #################### */
+/* ========================= AS5600 SENSOR CALIBRATION  ========================= */
 //top view of physical motor has ABC going ccw, [-30 degrees, 30 degrees) = block 0
 //((4096-global.rotorVal)+(int)((4096.0)*(38.0/36.0) - (4096-(3388)) )) ==> (4096/18+3388-val)*18/4096==>>(7711.5-v)*0.00439453
 #ifdef as5600DirPinHighAtCalibration
@@ -108,3 +105,8 @@ void d_blockCycling(void * startTick5);
 #else
 #define getRotorValAdjusted(x) ((4096 - x) + as5600CalibratedOffset) * SECTOR_PER_BITS
 #endif
+/* ========================= MOTOR LIMITS SHORTHAND CHECK  ========================= */
+// #define debug_defCheck1      /* motor spec, float constants */
+// #define debug_defCheck2      /* software limit settings, float constants */
+// #define debug_defCheck3      /* target bounds, float constants */
+// #define debug_defCheck4      /* software period ticks limit, uint32_T constants */

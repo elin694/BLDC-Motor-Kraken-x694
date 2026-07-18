@@ -28,38 +28,6 @@
 #define cBufSize 8                                          /*For storing measured/calculated motor values*/
 
 
-/* #################### MOTOR LIMITATIONS #################### */
-/* ========================= MOTOR SOFTWARE LIMITS ========================= */
-/*set to motor physical limits*/
-#define maxDuty 0.95f
-#define minDuty 0.03f
-
-
-/* ========================= USER INPUT BOUNDS ========================= */
-/*minimum and maximum RPS */
-#define maxRPS (50)
-#define maxf_HTimerPeriod (VTimerResolution/(maxRPS*18)) //200--> 111.11rps, 1111-->20rps
-#define minf_HTimerPeriod (uint32_t)(65535/2)
-// #define fMin (float)(VTimerResolution/(18.0f*minf_HTimerPeriod))
-#define fMin (float)(VTimerResolution/(-18.0f*maxf_HTimerPeriod))
-#define fMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
-#define aMin (float)(VTimerResolution/(-18.0f*maxf_HTimerPeriod))
-#define aMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
-#define pMin (float)(0)
-#define pMax (float)(3*3.141592653/2)
-
-
-
-/* #################### INTERRUPT PRIORITY #################### */
-#define MCPWM_HighsideIntrPriority 1 //tep,tez
-#define MCPWM_LowsideIntrPriority 2 //tep,tez
-#define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
-#define i2c_intrPriority 3
-/*esp timer intr : 1-3, (2)
-freertos timer :lvl 1 or 3 (1)
-watchdog and sys checks :4 or 5 */
-
-
 
 /*#################### SHORTHANDS #################### */
 /* ========================= FUNCTION SHORTHANDS ========================= */
@@ -68,26 +36,35 @@ watchdog and sys checks :4 or 5 */
 #define snap() time240()
 #define print(x) esp_rom_printf(x)
 #define CLEAR_ALL_NOTIFS(x) (ulTaskNotifyValueClear(x, 0xffffffff) ||  xTaskNotifyStateClear(x) )
+#define TICKS_TO_REAL_VELOCITY(x)    ( VTIMER_CLOCK / ( BLOCKSF_PER_ROTATION * x ))
+#define INPUT_TO_REAL_VELOCITY(x)   TICKS_TO_REAL_VELOCITY( (uint32_t)(VTIMER_CLOCK / (x * BLOCKS_PER_ROTATION)) )
+#define LMAP(alpha, x1, y1, x2, y2) (((y1 - y2) / (x1 - x2)) * (alpha - x2) + y2)  //linear mapping. Ensure that at least one of {Point 1, Point 2} has float
+/*. lmap input fromLow toLow    fromHigh toHigh*/
 
 
 /* ========================= CONSTANTS SHORTHANDS ========================= */
-#define MCPWMx ((mcpwm_dev_t * ) &MCPWM0)
-#define electricalCycles 18 //constexpr is defineable compile time costant 
-#define SECTOR_PER_BITS (float)(electricalCycles / 4096.0f)
-#define ExecuteGate_FreeSpin_NotifVal 0x0000FFFF
-#define i2cWaitout 1 //in ms
-#define initializationLatency pdMS_TO_TICKS(30)
+#define BLOCKSF_PER_ROTATION (18.0f) //constexpr is defineable compile time costant 
+#define BLOCKS_PER_ROTATION (18) 
+#define BITS_TO_ROTATIONS (1/4096.0)
+#define ROTATIONS_TO_BITS (4096.0)
+#define VTICKS_PER_BLOCK (VTIMER_CLOCK / BLOCKS_PER_ROTATIO)N /* VP = VTIMER_CLOCK / 18  */
+#define VTICKSF_PER_BLOCK (VTIMER_CLOCK / BLOCKSF_PER_ROTATION) /* VP = VTIMER_CLOCK / 18  */
 
+#define MCPWMx ((mcpwm_dev_t * ) &MCPWM0)
+#define SECTOR_PER_BITS (float)( BLOCKS_PER_ROTATION / 4096.0f)
+#define ExecuteGate_FreeSpin_NotifVal (0x0000FFFF)
+#define i2cWaitout (1) //in ms
+#define initializationLatency pdMS_TO_TICKS(30)
+#define MAX_MCPWM_TIMER_PERIOD (65535)
 
 /* ------------------------------ MCPWM SHORTHANDS------------------------------ */
-#define mcpwm_lowSideGroupPrescaler 40
+#define mcpwm_lowSideGroupPrescaler (40)
 #define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) 
 #define activePwmPeriod (uint32_t)(HighTimerResolution/20000)  //change to 20khz when high
-#define startingGateCmpValue (uint32_t)((1-startingDuty)*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
 // #if ((startingDuty < minDuty) || (startingDuty > maxDuty))
 // #warning "DUTY out of bounds!!!!!!!!!!!!!!!!!!!!!!!!!"
 // #endif
-#define VTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) 
+#define VTIMER_CLOCK  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler*10)) 
 // constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
 // constexpr int activeLowGate[6]= {0,0,1,1,2,2}; //given index of current sector, tells which phase is high
 // constexpr int activeHighGate[6]= {1,2,2,0,0,1}; //given index of current sector, tells which phase is high
@@ -116,10 +93,74 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 #define potL 34
 #define adcChannel ADC_CHANNEL_7 // diagonal pairing with physical placement
 
+
+
+/* #################### MOTOR LIMITATIONS #################### */
+/* ========================= MOTOR HARDWARE LIMITS ========================= */
+/*  Unsigned values set to motor's physical limits (MOTOR_SPEC). Magnitudes only. DO NOT CHANGE. */
+#define maxDuty 0.97f
+#define minDuty 0.03f
+// #define MOTOR_SPEC_MAX_VELOCITY (float)(50.0f) /* Unit: RPS */
+#define MOTOR_SPEC_MAX_VELOCITY (INPUT_TO_REAL_VELOCITY( 50 )) /* Unit: RPS */
+#define MOTOR_SPEC_MIN_VELOCITY (TICKS_TO_REAL_VELOCITY( MAX_MCPWM_TIMER_PERIOD )) /* Unit: RPS */
+#define MOTOR_SPEC_MAX_TORQUE (maxDuty)
+#define MOTOR_SPEC_MIN_TORQUE (minDuty)
+
+/* ========================= MOTOR SOFTWARE LIMITS ========================= */
+/* Unsigned values set to within motor's physical limits (MOTOR_SPEC). Magnitudes only. User can edit. */
+#define SL_MAX_VELOCITY     (MOTOR_SPEC_MAX_VELOCITY)     /* Unit: RPS */
+#define SL_MIN_VELOCITY     (TICKS_TO_REAL_VELOCITY( MAX_MCPWM_TIMER_PERIOD / 2 ))     /* Unit: RPS */
+
+#define SL_MAX_TORQUE       (MOTOR_SPEC_MAX_TORQUE)
+#define SL_MIN_TORQUE       (MOTOR_SPEC_MIN_TORQUE)
+
+//save time by calculating software bounds beforehand
+#define SL_MAX_VELOCITY_PERIOD_TICKS (uint32_t)(VTICKSF_PER_BLOCK / (SL_MAX_VELOCITY)) //200--> 111.11rps, 1111-->20rps
+#define SL_MIN_VELOCITY_PERIOD_TICKS (uint32_t)(VTICKSF_PER_BLOCK / (SL_MIN_VELOCITY)) 
+
+/* ========================= USER TARGET INPUT BOUNDS ========================= */
+/* Signed minimum and maximum target settings. MEANT TO BE USER CHANGED*/
+#define TARGET_POSITION_UB        (uint32_t) (0)        /* Unit: LSB */
+#define TARGET_POSITION_LB        (uint32_t) (4096)    /* Unit: LSB */
+
+#define TARGET_VELOCITY_UB     (float) (SL_MAX_VELOCITY)     /* Upper bound of target velocity. Unit: RPS */
+#define TARGET_VELOCITY_LB      (float) (-1.0 * SL_MAX_VELOCITY)     /* Lower bound of target velocity. Unit: RPS */
+// #define TARGET_VELOCITY_LB      (float) (SL_MIN_VELOCITY)     /* Lower bound of target velocity. Unit: RPS */
+#define TARGET_TORQUE_UB        (float) (SL_MAX_TORQUE)
+#define TARGET_TORQUE_LB        (float) (-1.0 *SL_MAX_TORQUE)
+
+
+/* #################### INTERRUPT PRIORITY #################### */
+#define MCPWM_HighsideIntrPriority 1 //tep,tez
+#define MCPWM_LowsideIntrPriority 2 //tep,tez
+#define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
+#define i2c_intrPriority 3
+/*esp timer intr : 1-3, (2)
+freertos timer :lvl 1 or 3 (1)
+watchdog and sys checks :4 or 5 */
+
+
+
+/* ========================= PREPROCESSOR DIRECTIVE RULES ========================= */
+/* 
+ADDITION / SUBTRACTION
+(1.0+50) eval to 51.0f
+int - int eval to int
+
+DIVISION / MULTIPLICATION
+float * int 
+- 1 * int does not carry sign (treated as uint32_t)
+- integers don't carry sign; they wrap around and cant be forced ((-50) wraps around)
+
+-1. * int does carry sign (treated as uint32_t)
+uint32_t/uint32_t truncates
+follows Order of operations (ex 400000 / 18 * 100 = 2222200 )
+*/
 /* 
 ####################
 =========================
 ------------------------------
+
 
 //tracking all interstate variables
 tag - darray [dindex #W]  #W
