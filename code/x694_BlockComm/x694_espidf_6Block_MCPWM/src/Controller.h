@@ -12,6 +12,7 @@ typedef struct{
     float netError = 0;                             /*for the area ∫v(t)dt (m position)*/
     std::atomic<uint32_t> eindex = 0;
     int lastError[cBufSize];                    /*for dx/dt (m position)*/
+    
 } int_kpid;
 
 typedef struct{
@@ -42,6 +43,6 @@ constexpr float kPID[3][3] = {
 
 
 void mathItOut(void * startTick4); //updates arrrays with new ifo
-void setTorque(float targetTorque);
-void setVelocity(float targetVelocity);
-void setPosition(float targetPosition);
+void setTorque(float* targetTorque);
+void setVelocity(float* targetVelocity);
+void setPosition(int* targetPosition);

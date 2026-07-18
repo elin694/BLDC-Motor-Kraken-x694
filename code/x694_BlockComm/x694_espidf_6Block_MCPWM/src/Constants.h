@@ -1,22 +1,23 @@
 #pragma once
-#include <stdio.h>
-#include <cmath> 
+#include "ANSI_escape_sequences.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "soc/gpio_struct.h"
 #include "esp_log.h"
 #include "esp_err.h"
-#include "driver/i2c_master.h"
+#include "driver/gptimer.h"
 #include "esp_timer.h"
-#include "driver/mcpwm_prelude.h"
 #include "soc/mcpwm_struct.h"
-#include "esp_intr_alloc.h"
+#include "driver/mcpwm_prelude.h"
+#include "driver/i2c_master.h"
 #include "esp_adc/adc_oneshot.h"
+#include "esp_intr_alloc.h"
 #include <string>
 #include <cinttypes>
+#include <stdio.h>
+#include <cmath> 
 #include <atomic>
-#include "ANSI_escape_sequences.h"
 
 /*#################### TUNEABLES #################### */
 #define ACCEPTABLE_I2C_READ_WINDOW 230
@@ -100,11 +101,11 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 /*  Unsigned values set to motor's physical limits (MOTOR_SPEC). Magnitudes only. DO NOT CHANGE. */
 #define maxDuty 0.97f
 #define minDuty 0.03f
-// #define MOTOR_SPEC_MAX_VELOCITY (float)(50.0f) /* Unit: RPS */
-#define MOTOR_SPEC_MAX_VELOCITY (INPUT_TO_REAL_VELOCITY( 50 )) /* Unit: RPS */
+// #define MOTOR_SPEC_MAX_VELOCITY (float)(50.0f) /* Unit: RPS Measured at maxDuty */
+#define MOTOR_SPEC_MAX_VELOCITY (INPUT_TO_REAL_VELOCITY( 50 )) /* Unit: RPS Measured at maxDuty */
 #define MOTOR_SPEC_MIN_VELOCITY (TICKS_TO_REAL_VELOCITY( MAX_MCPWM_TIMER_PERIOD )) /* Unit: RPS */
-#define MOTOR_SPEC_MAX_TORQUE (maxDuty)
-#define MOTOR_SPEC_MIN_TORQUE (minDuty)
+#define MOTOR_SPEC_MAX_TORQUE (maxDuty)     /*Measured at maxDuty*/
+#define MOTOR_SPEC_MIN_TORQUE (minDuty)      /*Measured at minDuty*/
 
 /* ========================= MOTOR SOFTWARE LIMITS ========================= */
 /* Unsigned values set to within motor's physical limits (MOTOR_SPEC). Magnitudes only. User can edit. */

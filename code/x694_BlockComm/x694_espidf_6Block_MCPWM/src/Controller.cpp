@@ -25,7 +25,10 @@ void mathItOut(void * startTick4){ //updates arrrays with new ifo
    }
 }
 
-void setTorque(float targetTorque){ //
+void setTorque(float * pointerToTargetTorque){ //
+    float targetTorque = *pointerToTargetTorque;
+    assert( ( MOTOR_SPEC_MIN_TORQUE <= targetTorque ) && ( targetTorque <= MOTOR_SPEC_MAX_TORQUE ) );
+
     if(global.controlMethod <= TORQUE_CONTROL){
         float normalizedMagnitude = fabsf( LMAP(targetTorque, SL_MAX_TORQUE, SL_MIN_TORQUE, 1, 0) );
         if(normalizedMagnitude < minDuty || normalizedMagnitude > maxDuty){
@@ -38,55 +41,62 @@ void setTorque(float targetTorque){ //
         global.dir = (targetTorque < 0) ? (5) : (2);
     }
 }
+/*
+i am considering MCPWM TIMERS, esP_timers, and GPT_timers to use to help execute a periodic action. Based on my reading, esp_timer is like GPT timer but slightly worse precsion/accuracy. Is MCPWM timer based on the same clock as GPTtimer? What are the advantages to using each one over the other, besides that fact they cna be used with their associated peripheral functions (like how mcpwm's timer can be used to set mcpwm generators)
+Rank each one based on how accurate it is, how precise they are, and how faster their perioidc execution times are in nanoseconds
+*/
 
-void setVelocity(float targetVelocity){
-   for(;;){
-         /* +error = ahead of target ccw*/
-         if(global.controlMethod <= VELOCITY_CONTROL){
-            float dt  = estimatedI2CReadTime_us;
-            uint32_t vidx = global.vindex;
-            float errorVel =targetVelocity- global.measuredVel[vidx%cBufSize];/////////////////
-            float prevError = global.lastVelError;
-            global.totalVelChange = global.totalVelChange + errorVel*dt;
+// void setVelocity(float * pointerToTargetVelocity){
+//     float targetVelocity = *pointerToTargetVelocity;
+//     assert( ( MOTOR_SPEC_MIN_VELOCITY <= targetVelocity ) && ( targetVelocity <= MOTOR_SPEC_MAX_VELOCITY ) );
+//     for(;;){
+//          /* +error = ahead of target ccw*/
+//          if(global.controlMethod <= VELOCITY_CONTROL){
+//             float dt  = estimatedI2CReadTime_us;
+//             uint32_t vidx = global.vindex;
+//             float errorVel =targetVelocity- global.measuredVel[vidx%cBufSize];/////////////////
+//             float prevError = global.lastVelError;
+//             global.totalVelChange = global.totalVelChange + errorVel*dt;
 
-            float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
-            float errorI = kPID[VELOCITY_CONTROL][1]*global.totalVelChange; /*-area*k, */
-            float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
-            /*finally changes set cmpVal*/
-            float errorTotal  = errorP +errorI+errorD; //⍺
-            if(errorTotal > maxDuty){
-               errorTotal = maxDuty;
-            } else if (errorTotal < -maxDuty){
-               errorTotal = -maxDuty;
-            }
-            setTorque(errorTotal);
-            ///remember to set prev Erorr and other past var
-         }
-      }
-}
+//             float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
+//             float errorI = kPID[VELOCITY_CONTROL][1]*global.totalVelChange; /*-area*k, */
+//             float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
+//             /*finally changes set cmpVal*/
+//             float errorTotal  = errorP +errorI+errorD; //⍺
+//             if(errorTotal > maxDuty){
+//                errorTotal = maxDuty;
+//             } else if (errorTotal < -maxDuty){
+//                errorTotal = -maxDuty;
+//             }
+//             setTorque( &errorTotal);
+//             ///remember to set prev Erorr and other past var
+//          }
+//       }
+// }
 
-void setPosition(float targetPosition){
-   for(;;){
-      if(global.controlMethod <= POSITION_CONTROL){
-         float dt  = estimatedI2CReadTime_us;
-         uint32_t pidx = global.pindex;
-         float errorPos =global.targetPosition- global.measuredPos[pidx%cBufSize];/////////////////
-         float prevError = global.lastPosError;
-         global.totalPosChange = global.totalPosChange + errorPos*dt;
+// void setPosition(int * pointerToTargetPosition){
+//     int targetPosition = *pointerToTargetPosition;
+//     for(;;){
+//       if(global.controlMethod <= POSITION_CONTROL){
+//          float dt  = estimatedI2CReadTime_us;
+//          uint32_t pidx = global.pindex;
+//          float errorPos =global.targetPosition- global.measuredPos[pidx%cBufSize];/////////////////
+//          float prevError = global.lastPosError;
+//          global.totalPosChange = global.totalPosChange + errorPos*dt;
 
-         float errorP = kPID[POSITION_CONTROL][0]*errorPos;
-         float errorI = kPID[POSITION_CONTROL][1]*global.totalPosChange; /*-area*k, */
-         float errorD = kPID[POSITION_CONTROL][2]*(errorPos-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
+//          float errorP = kPID[POSITION_CONTROL][0]*errorPos;
+//          float errorI = kPID[POSITION_CONTROL][1]*global.totalPosChange; /*-area*k, */
+//          float errorD = kPID[POSITION_CONTROL][2]*(errorPos-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
 
-         float errorTotal  = errorP +errorI+errorD; //⍺
-         #define maxBiPS (SL_MAX_VELOCITY * ROTATIONS_TO_BITS)
-         if(errorTotal > maxBiPS){
-            errorTotal = maxBiPS;
-         } else if (errorTotal < -maxBiPS){
-            errorTotal = -maxBiPS;
-         }
-         setVelocity(errorTotal);
-         //error can theoretically go from 0 to infinity for 1 c. ->
-      }
-   }
-}
+//          float errorTotal  = errorP +errorI+errorD; //⍺
+//          #define maxBiPS (SL_MAX_VELOCITY * ROTATIONS_TO_BITS)
+//          if(errorTotal > maxBiPS){
+//             errorTotal = maxBiPS;
+//          } else if (errorTotal < -maxBiPS){
+//             errorTotal = -maxBiPS;
+//          }
+//          setVelocity( &errorTotal);
+//          //error can theoretically go from 0 to infinity for 1 c. ->
+//       }
+//    }
+// }
