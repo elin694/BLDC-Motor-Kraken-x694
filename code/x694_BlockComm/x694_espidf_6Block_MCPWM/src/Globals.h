@@ -75,7 +75,7 @@ typedef struct{
 typedef struct{
     int oldSectorTarget = 0;
     int sectorTarget = 0; //for stator current vector
-    std::atomic<uint32_t> blockPeriod = 400; //6941
+    std::atomic<uint32_t> blockPeriod = 10000.0; //6941
     std::atomic<uint32_t> tlog_readAS5600 = 0;
     std::atomic<bool> newVelPotValue = false;
     std::atomic<bool> setMotorFreeSpin = false;

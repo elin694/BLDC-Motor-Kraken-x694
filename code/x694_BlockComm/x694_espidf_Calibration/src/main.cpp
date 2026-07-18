@@ -31,14 +31,13 @@ void pinSetup(){
 //         ESP_ERROR_CHECK(mcpwm_new_operator(&motorL[i].opConfig, &motorL[i].operatorModule));
 //         ESP_ERROR_CHECK(mcpwm_new_generator(motorL[i].operatorModule, &motorL[i].pwmConfig, &motorL[i].pwmGate0));
 //         ESP_ERROR_CHECK(mcpwm_generator_set_dead_time(motorL[i].pwmGate0, motorL[i].pwmGate0, &lowGateDeadTimeSetup));
-
 //         // ESP_ERROR_CHECK(mcpwm_operator_connect_timer(motorL[i].operatorModule, globalLowTimer)); 
 //         ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 0, true));
 //     }
 // }
 
 void initializeHighGate(uint32_t comparatorOff_Duty){
-    ESP_LOGI("High Gate CMP Value","%d ", comparatorOff_Duty);
+    ESP_LOGI("High Gate CMP Value","%d ", startingGateCmpValue);
     for (int i = 0; i <1 ; i++){
         motorH[i] = {
             .timerConfig = HTimerSetup,
@@ -55,7 +54,8 @@ void initializeHighGate(uint32_t comparatorOff_Duty){
         ESP_ERROR_CHECK(mcpwm_generator_set_dead_time(motorH[i].pwmGate0, motorH[i].pwmGate0, &highGateDeadTimeSetup));
         
         ESP_ERROR_CHECK(mcpwm_operator_connect_timer(motorH[i].operatorModule, motorH[i].timer)); 
-        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0, comparatorOff_Duty)); //set to max to be off
+        ESP_LOGI("DEBUG", cyan "cmpvalue: %d", startingGateCmpValue);
+        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0, startingGateCmpValue)); //set to max to be off
         // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i].pwmGate0, 0, true));
     }
     //putting command of setting lowGate Low and high gate High (by comparator action event) into buffer
@@ -84,7 +84,7 @@ void setup(void * parameter){
     ESP_ERROR_CHECK(mcpwm_timer_enable(motorH[0].timer));
     xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
         
-    vTaskDelay(200);
+    // vTaskDelay(1);
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     synchronizedTime = xTaskGetTickCount();
     int now1 = esp_timer_get_time();
@@ -120,7 +120,7 @@ void as5600initialize(void * parameter) {
     int lapWatch2 =esp_timer_get_time()-startWatch;
     ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 1, fthRegisterData, 1, -1));
     int lapWatch3 =esp_timer_get_time()-startWatch;
-    ESP_LOGI(magenta "CALIB", "\nas5600 Fast Fillter Threshold Set to %d\n1st REG read time:%4d \nSF-FTH write time:%4d REG_Check time:%4d ", 
+    ESP_LOGI(magenta "CALIB", "\nas5600 Fast Fillter Threshold Set to %d\n1st REG read time:%4d \nSF-FTH write time:%4d\nREG_Check time:%4d ", 
         (int)fthRegisterData[0],
         lapWatch,
         lapWatch2,

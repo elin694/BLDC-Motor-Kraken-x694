@@ -2,7 +2,7 @@
 #include "GC.h"
 intr_handle_t oneBlockISR = NULL;
 
-void mcpwmSetup(){
+void mcpwmSetup(){ //take ~40ms with all log ddebug
     int tVal[3] ={0,0,0};
     setCountValueAndPeriod();
     initializeLowGate(); // suppress Lgate to OFF
@@ -18,11 +18,12 @@ void mcpwmSetup(){
 }
 
 void setCountValueAndPeriod(){
+    ESP_LOGI(cyan "setCountValueAndPeriod","time start");
     VTimerSetup.period_ticks = global.blockPeriod;
     tripleHighOnSync.count_value = 1; 
     VTimerOnSync.count_value = 1;
-    ESP_LOGW(white "GC 1.5 ON_SYNC_VALUES-setCountValueAndPeriod", "\n VTIMER_CV_OS %d",(int)VTimerOnSync.count_value);
-    ESP_LOGW("GC 1.75 PERIODS-setCountValueAndPeriod", "VTIMER %d\n", (int)VTimerSetup.period_ticks);
+    ESP_LOGW(blue "GC 1.5 ON_SYNC_VALUES-setCountValueAndPeriod", "\n VTIMER_CV_OS %d",(int)VTimerOnSync.count_value);
+    ESP_LOGW(cyan "GC 1.75 PERIODS-setCountValueAndPeriod", "VTIMER %d\n", (int)VTimerSetup.period_ticks);
 }
 
 void initializeLowGate(){
@@ -108,13 +109,13 @@ void initializeTimer(){
     }
     #ifdef lastResort
     ESP_ERROR_CHECK(mcpwm_timer_register_event_callbacks(VTimer, &callbackFamily, (void *)&global));
+    ESP_LOGI(blue "GC6", "=====VTIMER REG CBK==== ");
     #endif
     ESP_ERROR_CHECK(mcpwm_timer_enable(VTimer));
 
     for (int i= 0; i<3; i++){
          ESP_ERROR_CHECK(mcpwm_timer_start_stop(motorH[i].timer, MCPWM_TIMER_START_NO_STOP));
     }
-    ESP_LOGI(blue "GC6", "======ENABLES AND STARTS counting on 4 timers ");
 }
 
 void IRAM_ATTR tag(const char* tag){
@@ -171,11 +172,11 @@ void IRAM_ATTR getTimerCountNow(const char* str){
 }
 
 void IRAM_ATTR executeGates(void * parameter){
-    for(int i =4; i>-1; i-=2){
-    int hlvl = -1*gateLevelCycle[global.sectorTarget][i];
-    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, hlvl, true));
-    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
-    }
+    // for(int i =4; i>-1; i-=2){
+    // int hlvl = -1*gateLevelCycle[global.sectorTarget][i];
+    // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, hlvl, true));
+    // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
+    // }
 
     for(;;){
         uint32_t notif= ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -201,7 +202,7 @@ void IRAM_ATTR executeGates(void * parameter){
                 // int temp[7]; //take 12us
                 // int in =0;
                 // temp[0] = snap();
-                //when motor is off (freespinnig), nPSF still runs, but no changes are made
+                /*when motor is off (freespinnig), nPSF still runs, but no changes are made*/
                 for(int i =4; i>-1; i-=2){
                     int hlvl;
                     if(gateLevelCycle[global.sectorTarget][i] == 1){

@@ -20,7 +20,7 @@ void initialize(void * parameter){
    int b = global.blockPeriod.load(std::memory_order::relaxed);
    int c=global.newVelPotValue.load(std::memory_order::relaxed);
    ESP_LOGI("init.cpp ","blockPeriod %d| new velocityflag: %d", b, c);//nti
-   xTaskCreatePinnedToCore(executeGates, "gsn", 3000, NULL,  15, &executeGatesTask, 0);
+   xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
 
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
    synchronizedTime = xTaskGetTickCount();
@@ -49,7 +49,7 @@ void pinSetup(){
 
 void initializeInterruptEnablePin(void * startTick6){ 
    TickType_t startTick = *(TickType_t*)startTick6;
-   
+   ESP_LOGI(blue "init.cpp", "=====starttimer==== ");
    xTaskDelayUntil(&startTick,initializationLatency);
    ESP_ERROR_CHECK(mcpwm_timer_start_stop(VTimer, MCPWM_TIMER_START_NO_STOP));
    #ifndef lastResort
@@ -85,7 +85,7 @@ void IRAM_ATTR runOnMCPWMIntr(void * user_ctx) {
 }
 #endif
 
-volatile bool oneTimeFlag = false;
+volatile std::atomic<int> oneTimeFlag = 0;
 bool runActualISR(void * data){
    #define ACCEPTABLE_I2C_READ_WINDOW 230
    gVar_t *masterVar = (gVar_t*)data;
@@ -95,14 +95,13 @@ bool runActualISR(void * data){
       // tag(cyan "V");
       //if global.readA S5600==false, the read is taking too long, so might as well let motor coast
       /*execute gates only if we have a valid i2c value and Vtimer tells us to switch phaee */;
-      // if(oneTimeFlag){
-      //    oneTimeFlag =false;
-      //    xTaskNotifyFromISR(executeGatesTask, 0, eIncrement, &xHigherPriorityTaskWoken2);
-      // }
-      // if(xHigherPriorityTaskWoken2 == pdTRUE) {
-      //    xHigherPriorityTaskWoken2 = pdFALSE;
-      //    portYIELD_FROM_ISR();
-      // }
+      if(oneTimeFlag.fetch_add(1,std::memory_order::relaxed) <240000){
+         xTaskNotifyFromISR(executeGatesTask, 0, eIncrement, &xHigherPriorityTaskWoken2);
+      }
+      if(xHigherPriorityTaskWoken2 == pdTRUE) {
+         xHigherPriorityTaskWoken2 = pdFALSE;
+         portYIELD_FROM_ISR();
+      }
       return true;
    }
    return false;
@@ -156,66 +155,66 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTime_us));
    xTaskDelayUntil(&startTick,initializationLatency);
    while(1){
-      file1 = file1 + ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1))-1;
-      startTimer = esp_timer_get_time();
-      counter++;
+      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1));
+      // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
 
-      // uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1));
-      // // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
-
-      // #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
-      // if(isMinutelyCheckup(++printCounter)){ 
-      //    startTime= esp_timer_get_time(); 
+      #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
+      if(isMinutelyCheckup(++printCounter)){ 
+         startTime= esp_timer_get_time(); 
          
-      //    #ifdef debug_useTagFlag
-      //    tagFlag(true,0); //tags before and after transmit
-      //    #endif
-      // }
-      // #endif
+         #ifdef debug_useTagFlag
+         tagFlag(true,0); //tags before and after transmit
+         #endif
+      }
+      #endif
       esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, as5600RawDataBuf, 2, i2cWaitout);
-      // #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
-      // if(isMinutelyCheckup(printCounter)){ 
-      //    lap1 = esp_timer_get_time() - startTime;
+      #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
+      if(isMinutelyCheckup(printCounter)){ 
+         lap1 = esp_timer_get_time() - startTime;
          
-      //    #if (!defined(debug_i2cTransmitTime) && defined(debug_useTagFlag))
-      //    tagFlag(false, lap1); //tags before and after transmit
-      //    #endif
-      // }
-      // #endif
+         #if (!defined(debug_i2cTransmitTime) && defined(debug_useTagFlag))
+         tagFlag(false, lap1); //tags before and after transmit
+         #endif
+      }
+      #endif
 
-      // if(valRequestStatus == ESP_OK){
-      //    // isr2i.fetch_add(1,std::memory_order::relaxed);
-      //    // global.oldSectorTarget = global.sectorTarget;
+      if(valRequestStatus == ESP_OK){
+         isr2i.fetch_add(1,std::memory_order::relaxed);
+         global.oldSectorTarget = global.sectorTarget;
          
-      //    // uint32_t reading = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
-      //    // global.rotorVal = reading;
-      //    // global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading)+global.dir) % 6; //0- bitsPerSector --> smaller sector
-      //    // global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
-      //    uint32_t tlog = esp_timer_get_time();
-      //    global.tlog_readAS5600.store(tlog);
-      // } else{
-      // //    global.oldSectorTarget=global.sectorTarget;
-      // //    global.setMotorFreeTemporarily.store(true, std::memory_order::relaxed);
-      // //    tag("#F ");
-      // }
-
-      // #if defined(debug_i2cTransmitTime)
-      // if(isMinutelyCheckup(printCounter)){ 
-      //    startTime = esp_timer_get_time() - startTime;      esp_rom_printf("@%d+%d,%d \n"  , lap1,startTime,file1);
-      // }
-      // #endif
-      // // taskYIELD();
-      // esp_timer_start_once(etimerHandle,250);
-      uint32_t lap1 =esp_timer_get_time() -startTimer;
-      if(valRequestStatus ==ESP_OK){
-         angle = (( as5600RawDataBuf[0] << 8) | as5600RawDataBuf[1]);
-         if((counter %1024)==0){
-               esp_rom_printf("Pos:%4d C:%6d F:%d t-time:%d FailedHandoffs:%3d\n", angle, counter, failCounter, lap1, file1);
-         }
-      }else{
-         failCounter++;
+         uint32_t reading = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
+         global.rotorVal = reading;
+         global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading)+global.dir) % 6; //0- bitsPerSector --> smaller sector
+         global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
+         uint32_t tlog = esp_timer_get_time();
+         global.tlog_readAS5600.store(tlog);
+      } else{
+         global.oldSectorTarget=global.sectorTarget;
+         global.setMotorFreeTemporarily.store(true, std::memory_order::relaxed);
+         tag("#F ");
       }
 
+      #if defined(debug_i2cTransmitTime)
+      if(isMinutelyCheckup(printCounter)){ 
+         startTime = esp_timer_get_time() - startTime;      esp_rom_printf("@%d+%d,%d \n"  , lap1,startTime,file1);
+      }
+      #endif
+      // taskYIELD();
+
+      
+      // file1 = file1 + ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1))-1;
+      // startTimer = esp_timer_get_time();
+      // counter++;
+      // esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, as5600RawDataBuf, 2, i2cWaitout);
+      // uint32_t lap1 =esp_timer_get_time() -startTimer;
+      // if(valRequestStatus ==ESP_OK){
+      //    angle = (( as5600RawDataBuf[0] << 8) | as5600RawDataBuf[1]);
+      //    if((counter %1024)==0){
+      //          esp_rom_printf("Pos:%4d C:%6d F:%d t-time:%d FailedHandoffs:%3d\n", angle, counter, failCounter, lap1, file1);
+      //    }
+      // }else{
+      //    failCounter++;
+      // }
    }
    
 }

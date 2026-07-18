@@ -7,7 +7,7 @@ adc_oneshot_unit_handle_t adcHandle = NULL;
 int rawData = 0;
 // portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
-#define esp_timer_cycle 16
+#define esp_timer_cycle 32
 #define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 0)
 
 void debugMonitor(void * startTick2){
@@ -17,11 +17,12 @@ void debugMonitor(void * startTick2){
   uint32_t esp_timer_log_counter = 0;
   TickType_t loopStartTick ;
 
-  ESP_LOGI("Main.cpp","Printing time log every %d ms!",esp_timer_cycle*velPotReadPeriod*50);
+  ESP_LOGI("Main.cpp","EspTimer log period:%d ms!",esp_timer_cycle*velPotReadPeriod*40);
   xTaskDelayUntil(&startTick,initializationLatency);
+  ESP_LOGI("main.cpp","GOOO!\n\n");
   for(;;){
     loopStartTick =xTaskGetTickCount();
-    xTaskDelayUntil(&loopStartTick,pdMS_TO_TICKS(velPotReadPeriod*50)); 
+    xTaskDelayUntil(&loopStartTick,pdMS_TO_TICKS(velPotReadPeriod*40)); 
 
     #ifdef debug_printRPS
     taskENTER_CRITICAL(&stepPeriodMux);
@@ -123,7 +124,8 @@ extern "C"{
     // t2 =time();
     // ESP_LOGI("\n YEEEE","\n %d,  %d\n",(int)t1,t2);
     // vTaskDelay(10000000);
-    vTaskDelay(pdMS_TO_TICKS(100)); //To let gate driver setup
+    // vTaskDelay(pdMS_TO_TICKS(100)); //To let gate driver setup
+    esp_rom_delay_us(100);
     xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 20, &setupTask, 0); 
     ulTaskNotifyValueClear(setupTask, 0xffffffff);
     xTaskNotifyStateClear(setupTask);
