@@ -1,5 +1,6 @@
 #include "Initialize.h"
 #include "GateControl.h"
+
 #define isMinutelyCheckup(x) ((x % 1024) == 15)
 TickType_t synchronizedTime;
 TaskHandle_t initializeI2CTask= NULL;
@@ -80,7 +81,6 @@ void IRAM_ATTR runOnMCPWMIntr (void * user_ctx) { /*intrpt*/
 
 // volatile std::atomic<int> oneTimeFlag = 0;
 bool runActualISR(void * data){
-   #define ACCEPTABLE_I2C_READ_WINDOW 230
    gVar_t *masterVar = (gVar_t*)data;
    BaseType_t xHigherPriorityTaskWoken2;
    int timeNow = SNAP();

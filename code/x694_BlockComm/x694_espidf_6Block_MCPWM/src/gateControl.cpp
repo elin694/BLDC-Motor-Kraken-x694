@@ -2,7 +2,7 @@
 #include "GC.h"
 intr_handle_t oneBlockISR = NULL;
 
-void mcpwmSetup(){ //take ~40ms with all log ddebug
+void mcpwmSetup () { //take ~40ms with all log ddebug
     int tVal[1];
     setCountValueAndPeriod();
     initializeLowGate(); // suppress Lgate to OFF
@@ -12,21 +12,21 @@ void mcpwmSetup(){ //take ~40ms with all log ddebug
     #endif
     initializeTimer(); 
     
-    tVal[0] =MCPWM0.timer[0].timer_status.timer_value; //block
+    tVal[0] = MCPWM0.timer[0].timer_status.timer_value; //block
     esp_rom_printf(cyan "VTIMER%d\nOldSector: %d NewSector %d\n", tVal[0], global.oldSectorTarget, global.sectorTarget);
     ESP_LOGW("gcc"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
 }
 
-void setCountValueAndPeriod(){
+void setCountValueAndPeriod () {
     ESP_LOGI(cyan "\n\n\nMCPWM Setup", " START");
     VTimerSetup.period_ticks = global.blockPeriod;
     tripleHighOnSync.count_value = 1; 
     VTimerOnSync.count_value = 1;
-    ESP_LOGW(blue "GC CV_OS", "\n VTIMER_CV_OS %d",(int)VTimerOnSync.count_value);
+    ESP_LOGW(blue "GC CV_OS", "\n VTIMER_CV_OS %d",( int)VTimerOnSync.count_value);
     ESP_LOGW(cyan "GC Periods", "\nVTIMER: %d\nHTimer: %d\n", (int)VTimerSetup.period_ticks, activePwmPeriod);
 }
 
-void initializeLowGate(){
+void initializeLowGate () {
     for (int i = 0; i <3; i++){
         motorL[i] = { .opConfig = LOperatorSetup};
         motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
@@ -166,12 +166,7 @@ void IRAM_ATTR executeGates (void * parameter){
                 }
 
             } else {  //not freespinning = active control
-                #define snap() time240()
                 tag(yellow "EgFFSw ");
-                // int temp[7]; //take 12us
-                // int in =0;
-                // temp[0] = snap();
-                /*when motor is off (freespinnig), nPSF still runs, but no changes are made*/
                 for(int i =4; i>-1; i-=2){
                     int hlvl;
                     if(gateLevelCycle[global.sectorTarget][i] == 1){
@@ -179,12 +174,9 @@ void IRAM_ATTR executeGates (void * parameter){
                     }else{
                         hlvl =0;
                     }
-                    // temp[++in] =  snap()-temp[0];
                     ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, hlvl, true));
-                    // temp[++in] =  snap()-temp[0];
                     ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
                 }
-                // esp_rom_printf("#%d$%d$%d\n%d$%d$%d\n%d",temp[0], temp[1], temp[2], temp[3],temp[4], temp[5], temp[6]);
             }
         }
 

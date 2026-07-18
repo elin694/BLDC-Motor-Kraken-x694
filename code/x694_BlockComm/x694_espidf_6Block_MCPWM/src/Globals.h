@@ -1,62 +1,30 @@
 #pragma once
 #include "Constants.h"
-/*=============================DEBUG CONTROL PANEL=============================*/
-#define lastResort
-// #define debug_i2cTransmitTime 
 
+/* #################### DEBUG PANEL #################### */
+// #define debug_i2cTransmitTime 
 // #define debug_fastPrints //isr indicator and BLOCK#
 // #define debug_hyperFastPrints
 // #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 
+
+
+/* #################### USER SET-SETTINGS #################### */
+#define lastResort
 #define startingDuty (0.85) //, normally .8
-#define cBufSize 8
-#define velPotReadPeriod (int)(20) //set velocity via pot 1
-#define initializationLatency pdMS_TO_TICKS(30)
-//============================= INTERRUPT PRIORITY=============================
-#define MCPWM_HighsideIntrPriority 1 //tep,tez
-#define MCPWM_LowsideIntrPriority 2 //tep,tez
-#define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
-#define i2c_intrPriority 3
-/*esp timer intr : 1-3, (2)
-freertos timer :lvl 1 or 3 (1)
-watchdog and sys checks :4 or 5 */
-//++++++++++++++++++++++++++++++MCPWM++++++++++++++++++++++++++++++
-#define activePwmPeriod (uint32_t)(HighTimerResolution/20000)  //change to 20khz when high
-#define startingGateCmpValue (uint32_t)((1-startingDuty)*activePwmPeriod/2.0) //High gate comparator's comparatorValue when ON; can be modified later
-#define maxDuty 0.95f
-#define minDuty 0.03f
-// #if ((startingDuty < minDuty) || (startingDuty > maxDuty))
-// #warning "DUTY out of bounds!!!!!!!!!!!!!!!!!!!!!!!!!"
-// #endif
+// #define as5600DirPinHigh
+// #define as5600DirPinHighAtCalibration
 
-/*=============================USER INPUT BOUNDS=============================*/
-/*minimum and maximum RPS */
-#define maxRPS (50)
-#define maxf_HTimerPeriod (VTimerResolution/(maxRPS*18)) //200--> 111.11rps, 1111-->20rps
-#define minf_HTimerPeriod (uint32_t)(65535/2)
-// #define fMin (float)(VTimerResolution/(18.0f*minf_HTimerPeriod))
-#define fMin (float)(VTimerResolution/(-18.0f*maxf_HTimerPeriod))
-#define fMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
 
-#define aMin (float)(VTimerResolution/(18.0f*-maxf_HTimerPeriod))
-#define aMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
 
-#define pMin (float)(0)
-#define pMax (float)(3*3.141592653/2)
-
-inline DRAM_ATTR volatile std::atomic<uint32_t> isr2i =0;
-//+++++++++++++++++++++++++++++++++++RUNTIME VARIABLES+++++++++++++++++++++++++++++++++++
+/* #################### RUNTIME VARIABLES #################### */
+/* ========================= C++ STRUCTS ========================= */
 typedef enum {
     POSITION_CONTROL,
     VELOCITY_CONTROL,
     TORQUE_CONTROL
 } control_type;
-
-typedef struct{
-    const char* array[100000];
-    std::atomic<uint32_t> i=0; //new, old
-}debugStruct;
 
 typedef struct{
     int oldSectorTarget = 0;
@@ -72,7 +40,7 @@ typedef struct{
     float targetPosition =0; //target Position in bits
     float targetVelocity =0; //target RPS
     float targetAcceleration =0; //target RPS
-
+    
     uint32_t measuredPos[cBufSize]; //recent values at the front
     float measuredVel[cBufSize]; //bits/s
     float measuredAccel[cBufSize];
@@ -81,15 +49,31 @@ typedef struct{
     std::atomic <uint32_t> aindex= 0;
     float lastPosError = 0; //dx/dt
     float totalPosChange = 0; //∫v(t)dt
-
+    
     //Velocity pid
     float lastVelError = 0; //dv/dt
     float totalVelChange = 0; //∫a(t)dt, area
 } gVar_t;
+
+
+/* ========================= GLOBAL VARIABLES  ========================= */
+inline DRAM_ATTR volatile std::atomic<uint32_t> isr2i =0;
 volatile DRAM_ATTR inline gVar_t global;
 inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
 
-//================================Handles================================
+
+/* ------------------------------ DEBUG-TOGGLED VARIABLES  ------------------------------ */
+#ifdef debug_hyperFastPrints
+volatile inline DRAM_ATTR const char* darray[10000];
+volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
+#endif
+
+#if (defined(debug_hyperFastPrints) || defined(debug_fastPrints))
+DRAM_ATTR constexpr const char* ghgl[6] = {"0BA ","1CA ","2CB ","3AB ","4AC ","5BC "}; //[-30,30) = block 0
+DRAM_ATTR constexpr const char* dgdir[6] = {"∅","D?","+","D?","NOT-","-"};
+#endif
+
+/* ------------------------------ HANDLES  ------------------------------ */
 extern adc_oneshot_unit_handle_t adcHandle;
 extern TaskHandle_t initializeI2CTask;
 
@@ -100,7 +84,10 @@ inline TaskHandle_t setupTask= NULL;
 inline TaskHandle_t getSectorNumberTask= NULL;
 inline TaskHandle_t mathItOutTask= NULL;
 inline TaskHandle_t executeGatesTask= NULL;
-//====================FUNCTION DECLARATION =======================
+
+
+
+/* #################### FUNCTION DECLARATIONS #################### */
 void readPotRepeat(void * parameter);
 uint32_t readPotOnce(bool filter, int averager);
 void spamSearchCV(void *parameter);
@@ -109,9 +96,18 @@ void tag(const char* tag);
 void tagFlag(bool start, int timer);
 void d_blockCycling(void * startTick5);
 
-#define ExecuteGate_FreeSpin_NotifVal 0x0000FFFF
-//
-#ifdef debug_hyperFastPrints
-volatile inline DRAM_ATTR const char* darray[10000];
-volatile inline DRAM_ATTR std::atomic<uint32_t> dindex []={0,0}; //new, old
+
+/*#################### BACKEND #################### */
+//top view of physical motor has ABC going ccw, [-30 degrees, 30 degrees) = block 0
+//((4096-global.rotorVal)+(int)((4096.0)*(38.0/36.0) - (4096-(3388)) )) ==> (4096/18+3388-val)*18/4096==>>(7711.5-v)*0.00439453
+#ifdef as5600DirPinHighAtCalibration
+#define as5600CalibratedOffset (int)((4096.0) * (38.0 / 36.0) - (as5600CalibrationRawValue) )  
+#else
+#define as5600CalibratedOffset (int)((4096.0) * (38.0 / 36.0) - (4096 - as5600CalibrationRawValue) )  
+#endif
+
+#ifdef as5600DirPinHigh //When motor is running controller code
+#define getRotorValAdjusted(x) (as5600CalibratedOffset + x) * SECTOR_PER_BITS
+#else
+#define getRotorValAdjusted(x) ((4096 - x) + as5600CalibratedOffset) * SECTOR_PER_BITS
 #endif

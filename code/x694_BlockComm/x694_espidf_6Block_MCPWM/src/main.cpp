@@ -43,7 +43,6 @@ void debugMonitor (void * startTick2) {
 
 void readPotRepeat (void * startTick3) {
   TickType_t startTick = *(TickType_t*)startTick3;
-  #define adcReadBufferSize 4
   int history[adcReadBufferSize] = {-1,-1,-1,-1};
   uint32_t counterIndex= 0;
 
