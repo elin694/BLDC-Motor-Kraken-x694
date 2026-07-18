@@ -11,7 +11,7 @@ int rawData = 0;
 #define espTimer_isMinutelyCheckup(x) ((x % esp_timer_cycle ) == 0)
 
 void debugMonitor(void * startTick2){
-  char buf[800];
+  char buf[600];
   // uint32_t task_list_log_counter = 0;
   TickType_t startTick = *(TickType_t*)startTick2;
   uint32_t esp_timer_log_counter = 0;
@@ -34,12 +34,12 @@ void debugMonitor(void * startTick2){
     esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast,numGsnCycled);
     #endif
 
-    if(espTimer_isMinutelyCheckup(esp_timer_log_counter++)){
-      ESP_LOGI("\n", blue); esp_timer_dump(stdout);
-      esp_rom_printf("\n\n");
-      vTaskGetRunTimeStats(buf);
-      esp_rom_printf(buf);
-    }
+    // if(espTimer_isMinutelyCheckup(esp_timer_log_counter++)){
+    //   ESP_LOGI("\n", blue); esp_timer_dump(stdout);
+    //   esp_rom_printf("\n\n");
+    //   vTaskGetRunTimeStats(buf);
+    //   esp_rom_printf(buf);
+    // }
   //   if((task_list_log_counter++%8 )==0){
   //     vTaskList(buf); ESP_LOGI(" ","\n%s",buf);
   //   }

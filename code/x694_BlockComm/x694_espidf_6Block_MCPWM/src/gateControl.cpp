@@ -18,12 +18,12 @@ void mcpwmSetup(){ //take ~40ms with all log ddebug
 }
 
 void setCountValueAndPeriod(){
-    ESP_LOGI(cyan "setCountValueAndPeriod","time start");
+    ESP_LOGI(cyan "\n\n\nMCPWM Setup", " START");
     VTimerSetup.period_ticks = global.blockPeriod;
     tripleHighOnSync.count_value = 1; 
     VTimerOnSync.count_value = 1;
-    ESP_LOGW(blue "GC 1.5 ON_SYNC_VALUES-setCountValueAndPeriod", "\n VTIMER_CV_OS %d",(int)VTimerOnSync.count_value);
-    ESP_LOGW(cyan "GC 1.75 PERIODS-setCountValueAndPeriod", "VTIMER %d\n", (int)VTimerSetup.period_ticks);
+    ESP_LOGW(blue "GC CV_OS", "\n VTIMER_CV_OS %d",(int)VTimerOnSync.count_value);
+    ESP_LOGW(cyan "GC Periods", "\nVTIMER: %d\nHTimer: %d\n", (int)VTimerSetup.period_ticks, activePwmPeriod);
 }
 
 void initializeLowGate(){
@@ -52,7 +52,7 @@ void initializeLowGate(){
 }
 
 void initializeHighGate(uint32_t comparatorOff_Duty){
-    ESP_LOGI("High Gate CMP Value","%d ", comparatorOff_Duty);
+    ESP_LOGI("Initit HIGHSide","High Gate CMP Value:%d ", comparatorOff_Duty);
     for (int i = 0; i <3 ; i++){
         motorH[i] = {
             .timerConfig = HTimerSetup,

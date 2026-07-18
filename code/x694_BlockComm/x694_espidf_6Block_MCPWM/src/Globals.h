@@ -9,7 +9,7 @@
 #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 
-#define startingDuty (0.8) //, normally .8
+#define startingDuty (0.6) //, normally .8
 #define cBufSize 8
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define initializationLatency pdMS_TO_TICKS(30)

@@ -1,6 +1,6 @@
 #include "Initialize.h"
 #include "GateControl.h"
-#define isMinutelyCheckup(x) ((x % 1024) == 0)
+#define isMinutelyCheckup(x) ((x % 1024) == 15)
 BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
 BaseType_t xHigherPriorityTaskWoken2 = pdFALSE; 
 TickType_t synchronizedTime;
@@ -201,7 +201,6 @@ void IRAM_ATTR getSectorNumber(void * startTick1){
       #endif
       // taskYIELD();
 
-      
       // file1 = file1 + ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1))-1;
       // startTimer = esp_timer_get_time();
       // counter++;
