@@ -8,15 +8,11 @@
 // #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 
-
-
 /* #################### USER SET-SETTINGS #################### */
 #define lastResort
 #define startingDuty (0.85) //, normally .8
 // #define as5600DirPinHigh
 // #define as5600DirPinHighAtCalibration
-
-
 
 /* #################### RUNTIME VARIABLES #################### */
 /* ========================= C++ STRUCTS ========================= */
@@ -25,6 +21,7 @@ typedef enum {
     VELOCITY_CONTROL,
     TORQUE_CONTROL
 } control_type;
+
 
 typedef struct{
     int oldSectorTarget = 0;
@@ -47,7 +44,7 @@ typedef struct{
     std::atomic <uint32_t> pindex= 0;
     std::atomic <uint32_t> vindex= 0;
     std::atomic <uint32_t> aindex= 0;
-    float lastPosError = 0; //dx/dt
+    float lastPosError = 0; //for dx/dt
     float totalPosChange = 0; //∫v(t)dt
     
     //Velocity pid

@@ -25,8 +25,7 @@
 #define i2cClockSpeed 1250000
 #define as5600CalibrationRawValue (1916) //38 not 37 because +0.5 and trucnate = round up,30degrees to sector_per_bits is only .5, not 1.
 #define adcReadBufferSize 4
-#define cBufSize 8
-
+#define cBufSize 8                                          /*For storing measured/calculated motor values*/
 
 
 /* #################### MOTOR LIMITATIONS #################### */
@@ -124,18 +123,6 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 
 //tracking all interstate variables
 tag - darray [dindex #W]  #W
-    int oldSectorTarget = 0;
-    int sectorTarget = 0; //for stator current vector
-    std::atomic<uint32_t> blockPeriod = 10000.0; //6941
-    std::atomic<uint32_t> tlog_readAS5600 = 0;
-    std::atomic<bool> setMotorFreeSpin = false;
-    std::atomic<bool> setMotorFreeTemporarily = false;
-    int dir = 5; 
-    control_type controlMethod = VELOCITY_CONTROL;
-    int rotorVal =0; //needs to inversted
-    float targetPosition =0; //target Position in bits
-    float targetVelocity =0; //target RPS
-    float targetAcceleration =0; //target RPS
 
 runOnESPTimerIntr( ) --> getSectorNumberTask(
     --------------READ ONLY (CORE ONE)--------------

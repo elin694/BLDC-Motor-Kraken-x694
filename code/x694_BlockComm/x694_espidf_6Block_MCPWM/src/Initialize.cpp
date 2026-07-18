@@ -168,7 +168,7 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
          isr2i.fetch_add(1,std::memory_order::relaxed);
          global.oldSectorTarget = global.sectorTarget;
          
-         uint32_t reading = (as5600RawDataBuf[0]<<8) | as5600RawDataBuf[1]; 
+         int reading = (as5600RawDataBuf[0]<<8) | as5600RawDataBuf[1]; 
          global.rotorVal = reading;
          global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading) + global.dir) % 6; //0- bitsPerSector --> smaller sector
          global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
