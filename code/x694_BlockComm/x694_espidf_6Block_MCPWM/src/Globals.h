@@ -55,20 +55,7 @@ typedef struct{
     int rotorVal =0; //needs to inversted
     float targetPosition =0; //target Position in bits
     float targetVelocity =0; //target RPS
-    float targetAcceleration =0; //target RPS
-    
-    uint32_t measuredPos[cBufSize]; //recent values at the front
-    float measuredVel[cBufSize]; //bits/s
-    float measuredAccel[cBufSize];
-    std::atomic <uint32_t> pindex= 0;
-    std::atomic <uint32_t> vindex= 0;
-    std::atomic <uint32_t> aindex= 0;
-    float lastPosError = 0; //for dx/dt
-    float totalPosChange = 0; //∫v(t)dt
-    
-    //Velocity pid
-    float lastVelError = 0; //dv/dt
-    float totalVelChange = 0; //∫a(t)dt, area
+    float targetTorque =0; //target RPS
 } gVar_t;
 
 /* ========================= GLOBAL VARIABLES  ========================= */
