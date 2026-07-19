@@ -25,20 +25,30 @@
 //    }
 // }
 
-void setTorque(float * pointerToTargetTorque){ //Backend Function, ASSES/ASSERT TARGETS IN FRONTEND
+bool IRAM_ATTR torqueCtrlCBK (gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx) {
+    BaseType_t bigTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(torqueControlLoopTask, &bigTaskWoken);
+    return (bool)bigTaskWoken;
+};
+
+void IRAM_ATTR torqueControlLoop(void* pointerToTargetTorque){ //Backend Function, ASSES/ASSERT TARGETS IN FRONTEND
     CLEAR_ALL_NOTIFS(NULL);
-    ESP_ERROR_CHECK(gptimer_new_timer(&megaTimerSetup, &megaTimer));
-    ESP_ERROR_CHECK(gptimer_set_alarm_action(megaTimer, &megaTimerAlarmSetup));
-    ESP_ERROR_CHECK(gptimer_register_event_callbacks(megaTimer, &megaTimerCallback, NULL));
-    ESP_ERROR_CHECK(gptimer_enable(megaTimer));
-    ESP_ERROR_CHECK(gptimer_get_resolution(megaTimer, &megaTimerResolution));
+    #define TORQUE_CL_COUNT (CL_TIMER_FREQ_HZ / TORQUE_CL_FREQ_HZ)
+    torqueLoop.timerConfig.intr_priority = TORQUE_LOOP_TIMER_INTR_PRIORITY;
+    torqueLoop.alarmConfig.alarm_count =TORQUE_CL_COUNT;
+    torqueLoop.callbackEvent.on_alarm = torqueCtrlCBK;
+    ESP_ERROR_CHECK(gptimer_new_timer(&torqueLoop.timerConfig, &torqueLoop.timer));
+    ESP_ERROR_CHECK(gptimer_set_alarm_action(torqueLoop.timer, &torqueLoop.alarmConfig));
+    ESP_ERROR_CHECK(gptimer_register_event_callbacks(torqueLoop.timer, &torqueLoop.callbackEvent, &torqueLoop));
+    ESP_ERROR_CHECK(gptimer_enable(torqueLoop.timer));
+    ESP_ERROR_CHECK(gptimer_get_resolution(torqueLoop.timer, (uint32_t*) &torqueLoop.freq));
     
     /*CONISDER case from motor stall - to SL_MIN_VELOCITY*/
-    float targetTorque = *pointerToTargetTorque;
+    float targetTorque = *(float*) pointerToTargetTorque;
     for(;;){
         ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
         assert( ( -SL_MAX_TORQUE <= targetTorque ) && ( targetTorque <= -SL_MAX_TORQUE ) );
-        if(global.controlMethod <= TORQUE_CONTROL){
+        if(global.controlMethod >= TORQUE_CONTROL){
             float tqMagnitude = fabsf( targetTorque );
             if(tqMagnitude > SL_MAX_TORQUE){
                 tqMagnitude = SL_MAX_TORQUE;
@@ -52,13 +62,12 @@ void setTorque(float * pointerToTargetTorque){ //Backend Function, ASSES/ASSERT 
     }
 }
 
-
 // void setVelocity(float * pointerToTargetVelocity){
 //     float targetVelocity = *pointerToTargetVelocity;
 //     assert( ( MOTOR_SPEC_MIN_VELOCITY <= targetVelocity ) && ( targetVelocity <= MOTOR_SPEC_MAX_VELOCITY ) );
 //     for(;;){
 //          /* +error = ahead of target ccw*/
-//          if(global.controlMethod <= VELOCITY_CONTROL){
+//          if(global.controlMethod >= VELOCITY_CONTROL){
 //             float dt  = estimatedI2CReadTime_us;
 //             uint32_t vidx = global.vindex;
 //             float errorVel =targetVelocity- global.measuredVel[vidx%cBufSize];/////////////////
@@ -84,7 +93,7 @@ void setTorque(float * pointerToTargetTorque){ //Backend Function, ASSES/ASSERT 
 // void setPosition(int * pointerToTargetPosition){
 //     int targetPosition = *pointerToTargetPosition;
 //     for(;;){
-//       if(global.controlMethod <= POSITION_CONTROL){
+//       if(global.controlMethod >= POSITION_CONTROL){
 //          float dt  = estimatedI2CReadTime_us;
 //          uint32_t pidx = global.pindex;
 //          float errorPos =global.targetPosition- global.measuredPos[pidx%cBufSize];/////////////////

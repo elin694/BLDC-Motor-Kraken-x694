@@ -22,9 +22,9 @@
 /* #################### RUNTIME VARIABLES #################### */
 /* ========================= C++ STRUCTS ========================= */
 typedef enum {
-    POSITION_CONTROL,
+    TORQUE_CONTROL,
     VELOCITY_CONTROL,
-    TORQUE_CONTROL
+    POSITION_CONTROL
 } control_type;
 
 typedef struct {
@@ -53,9 +53,9 @@ typedef struct{
     control_type controlMethod = VELOCITY_CONTROL;
     /*PID variables*/
     int rotorVal =0; //needs to inversted
-    float targetPosition =0; //target Position in bits
-    float targetVelocity =0; //target RPS
     float targetTorque =0; //target RPS
+    float targetVelocity =0; //target RPS
+    int targetPosition =0; //target Position in bits
 } gVar_t;
 
 /* ========================= GLOBAL VARIABLES  ========================= */
@@ -83,8 +83,10 @@ extern  intr_handle_t oneBlockISR;
 inline mcpwm_timer_handle_t VTimer =NULL;
 
 inline TaskHandle_t setupTask= NULL;
+inline DRAM_ATTR TaskHandle_t positionControlLoopTask = NULL;
+inline DRAM_ATTR TaskHandle_t velocityControlLoopTask = NULL;
+inline DRAM_ATTR TaskHandle_t torqueControlLoopTask = NULL;
 inline DRAM_ATTR TaskHandle_t getSectorNumberTask= NULL;
-inline TaskHandle_t mathItOutTask= NULL;
 inline DRAM_ATTR TaskHandle_t executeGatesTask= NULL;
 
 
@@ -95,7 +97,6 @@ void spamSearchCV(void *parameter);
 void initialize(void *parameter);      
 void tag(const char* tag);
 void tagFlag(bool start, int timer);
-void d_blockCycling(void * startTick5);
 
 
 /*#################### BACKEND #################### */

@@ -17,6 +17,9 @@ void initialize(void * parameter){
    int b = global.blockPeriod.load(std::memory_order::relaxed);
    ESP_LOGI("init.cpp ","blockPeriod %d", b);//nti
    xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
+   // xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
+   // xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
+   // xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
 
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
    synchronizedTime = xTaskGetTickCount();

@@ -28,6 +28,9 @@
 #define adcReadBufferSize 4
 #define cBufSize 8                                          /*For storing measured/calculated motor values*/
 
+#define TORQUE_CL_FREQ_HZ    (5000)
+#define VELOCITY_CL_FREQ_HZ  (4000)
+#define POSITION_CL_FREQ_HZ (2000)
 
 
 /*#################### SHORTHANDS #################### */
@@ -107,19 +110,19 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 /*  Unsigned values set to motor's physical limits (MOTOR_SPEC). Magnitudes only. DO NOT CHANGE. */
 #define maxDuty 0.97f
 #define minDuty 0.03f
+#define MOTOR_SPEC_MAX_TORQUE (maxDuty)     /*Measured at maxDuty*/
+#define MOTOR_SPEC_MIN_TORQUE (minDuty)      /*Measured at minDuty*/
 // #define MOTOR_SPEC_MAX_VELOCITY (float)(50.0f) /* Unit: RPS Measured at maxDuty */
 #define MOTOR_SPEC_MAX_VELOCITY (INPUT_TO_REAL_VELOCITY( 50 )) /* Unit: RPS Measured at maxDuty */
 #define MOTOR_SPEC_MIN_VELOCITY (TICKS_TO_REAL_VELOCITY( MAX_MCPWM_TIMER_PERIOD )) /* Unit: RPS */
-#define MOTOR_SPEC_MAX_TORQUE (maxDuty)     /*Measured at maxDuty*/
-#define MOTOR_SPEC_MIN_TORQUE (minDuty)      /*Measured at minDuty*/
 
 /* ========================= MOTOR SOFTWARE LIMITS ========================= */
 /* Unsigned values set to within motor's physical limits (MOTOR_SPEC). Magnitudes only. User can edit. */
-#define SL_MAX_VELOCITY     (MOTOR_SPEC_MAX_VELOCITY)     /* Unit: RPS */
-#define SL_MIN_VELOCITY     (TICKS_TO_REAL_VELOCITY( MAX_MCPWM_TIMER_PERIOD / 2 ))     /* Unit: RPS */
-
 #define SL_MAX_TORQUE       (MOTOR_SPEC_MAX_TORQUE)
 #define SL_MIN_TORQUE       (MOTOR_SPEC_MIN_TORQUE)
+
+#define SL_MAX_VELOCITY     (MOTOR_SPEC_MAX_VELOCITY)     /* Unit: RPS */
+#define SL_MIN_VELOCITY     (TICKS_TO_REAL_VELOCITY( MAX_MCPWM_TIMER_PERIOD / 2 ))     /* Unit: RPS */
 
 //save time by calculating software bounds beforehand
 #define SL_MAX_VELOCITY_PERIOD_TICKS (uint32_t)(VTICKSF_PER_BLOCK / (SL_MAX_VELOCITY)) //200--> 111.11rps, 1111-->20rps
@@ -127,25 +130,25 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 
 /* ========================= USER TARGET INPUT BOUNDS ========================= */
 /* Signed minimum and maximum target settings. MEANT TO BE USER CHANGED*/
-#define TARGET_POSITION_UB        (uint32_t) (0)        /* Unit: LSB */
-#define TARGET_POSITION_LB        (uint32_t) (4096)    /* Unit: LSB */
+#define TARGET_TORQUE_UB        (float) (SL_MAX_TORQUE)
+#define TARGET_TORQUE_LB        (float) (-1.0 *SL_MAX_TORQUE)
 
 #define TARGET_VELOCITY_UB     (float) (SL_MAX_VELOCITY)     /* Upper bound of target velocity. Unit: RPS */
 #define TARGET_VELOCITY_LB      (float) (-1.0 * SL_MAX_VELOCITY)     /* Lower bound of target velocity. Unit: RPS */
 // #define TARGET_VELOCITY_LB      (float) (SL_MIN_VELOCITY)     /* Lower bound of target velocity. Unit: RPS */
-#define TARGET_TORQUE_UB        (float) (SL_MAX_TORQUE)
-#define TARGET_TORQUE_LB        (float) (-1.0 *SL_MAX_TORQUE)
 
+#define TARGET_POSITION_UB        (uint32_t) (0)        /* Unit: LSB */
+#define TARGET_POSITION_LB        (uint32_t) (4096)    /* Unit: LSB */
 
 /* #################### INTERRUPT PRIORITY #################### */
 #define MCPWM_HighsideIntrPriority 1 //tep,tez
 #define MCPWM_LowsideIntrPriority 2 //tep,tez
 #define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
 #define i2c_intrPriority 3
-#define MEGA_TIMER_INTR_PRIORITY 1
-#define POSITION_LOOP_TIMER_INTR_PRIORITY 1
-#define VELOCITY_LOOP_TIMER_INTR_PRIORITY 1
+#define MEGA_TIMER_INTR_PRIORITY 3
 #define TORQUE_LOOP_TIMER_INTR_PRIORITY 1
+#define VELOCITY_LOOP_TIMER_INTR_PRIORITY 1
+#define POSITION_LOOP_TIMER_INTR_PRIORITY 1
 /*esp timer intr : 1-3, (2)
 freertos timer :lvl 1 or 3 (1)
 watchdog and sys checks :4 or 5 */
