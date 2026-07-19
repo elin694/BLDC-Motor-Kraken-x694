@@ -11,6 +11,9 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
    xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
    mcpwmSetup(); 
+   #ifndef useGPTimerOverESP32Timer
+   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup, &gsnTimerHandle));
+   #endif
    int b = global.blockPeriod.load(std::memory_order::relaxed);
    ESP_LOGI("init.cpp ","blockPeriod %d", b);//nti
    xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
@@ -48,9 +51,6 @@ void initializeInterruptEnablePin(void * startTick6){
    ESP_LOGI(blue "init.cpp", "=====starttimer==== ");
    xTaskDelayUntil(&startTick,initializationLatency);
    ESP_ERROR_CHECK(mcpwm_timer_start_stop(VTimer, MCPWM_TIMER_START_NO_STOP));
-   #ifdef useGPTimerOverESP32Timer
-   ESP_ERROR_CHECK(gptimer_start ( megaTimer ) );
-   #endif
    #ifndef lastResort
    mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
    MCPWMx->int_clr.val=  clearReg.val;
@@ -153,14 +153,12 @@ void as5600initialize(void * parameter) {
    
    #ifdef useGPTimerOverESP32Timer
    ESP_ERROR_CHECK(gptimer_new_timer(&megaTimerSetup, &megaTimer));
-   ESP_ERROR_CHECK(gptimer_register_event_callbacks(megaTimer, &megaTimerCallback, NULL));
    ESP_ERROR_CHECK(gptimer_set_alarm_action(megaTimer, &megaTimerAlarmSetup));
+   ESP_ERROR_CHECK(gptimer_register_event_callbacks(megaTimer, &megaTimerCallback, NULL));
    ESP_ERROR_CHECK(gptimer_enable(megaTimer));
    ESP_ERROR_CHECK(gptimer_get_resolution(megaTimer, &megaTimerResolution));
    float mperiod = (float)ALARM_VAL/ megaTimerResolution;
    ESP_LOGI(magenta, "mega timer period: %8.5f" , mperiod);
-   #else
-   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup, &gsnTimerHandle));
    #endif
 
    xTaskNotifyGive(setupTask);
@@ -177,6 +175,7 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
    #endif
 
    #ifdef useGPTimerOverESP32Timer
+   ESP_ERROR_CHECK(gptimer_start ( megaTimer ) );
    #else
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTime_us));
    #endif

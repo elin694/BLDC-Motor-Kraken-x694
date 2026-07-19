@@ -34,7 +34,7 @@ void debugMonitor (void * startTick2) {
     int stateIsCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
     taskEXIT_CRITICAL(&stepPeriodMux);
      int numGsnCycled = isr2i.load(std::memory_order::relaxed);
-    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast,numGsnCycled);
+    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" white " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast,numGsnCycled);
 
     if(espTimer_isMinutelyCheckup(esp32timer_log_counter++)){
       #ifdef useGPTimerOverESP32Timer
@@ -88,7 +88,7 @@ uint32_t readPotOnce (bool filter, int averager) {
 
     
     if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-      ESP_LOGW(yellow, "Tvel:%7.3f per.:%d ft:%d Ar:%4d, %d", localTargetVelocity, vbPeriod_temp, filter, averager, processedData);
+      ESP_LOGI("Tvel", "%7.3f per.:%d ft:%d Ar:%4d, %d", localTargetVelocity, vbPeriod_temp, filter, averager, processedData);
       int dirWaitingLine = (localTargetVelocity < 0) ? (5) : (2);
       bool legal = vbPeriod_temp <= SL_MIN_VELOCITY_PERIOD_TICKS;
 

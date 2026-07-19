@@ -2,7 +2,7 @@
 #include "Constants.h"
 
 /* #################### DEBUG PANEL #################### */
-#define debug_i2cTransmitTime 
+// #define debug_i2cTransmitTime 
 // #define debug_fastPrints //isr indicator and BLOCK#
 // #define debug_hyperFastPrints
 // #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
@@ -10,7 +10,7 @@
 // #define DEBUG_ALLOW_DUMPING
  
 /* #################### USER SET-SETTINGS #################### */
-#define useGPTimerOverESP32Timer
+// #define useGPTimerOverESP32Timer
 #define lastResort
 #define startingDuty (0.85) //, normally .8
 // #define as5600DirPinHigh
