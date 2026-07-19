@@ -36,15 +36,15 @@ void debugMonitor (void * startTick2) {
      int numGsnCycled = isr2i.load(std::memory_order::relaxed);
     esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast,numGsnCycled);
 
-    if(espTimer_isMinutelyCheckup(esp32timer_log_counter++)){
-      #ifdef useGPTimerOverESP32Timer
-      #else
-      ESP_LOGI("\n", blue); esp_timer_dump(stdout);
-      #endif
-      esp_rom_printf("\n\n");
-      vTaskGetRunTimeStats(buf);
-      esp_rom_printf(buf);
-    }
+    // if(espTimer_isMinutelyCheckup(esp32timer_log_counter++)){
+    //   #ifdef useGPTimerOverESP32Timer
+    //   #else
+    //   ESP_LOGI("\n", blue); esp_timer_dump(stdout);
+    //   #endif
+    //   esp_rom_printf("\n\n");
+    //   vTaskGetRunTimeStats(buf);
+    //   esp_rom_printf(buf);
+    // }
   }
 }
 
@@ -77,17 +77,18 @@ uint32_t readPotOnce (bool filter, int averager) {
   rawData = (rawData/2)*2;
   if(global.controlMethod == VELOCITY_CONTROL){
     int processedData = (filter) ? ((averager + rawData) / (4)) : rawData;
-    float localTargetVelocity = (TARGET_VELOCITY_LB + (TARGET_VELOCITY_UB - TARGET_VELOCITY_LB) * processedData / 4096.0f);
-    vbPeriod_temp= (uint32_t)(VTIMER_CLOCK / fabsf(localTargetVelocity * BLOCKS_PER_ROTATION));
+    // float localTargetVelocity = (SL_MIN_VELOCITY + (((SL_MAX_VELOCITY - SL_MIN_VELOCITY)/4096.0f) * processedData));
+    // vbPeriod_temp= (uint32_t)(VTICKSF_PER_BLOCK / fabsf(localTargetVelocity));
 
-// float localTargetVelocity = (fMin+(fMax-fMin)*processedData/4096.0f); /*OLD*/
-// vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(localTargetVelocity*electricalCycles));  /*OLD*/
+    float localTargetVelocity = (TARGET_VELOCITY_LB + (TARGET_VELOCITY_UB - TARGET_VELOCITY_LB)*processedData/4096.0f); /*OLD*/
+    vbPeriod_temp= (uint32_t)(VTIMER_CLOCK/fabsf(localTargetVelocity* BLOCKS_PER_ROTATION));  /*OLD*/
 
     // float localTargetVelocity = (fMin + (((fMax - fMin)/4096.0f) * processedData)); /*NEW*/
 // vbPeriod_temp= (uint32_t)((VTimerResolution / electricalCycles) / fabsf(localTargetVelocity));  /*NEW*/
 
-if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-      ESP_LOGW(yellow, "Tvel:%5.2f per.:%d ft:%d Avgr:%4d", localTargetVelocity, vbPeriod_temp, filter, averager);
+    
+    if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+      ESP_LOGW(yellow, "Tvel:%7.3f per.:%d ft:%d Ar:%4d, %d", localTargetVelocity, vbPeriod_temp, filter, averager, processedData);
       int dirWaitingLine = (localTargetVelocity < 0) ? (5) : (2);
       bool legal = vbPeriod_temp <= SL_MIN_VELOCITY_PERIOD_TICKS;
 

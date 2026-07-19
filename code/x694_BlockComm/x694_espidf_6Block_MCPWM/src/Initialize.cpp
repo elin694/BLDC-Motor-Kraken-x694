@@ -31,10 +31,10 @@ void initialize(void * parameter){
    xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &synchronizedTime, 3, NULL, 0);
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0);
    xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &synchronizedTime, 6, NULL, 0);
-   esp_intr_dump(stdout);
+   // esp_intr_dump(stdout);
    #ifdef useGPTimerOverESP32Timer
    #else
-   esp_timer_dump(stdout);
+   // esp_timer_dump(stdout);
    #endif
    esp_err_t probeCheck = i2c_master_probe(busHandle, as5600Address, 1);
    int now2 = SNAP()-now1;
@@ -199,7 +199,7 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
          isr2i.fetch_add(1,std::memory_order::relaxed);
          global.oldSectorTarget = global.sectorTarget;
          
-         int reading = (as5600RawDataBuf[0]<<8) | as5600RawDataBuf[1]; 
+         uint32_t reading = (as5600RawDataBuf[0]<<8) | as5600RawDataBuf[1]; 
          global.rotorVal = reading;
          global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading) + global.dir) % 6; //0- bitsPerSector --> smaller sector
          global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
