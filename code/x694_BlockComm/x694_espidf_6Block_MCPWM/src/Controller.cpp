@@ -25,20 +25,19 @@ void mathItOut(void * startTick4){ //updates arrrays with new ifo
    }
 }
 
-void setTorque(float * pointerToTargetTorque){ //
+void setTorque(float * pointerToTargetTorque){ //Backend Function, ASSES/ASSERT TARGETS IN FRONTEND
     float targetTorque = *pointerToTargetTorque;
-    assert( ( MOTOR_SPEC_MIN_TORQUE <= targetTorque ) && ( targetTorque <= MOTOR_SPEC_MAX_TORQUE ) );
 
-    if(global.controlMethod <= TORQUE_CONTROL){
-        float normalizedMagnitude = fabsf( LMAP(targetTorque, SL_MAX_TORQUE, SL_MIN_TORQUE, 1, 0) );
-        if(normalizedMagnitude < minDuty || normalizedMagnitude > maxDuty){
-            global.setMotorFreeSpin = true; //rmeove delay between this and freespining in the future
-        } else{
-        for(int i=2; i>-1; i--){
-            // ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0,(1-magnitude)*(activePwmPeriod/2.0)));
+    for(;;){
+        assert( ( -SL_MAX_TORQUE <= targetTorque ) && ( targetTorque <= -SL_MAX_TORQUE ) );
+        if(global.controlMethod <= TORQUE_CONTROL){
+            float tqMagnitude = fabsf( targetTorque );
+            float targetDuty = LMAP(tqMagnitude, MOTOR_SPEC_MIN_TORQUE, minDuty, MOTOR_SPEC_MAX_TORQUE, maxDuty);
+            for(int i=2; i>-1; i--){
+                ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0, (1.0-targetDuty)*(activePwmPeriod/2.0)));
+            }
+            global.dir = (targetTorque < 0) ? (5) : (2);
         }
-        }
-        global.dir = (targetTorque < 0) ? (5) : (2);
     }
 }
 

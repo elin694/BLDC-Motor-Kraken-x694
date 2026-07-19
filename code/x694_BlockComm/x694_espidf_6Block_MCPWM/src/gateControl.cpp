@@ -57,6 +57,8 @@ void initializeHighGate(uint32_t comparatorOff_Duty){
         motorH[i] = {
             .timerConfig = HTimerSetup,
             .opConfig = HOperatorSetup,
+            .compConfig = HComparatorSetup,
+            .pwmConfig = HPWMSetup
         };
 
         motorH[i].pwmConfig.gen_gpio_num = gateArray[2*i];

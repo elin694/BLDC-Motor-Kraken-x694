@@ -1,5 +1,5 @@
 #include "Initialize.h"
-#include "GateControl.h"
+// #include "GateControl.h"
 
 #define isMinutelyCheckup(x) ((x % 1024) == 15)
 TickType_t synchronizedTime;

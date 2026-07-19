@@ -6,21 +6,21 @@
 
 #define as5600Address 0x36
 void pinSetup();
-void initializeGPIO();
 
 void as5600initialize(void* parameter);
 void initializeInterruptEnablePin(void * startTick6); 
-
 #ifdef useGPTimerOverESP32Timer
 bool runOnMegaTimerIntr (gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
 #else
 void runOnESPTimerIntr(void * globe);
 #endif
+extern void mcpwmSetup ();
+extern void executeGates (void * parameter);
 bool runActualISR(void * data);
-
 void debugMonitor(void * parameter);
-
 void getSectorNumber(void *returnValue);
+
+
 inline DRAM_ATTR mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
 //+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++
 inline i2c_master_bus_config_t busSetup = { 
@@ -46,8 +46,6 @@ constexpr i2c_device_config_t as5600Setup = {
    .flags = {.disable_ack_check = false}
 };
 inline DRAM_ATTR i2c_master_dev_handle_t as5600Handle;
-
-constexpr DRAM_ATTR uint8_t as5600Set = 0x36;
 constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
 inline DRAM_ATTR uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 #define as5600WriteSize 1

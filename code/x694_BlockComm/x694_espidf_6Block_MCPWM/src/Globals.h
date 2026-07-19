@@ -27,6 +27,21 @@ typedef enum {
     TORQUE_CONTROL
 } control_type;
 
+typedef struct {
+    mcpwm_timer_config_t timerConfig;
+    mcpwm_operator_config_t opConfig;
+    mcpwm_comparator_config_t compConfig;
+    mcpwm_generator_config_t pwmConfig;
+
+    mcpwm_timer_handle_t timer = NULL;
+    mcpwm_oper_handle_t operatorModule= NULL;
+    mcpwm_cmpr_handle_t comparator0 = NULL;
+    mcpwm_cmpr_handle_t comparator1 = NULL; //null for high
+    mcpwm_gen_handle_t pwmGate0 = NULL;
+    mcpwm_gen_handle_t pwmGate1 = NULL;// stays null
+    //shoutout gemini for suggest changing countval
+} phaseMcpwm;
+
 typedef struct{
     int oldSectorTarget = 0;
     int sectorTarget = 0; //for stator current vector
@@ -59,6 +74,9 @@ typedef struct{
 /* ========================= GLOBAL VARIABLES  ========================= */
 inline DRAM_ATTR volatile std::atomic<uint32_t> isr2i =0;
 volatile DRAM_ATTR inline gVar_t global;
+// gpio 19- miso, b High side is tx2
+extern phaseMcpwm motorH[3];
+extern phaseMcpwm motorL[3];
 inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
 
 /* ------------------------------ DEBUG-TOGGLED VARIABLES  ------------------------------ */
