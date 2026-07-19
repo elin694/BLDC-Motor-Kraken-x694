@@ -77,10 +77,16 @@ uint32_t readPotOnce (bool filter, int averager) {
   rawData = (rawData/2)*2;
   if(global.controlMethod == VELOCITY_CONTROL){
     int processedData = (filter) ? ((averager + rawData) / (4)) : rawData;
-    float localTargetVelocity = (TARGET_VELOCITY_LB + (((TARGET_VELOCITY_UB - TARGET_VELOCITY_LB)/4096.0f) * processedData));
-    vbPeriod_temp= (uint32_t)(VTICKSF_PER_BLOCK / fabsf(localTargetVelocity));
-    
-    if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
+    float localTargetVelocity = (TARGET_VELOCITY_LB + (TARGET_VELOCITY_UB - TARGET_VELOCITY_LB) * processedData / 4096.0f);
+    vbPeriod_temp= (uint32_t)(VTIMER_CLOCK / fabsf(localTargetVelocity * BLOCKS_PER_ROTATION));
+
+// float localTargetVelocity = (fMin+(fMax-fMin)*processedData/4096.0f); /*OLD*/
+// vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(localTargetVelocity*electricalCycles));  /*OLD*/
+
+    // float localTargetVelocity = (fMin + (((fMax - fMin)/4096.0f) * processedData)); /*NEW*/
+// vbPeriod_temp= (uint32_t)((VTimerResolution / electricalCycles) / fabsf(localTargetVelocity));  /*NEW*/
+
+if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
       ESP_LOGW(yellow, "Tvel:%5.2f per.:%d ft:%d Avgr:%4d", localTargetVelocity, vbPeriod_temp, filter, averager);
       int dirWaitingLine = (localTargetVelocity < 0) ? (5) : (2);
       bool legal = vbPeriod_temp <= SL_MIN_VELOCITY_PERIOD_TICKS;
