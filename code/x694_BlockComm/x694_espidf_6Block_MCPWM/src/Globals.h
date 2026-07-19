@@ -8,7 +8,7 @@
 // #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 // #define DEBUG_ALLOW_DUMPING
-
+ 
 /* #################### USER SET-SETTINGS #################### */
 #define lastResort
 #define startingDuty (0.85) //, normally .8
