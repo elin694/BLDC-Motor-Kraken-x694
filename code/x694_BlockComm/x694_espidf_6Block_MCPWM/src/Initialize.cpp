@@ -25,9 +25,10 @@ void initialize(void * parameter){
    xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &synchronizedTime, 3, NULL, 0);
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0);
    xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &synchronizedTime, 6, NULL, 0);
+   #ifdef DEBUG_ALLOW_ONE_TIME_DUMPING
    esp_intr_dump(stdout);
-   #ifdef useGPTimerOverESP32Timer
-   #else
+   #endif
+   #ifndef useGPTimerOverESP32Timer
    // esp_timer_dump(stdout);
    #endif
    esp_err_t probeCheck = i2c_master_probe(busHandle, as5600Address, 2);
@@ -135,17 +136,20 @@ void as5600initialize(void * parameter) {
    ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
 
    int startWatch  =SNAP();
-   ESP_ERROR_CHECK(i2c_master_transmit_receive( as5600Handle, fthRegister, 1, fthRegisterData, 1, -1 ) ); //read current settings
+   ESP_ERROR_CHECK(i2c_master_transmit_receive( as5600Handle, fthRegister, 1, fthRegisterData, 2, -1 ) ); //read current settings
    /* (dev_handle), pointer-pointed addr to start on, # bytes to write, saved data, # bytes to save, waitout */
    
    int lapWatch =SNAP()-startWatch;
-   fthRegister[1]= (fthRegisterData[0] & fth_sf_clear_mask) | fth_sf_set_mask; //rese
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 2, fthRegisterData, 1, -1));
+   fthRegister[1]= ( (fthRegisterData[0] & fth_sf_clear_mask) | fth_sf_set_mask); //read and set the fth and sf bits
+   fthRegister[2]= ( (fthRegisterData[1] & power_clear_mask) | power_set_mask); //read and set the pm  bits to 00
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 3, fthRegisterData, 1, -1));
    int lapWatch2 =SNAP()-startWatch;
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 1, fthRegisterData, 1, -1));
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 1, fthRegisterData, 2, -1));
    int lapWatch3 =SNAP()-startWatch;
-   ESP_LOGI(magenta "init.cpp", "\nas5600 Fast Fillter Threshold Set to %d\n1st REG read time:%4d \nSF-FTH write time:%4d REG_Check time:%4d ", 
+   fthRegisterData[1] = (fthRegisterData[1] && (~power_clear_mask));
+   ESP_LOGI(magenta "init.cpp", "\nas5600 FTH & SF + PM Registers set to %d+%d\n1st REG read time:%4d \nSF-FTH write time:%4d REG_Check time:%4d ", 
       (int)fthRegisterData[0],
+      (int)fthRegisterData[1],
       lapWatch,
       lapWatch2,
       lapWatch3
@@ -165,6 +169,12 @@ void as5600initialize(void * parameter) {
    vTaskDelete(NULL);
 }
 
+#define FAIL_BUFFER_SIZE (4)
+#define FAIL_THRESHOLD_TIME (FAIL_BUFFER_SIZE * 1e6) /*in us. Larger catches more*/
+#define MAX_BUS_RESET_ATTEMTPS 3
+
+#define JAILBREAK_BUFFER_SIZE (2)
+#define JAILBREAK_THRESHOLD_TIME (JAILBREAK_BUFFER_SIZE * 1e6 ) /*in us*/
 void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
    CLEAR_ALL_NOTIFS(NULL);
    TickType_t startTick = *(TickType_t*)startTick1;
@@ -173,12 +183,16 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
    int startTime =0;
    uint32_t printCounter=0;
    #endif
-
    #ifdef useGPTimerOverESP32Timer
    ESP_ERROR_CHECK(gptimer_start ( megaTimer ) );
    #else
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTime_us));
    #endif
+   uint32_t failHistory[FAIL_BUFFER_SIZE];
+   uint32_t failIndex = 0;
+   uint32_t jailHistory[JAILBREAK_BUFFER_SIZE];
+   uint32_t jailCell = 0;
+
    xTaskDelayUntil(&startTick,initializationLatency);
    while(1){
       uint32_t file1 = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS(1000000));
@@ -187,7 +201,6 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
       #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
       if(isMinutelyCheckup(++printCounter)){ 
          startTime= SNAP(); 
-         
          #ifdef debug_useTagFlag
          tagFlag(true,0); //tags before and after transmit
          #endif
@@ -197,7 +210,6 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
       #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
       if(isMinutelyCheckup(printCounter)){ 
          lap1 = SNAP() - startTime;
-         
          #if (!defined(debug_i2cTransmitTime) && defined(debug_useTagFlag))
          tagFlag(false, lap1); //tags before and after transmit
          #endif
@@ -217,6 +229,41 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
       } else{
          global.oldSectorTarget = global.sectorTarget;
          global.setMotorFreeTemporarily.store(true, std::memory_order::relaxed);
+
+         #ifdef ENABLE_GAMBLING_ON_I2C
+         int timeNow = SNAP();
+         /* If the time between thsi failure and the trailing failure in the queue is less than threshold, Call an demergency*/
+         if ((timeNow - failHistory[failIndex % FAIL_BUFFER_SIZE] <= FAIL_THRESHOLD_TIME ) && (failIndex >= FAIL_BUFFER_SIZE)){
+            int resetAttemptsLeft;
+            for( resetAttemptsLeft = MAX_BUS_RESET_ATTEMTPS ; resetAttemptsLeft > 0; resetAttemptsLeft--){
+               if(i2c_master_bus_reset(busHandle) == ESP_OK){
+                  failIndex = 0;
+                  /*================================= JUDGEMENT DAY ====================================*/
+                  if ((timeNow - jailHistory[jailCell % JAILBREAK_BUFFER_SIZE] <= JAILBREAK_THRESHOLD_TIME ) && (jailCell >= JAILBREAK_BUFFER_SIZE)){
+                     /* You had One too many chances */
+                     abort();
+                  } else {
+                     jailHistory[jailCell++ % JAILBREAK_BUFFER_SIZE] = timeNow;
+                  }
+                  /*================================= JUDGEMENT DAY ====================================*/
+                  ESP_LOGW("JAILBREAK!","\n");
+                  break;
+                  resetAttemptsLeft = -1;
+               }  else {
+                  /* Resetting Failed*/
+                  esp_rom_printf("Roblox police on me! \n");
+               }
+            }
+            if( resetAttemptsLeft == 0){
+               abort();
+            } else { /* sucess! */
+               failIndex = 0;
+               // ulTaskNotifyValueClear(NULL, UINT_MAX);
+            }
+         } else {
+            failHistory[failIndex++ % FAIL_BUFFER_SIZE] = timeNow;
+         }
+         #endif
          tag("#F ");
       }
 

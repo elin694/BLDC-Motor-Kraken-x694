@@ -36,7 +36,7 @@ inline i2c_master_bus_config_t busSetup = {
       // .allow_pd =true
    }
 };
-inline i2c_master_bus_handle_t busHandle;
+inline DRAM_ATTR i2c_master_bus_handle_t busHandle;
 
 constexpr i2c_device_config_t as5600Setup = {
    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -58,8 +58,10 @@ inline DRAM_ATTR uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 #define fth_sf_clear_mask (0b11000000) // Bit pos 5 (0 index) Watchdog off - don't save power
 //The watchdog timer allows saving power by switching into LMP3 if the angle stays within the watchdog threshold of 4 LSB for at least one minute
 
-uint8_t fthRegisterData[1] = {0x00};
-uint8_t fthRegister[2] = {0x07, 0x00};
+#define power_set_mask (0x00000000)  //with |
+#define power_clear_mask (~(0x00000011)) //with &
+uint8_t fthRegisterData[2] = {0x00, 0x00};
+uint8_t fthRegister[3] = {0x07, 0x00, 0x00}; //stores data/ registers to write to
 //==================+++++++ADC AND MCPWM CLEAR REG
 
 constexpr adc_oneshot_unit_init_cfg_t adcSetup= {

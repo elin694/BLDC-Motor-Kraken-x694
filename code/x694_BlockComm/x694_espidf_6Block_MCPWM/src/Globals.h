@@ -8,11 +8,13 @@
 // #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
 // #define DEBUG_ALLOW_DUMPING
+// #define DEBUG_ALLOW_ONE_TIME_DUMPING
  
 /* #################### USER SET-SETTINGS #################### */
 // #define useGPTimerOverESP32Timer
 #define lastResort
-#define startingDuty (0.85) //, normally .8
+#define ENABLE_GAMBLING_ON_I2C
+#define startingDuty (0.6) //, normally .8
 // #define as5600DirPinHigh
 // #define as5600DirPinHighAtCalibration
 
