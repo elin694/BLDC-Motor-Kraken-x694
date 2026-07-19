@@ -32,7 +32,11 @@
 
 /*#################### SHORTHANDS #################### */
 /* ========================= FUNCTION SHORTHANDS ========================= */
+#ifdef useGPTimerOverESP32Timer
+#else
+#endif
 #define SNAP() esp_timer_get_time()
+
 #define time240() esp_cpu_get_cycle_count()
 #define snap() time240()
 #define print(x) esp_rom_printf(x)
@@ -136,6 +140,7 @@ constexpr gpio_num_t gateArray[6]= {phaseAHighPort, phaseALowPort, phaseBHighPor
 #define MCPWM_LowsideIntrPriority 2 //tep,tez
 #define runOnMCPWMIntrPriority ESP_INTR_FLAG_LEVEL2 //might be a bit long
 #define i2c_intrPriority 3
+#define MEGA_TIMER_INTR_PRIORITY 3
 /*esp timer intr : 1-3, (2)
 freertos timer :lvl 1 or 3 (1)
 watchdog and sys checks :4 or 5 */

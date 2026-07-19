@@ -15,7 +15,7 @@ void mcpwmSetup () { //take ~40ms with all log ddebug
     
     tVal[0] = MCPWM0.timer[0].timer_status.timer_value; //block
     esp_rom_printf(cyan "VTIMER%d\nOldSector: %d NewSector %d\n", tVal[0], global.oldSectorTarget, global.sectorTarget);
-    ESP_LOGW("gcc"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",SL_MIN_VELOCITY, SL_MAX_VELOCITY);
+    ESP_LOGW("gcc"," maximum target RPs; %6.3f, minimum target RPS: %6.3f", TARGET_VELOCITY_UB, TARGET_VELOCITY_LB);
 }
 
 void setCountValueAndPeriod () {

@@ -7,13 +7,14 @@
 // #define debug_hyperFastPrints
 // #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
 // #define debug_useTagFlag
-
+// #define DEBUG_ALLOW_DUMPING
 
 /* #################### USER SET-SETTINGS #################### */
 #define lastResort
 #define startingDuty (0.85) //, normally .8
 // #define as5600DirPinHigh
 // #define as5600DirPinHighAtCalibration
+// #define useGPTimerOverESP32Timer
 
 
 /* #################### RUNTIME VARIABLES #################### */
@@ -110,3 +111,40 @@ void d_blockCycling(void * startTick5);
 // #define debug_defCheck2      /* software limit settings, float constants */
 // #define debug_defCheck3      /* target bounds, float constants */
 // #define debug_defCheck4      /* software period ticks limit, uint32_T constants */
+
+static_assert( ( MOTOR_SPEC_MIN_VELOCITY <= SL_MIN_VELOCITY) &&  ( SL_MIN_VELOCITY < SL_MAX_VELOCITY ) && (SL_MAX_VELOCITY <= MOTOR_SPEC_MAX_VELOCITY) );
+static_assert( ( MOTOR_SPEC_MIN_TORQUE <= SL_MIN_TORQUE) && ( SL_MIN_TORQUE < SL_MAX_TORQUE ) && (SL_MAX_TORQUE <= MOTOR_SPEC_MAX_TORQUE) );
+
+static_assert( ( -SL_MAX_VELOCITY <= TARGET_VELOCITY_LB) && ( TARGET_VELOCITY_LB < TARGET_VELOCITY_UB ) && (TARGET_VELOCITY_UB <= SL_MAX_VELOCITY) );
+static_assert( ( -SL_MAX_TORQUE <= TARGET_TORQUE_LB) && ( TARGET_TORQUE_LB < TARGET_TORQUE_UB ) && (TARGET_TORQUE_UB <= SL_MAX_TORQUE) );
+
+#ifdef debug_defCheck1
+static_assert(MOTOR_SPEC_MAX_VELOCITY >= 0xFFFFFFFE);
+static_assert(MOTOR_SPEC_MIN_VELOCITY >= 0xFFFFFFFE);
+static_assert(MOTOR_SPEC_MAX_TORQUE >= 0xFFFFFFFE);
+static_assert(MOTOR_SPEC_MIN_TORQUE >= 0xFFFFFFFE);
+#endif
+#ifdef debug_defCheck2
+static_assert(SL_MAX_VELOCITY >= 0xFFFFFFFE);
+static_assert(SL_MIN_VELOCITY >= 0xFFFFFFFE);
+static_assert(SL_MAX_TORQUE >= 0xFFFFFFFE);
+static_assert(SL_MIN_TORQUE >= 0xFFFFFFFE);
+#endif
+#ifdef debug_defCheck3
+static_assert(TARGET_POSITION_UB >= 0xFFFFFFFE);
+static_assert(TARGET_POSITION_LB >= 0xFFFFFFFE);
+static_assert(TARGET_VELOCITY_UB >= 0xFFFFFFFE);
+static_assert(TARGET_VELOCITY_LB >= 0xFFFFFFFE);
+static_assert(TARGET_TORQUE_UB >= 0xFFFFFFFE);
+static_assert(TARGET_TORQUE_LB >= 0xFFFFFFFE);
+#endif
+#ifdef debug_defCheck4
+static_assert(SL_MAX_VELOCITY_PERIOD_TICKS >= 0xFFFFFFFE);
+static_assert(SL_MIN_VELOCITY_PERIOD_TICKS >= 0xFFFFFFFE);
+static_assert(VTICKS_PER_BLOCK >= 0xFFFFFFFE);
+// static_assert(LMAP(3, 4, 3, 0, 0) >= 0xFFFFFFFE);
+// static_assert(LMAP(3., 4, 3, 0, 0) >= 0xFFFFFFFE);
+// static_assert(LMAP(3., 4, 3, 0.0, 0) >= 0xFFFFFFFE);
+// static_assert(LMAP(3, 4, 4, 0, 1) >= 0xFFFFFFFE);
+// static_assert(LMAP(3., 4, 4, 0, 1) >= 0xFFFFFFFE);
+#endif

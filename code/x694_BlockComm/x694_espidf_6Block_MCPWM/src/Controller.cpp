@@ -41,10 +41,7 @@ void setTorque(float * pointerToTargetTorque){ //
         global.dir = (targetTorque < 0) ? (5) : (2);
     }
 }
-/*
-i am considering MCPWM TIMERS, esP_timers, and GPT_timers to use to help execute a periodic action. Based on my reading, esp_timer is like GPT timer but slightly worse precsion/accuracy. Is MCPWM timer based on the same clock as GPTtimer? What are the advantages to using each one over the other, besides that fact they cna be used with their associated peripheral functions (like how mcpwm's timer can be used to set mcpwm generators)
-Rank each one based on how accurate it is, how precise they are, and how faster their perioidc execution times are in nanoseconds
-*/
+
 
 // void setVelocity(float * pointerToTargetVelocity){
 //     float targetVelocity = *pointerToTargetVelocity;

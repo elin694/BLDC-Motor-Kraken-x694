@@ -10,7 +10,12 @@ void initializeGPIO();
 
 void as5600initialize(void* parameter);
 void initializeInterruptEnablePin(void * startTick6); 
+
+#ifdef useGPTimerOverESP32Timer
+bool runOnMegaTimerIntr (gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
+#else
 void runOnESPTimerIntr(void * globe);
+#endif
 bool runActualISR(void * data);
 
 void debugMonitor(void * parameter);
@@ -76,6 +81,31 @@ constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR1 = {
 //    .timer2_tez_int_clr =1
 // };
 
+#ifdef useGPTimerOverESP32Timer
+#define MEGA_CLOCK_SPEED (80000000)
+gptimer_handle_t megaTimer;
+gptimer_config_t megaTimerSetup = {
+   .clk_src = GPTIMER_CLK_SRC_DEFAULT,
+   .direction = GPTIMER_COUNT_UP,
+   .resolution_hz = MEGA_CLOCK_SPEED,
+   .intr_priority = MEGA_TIMER_INTR_PRIORITY,
+   .flags = {
+      .intr_shared = false,
+      .allow_pd = false
+   }
+};
+
+gptimer_alarm_config_t megaTimerAlarmSetup = {
+   .alarm_count = (uint64_t)(MEGA_CLOCK_SPEED*(0.0002f)),
+   .reload_count =0,
+   .flags = {
+      .auto_reload_on_alarm = 1
+   }
+};
+gptimer_event_callbacks_t megaTimerCallback ={
+   .on_alarm = runOnMegaTimerIntr
+};
+#else
 esp_timer_handle_t gsnTimerHandle;
 esp_timer_create_args_t gsnTimerSetup= {
    .callback=runOnESPTimerIntr,
@@ -85,10 +115,4 @@ esp_timer_create_args_t gsnTimerSetup= {
    .skip_unhandled_events = true
    
 }; 
-   // esp_timer_cb_t callback;        //!< Callback function to execute when timer expires
-   //  void* arg;                      //!< Argument to pass to callback
-   //  esp_timer_dispatch_t dispatch_method;   //!< Dispatch callback from task or ISR; if not specified, esp_timer task
-   //  //                                !< is used; for ISR to work, also set Kconfig option
-   //  //                                !< `CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD`
-   //  const char* name;               //!< Timer name, used in esp_timer_dump() function
-   //  bool skip_unhandled_events;   
+#endif
