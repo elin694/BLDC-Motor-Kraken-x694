@@ -1,0 +1,91 @@
+// bingqiling@Ethans-MacBook-Pro-2 x694_espidf_6Block_MCPWM % git diff -U0 --stat ckpt1 HEAD
+//  code/x694_BlockComm/x694_espidf_6Block_MCPWM/src/Constants.h     | 157 +++++++++++++++++++++++++++++++++++++++--------------
+//  code/x694_BlockComm/x694_espidf_6Block_MCPWM/src/Globals.h       | 103 +++++++++++++++++------------------
+//  z
+// //####################################################################################CONSTANTS.H
+// +/*#################### TUNEABLES #################### */
+// @@ -22,0 +24 @@
+// +#define velPotReadPeriod (int)(20) //set velocity via pot 1
+// @@ -24,4 +26,17 @@
+// +#define as5600CalibrationRawValue (1916) //38 not 37 because +0.5 and trucnate = round up,30degrees to sector_per_bits is only .5, not 1.
+// +#define cBufSize 8                                          /*For storing measured/calculated motor values*/
+// +
+// +
+// +/*#################### SHORTHANDS #################### */
+// +/* ========================= FUNCTION SHORTHANDS ========================= */
+// +#define SNAP() esp_timer_get_time()
+// +#define time240() esp_cpu_get_cycle_count()
+// +#define snap() time240()
+// +#define print(x) esp_rom_printf(x)
+// +#define CLEAR_ALL_NOTIFS(x) (ulTaskNotifyValueClear(x, 0xffffffff) ||  xTaskNotifyStateClear(x) )
+// +#define TICKS_TO_REAL_VELOCITY(x)    ( VTIMER_CLOCK / ( BLOCKSF_PER_ROTATION * x ))
+// +#define INPUT_TO_REAL_VELOCITY(x)   TICKS_TO_REAL_VELOCITY( (uint32_t)(VTIMER_CLOCK / (x * BLOCKS_PER_ROTATION)) )
+// +#define LMAP(alpha, x1, y1, x2, y2) (((y1 - y2) / (x1 - x2)) * (alpha - x2) + y2)  //linear mapping. Ensure that at least one of {Point 1, Point 2} has float
+// +/*. lmap input fromLow toLow    fromHigh toHigh*/
+// @@ -28,0 +44,24 @@
+// +
+// +/* ========================= CONSTANTS SHORTHANDS ========================= */
+// +#define BLOCKSF_PER_ROTATION (18.0f) //constexpr is defineable compile time costant 
+// +#define BLOCKS_PER_ROTATION (18) 
+// +#define BITS_TO_ROTATIONS (1/4096.0)
+// +#define ROTATIONS_TO_BITS (4096.0)
+// +#define VTICKS_PER_BLOCK (VTIMER_CLOCK / BLOCKS_PER_ROTATIO)N /* VP = VTIMER_CLOCK / 18  */
+// +#define VTICKSF_PER_BLOCK (VTIMER_CLOCK / BLOCKSF_PER_ROTATION) /* VP = VTIMER_CLOCK / 18  */
+// +
+// +#define SECTOR_PER_BITS (float)( BLOCKS_PER_ROTATION / 4096.0f)
+// +#define initializationLatency pdMS_TO_TICKS(30)
+// +#define MAX_MCPWM_TIMER_PERIOD (65535)
+
+
+
+// -#define electricalCycles 18 //constexpr is defineable compile time costant 
+// -#define SECTOR_PER_BITS (float)(electricalCycles / 4096.0f)
+
+
+// +/* ========================= PIN (SHORTHANDS)========================= */
+
+// -#define SNAP() esp_timer_get_time()
+// -#define time240() esp_cpu_get_cycle_count()
+// -#define print(x) esp_rom_printf(x)
+// -#define CLEAR_ALL_NOTIFS(x) (ulTaskNotifyValueClear(x, 0xffffffff) ||  xTaskNotifyStateClear(x) )
+
+
+// +
+// +/* #################### MOTOR LIMITATIONS #################### */
+// +/* ========================= MOTOR HARDWARE LIMITS ========================= */
+
+// +#define MOTOR_SPEC_MAX_VELOCITY (INPUT_TO_REAL_VELOCITY( 50 )) /* Unit: RPS */
+// +#define MOTOR_SPEC_MIN_VELOCITY (TICKS_TO_REAL_VELOCITY( MAX_MCPWM_TIMER_PERIOD )) /* Unit: RPS */
+// +
+// +/* ========================= MOTOR SOFTWARE LIMITS ========================= */
+// +/* Unsigned values set to within motor's physical limits (MOTOR_SPEC). Magnitudes only. User can edit. */
+// +#define SL_MAX_VELOCITY     (MOTOR_SPEC_MAX_VELOCITY)     /* Unit: RPS */
+// +#define SL_MIN_VELOCITY     (TICKS_TO_REAL_VELOCITY( MAX_MCPWM_TIMER_PERIOD / 2 ))     /* Unit: RPS */
+// +
+// +#define SL_MAX_VELOCITY_PERIOD_TICKS (uint32_t)(VTICKSF_PER_BLOCK / (SL_MAX_VELOCITY)) //200--> 111.11rps, 1111-->20rps
+
+// +
+// +#define TARGET_VELOCITY_UB     (float) (SL_MAX_VELOCITY)     /* Upper bound of target velocity. Unit: RPS */
+// +#define TARGET_VELOCITY_LB      (float) (-1.0 * SL_MAX_VELOCITY)     /* Lower bound of target velocity. Unit: RPS */
+// +// #define TARGET_VELOCITY_LB      (float) (SL_MIN_VELOCITY)     /* Lower bound of target velocity. Unit: RPS */
+
+
+
+// //####################################################################################GLOBALS.H
+// @@ -12,29 +10,0 @@
+// -#define startingDuty (0.85) //, normally .8
+// -#define cBufSize 8
+// -#define velPotReadPeriod (int)(20) //set velocity via pot 1
+// -#define initializationLatency pdMS_TO_TICKS(30)
+
+// -/*=============================USER INPUT BOUNDS=============================*/
+// -/*minimum and maximum RPS */
+// -#define maxRPS (50)
+// -#define maxf_HTimerPeriod (VTimerResolution/(maxRPS*18)) //200--> 111.11rps, 1111-->20rps
+// -#define fMin (float)(VTimerResolution/(-18.0f*maxf_HTimerPeriod))
+// -#define fMax (float)(VTimerResolution/(18.0f*maxf_HTimerPeriod)) 
+
+// +/* #################### USER SET-SETTINGS #################### */
+// +#define startingDuty (0.85) //, normally .8
+
+

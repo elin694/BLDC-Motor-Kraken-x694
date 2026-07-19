@@ -2,7 +2,7 @@
 #include "Constants.h"
 
 /* #################### DEBUG PANEL #################### */
-// #define debug_i2cTransmitTime 
+#define debug_i2cTransmitTime 
 // #define debug_fastPrints //isr indicator and BLOCK#
 // #define debug_hyperFastPrints
 // #define debug_hyperFastPrintsWithPot //toggles on Blok Period printing
@@ -10,11 +10,11 @@
 // #define DEBUG_ALLOW_DUMPING
  
 /* #################### USER SET-SETTINGS #################### */
+#define useGPTimerOverESP32Timer
 #define lastResort
 #define startingDuty (0.85) //, normally .8
 // #define as5600DirPinHigh
 // #define as5600DirPinHighAtCalibration
-// #define useGPTimerOverESP32Timer
 
 
 /* #################### RUNTIME VARIABLES #################### */
@@ -76,9 +76,9 @@ extern  intr_handle_t oneBlockISR;
 inline mcpwm_timer_handle_t VTimer =NULL;
 
 inline TaskHandle_t setupTask= NULL;
-inline TaskHandle_t getSectorNumberTask= NULL;
+inline DRAM_ATTR TaskHandle_t getSectorNumberTask= NULL;
 inline TaskHandle_t mathItOutTask= NULL;
-inline TaskHandle_t executeGatesTask= NULL;
+inline DRAM_ATTR TaskHandle_t executeGatesTask= NULL;
 
 
 /* #################### FUNCTION DECLARATIONS #################### */

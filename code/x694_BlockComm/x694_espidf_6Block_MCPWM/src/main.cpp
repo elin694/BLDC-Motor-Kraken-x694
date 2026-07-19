@@ -36,15 +36,15 @@ void debugMonitor (void * startTick2) {
      int numGsnCycled = isr2i.load(std::memory_order::relaxed);
     esp_rom_printf("a∂c%4d " cyan "TRPM%5d" green " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast,numGsnCycled);
 
-    // if(espTimer_isMinutelyCheckup(esp32timer_log_counter++)){
-    //   #ifdef useGPTimerOverESP32Timer
-    //   #else
-    //   ESP_LOGI("\n", blue); esp_timer_dump(stdout);
-    //   #endif
-    //   esp_rom_printf("\n\n");
-    //   vTaskGetRunTimeStats(buf);
-    //   esp_rom_printf(buf);
-    // }
+    if(espTimer_isMinutelyCheckup(esp32timer_log_counter++)){
+      #ifdef useGPTimerOverESP32Timer
+      #else
+      ESP_LOGI("\n", blue); esp_timer_dump(stdout);
+      #endif
+      esp_rom_printf("\n\n");
+      vTaskGetRunTimeStats(buf);
+      esp_rom_printf(buf);
+    }
   }
 }
 
@@ -122,18 +122,21 @@ uint32_t readPotOnce (bool filter, int averager) {
     return rawData;
 }
 
+#include "hal/clk_tree_hal.h"
 extern "C"{
   void app_main(){
     // uint32_t t1 = xPortGetRunTimeCounterValue();
-    // uint32_t t2 =time();
+    // uint32_t t2 =snap();
     // ESP_LOGI("\n YEEEE","\n %d,  %d\n",(int)t1,t2);
 
     // vTaskDelay(694);
     // t1 = xPortGetRunTimeCounterValue();
-    // t2 =time();
+    // t2 = snap();
     // ESP_LOGI("\n YEEEE","\n %d,  %d\n",(int)t1,t2);
     // vTaskDelay(10000000);
     // vTaskDelay(pdMS_TO_TICKS(100)); //To let gate driver setup
+
+    // ESP_LOGW("main","%d", clk_hal_apb_get_freq_hz());
     esp_rom_delay_us(100);
     xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 20, &setupTask, 0); 
     CLEAR_ALL_NOTIFS(setupTask);

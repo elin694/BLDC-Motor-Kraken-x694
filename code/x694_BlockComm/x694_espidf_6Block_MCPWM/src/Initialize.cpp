@@ -11,15 +11,6 @@ void initialize(void * parameter){
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
    xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
    mcpwmSetup(); 
-   #ifdef useGPTimerOverESP32Timer
-   ESP_ERROR_CHECK(gptimer_new_timer(&megaTimerSetup, &megaTimer));
-   ESP_ERROR_CHECK(gptimer_set_alarm_action(megaTimer, &megaTimerAlarmSetup));
-   ESP_ERROR_CHECK(gptimer_register_event_callbacks(megaTimer, &megaTimerCallback, NULL));
-   ESP_ERROR_CHECK(gptimer_get_resolution(megaTimer, &megaTimerResolution));
-   ESP_ERROR_CHECK(gptimer_enable(megaTimer));
-   #else
-   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup, &gsnTimerHandle));
-   #endif
    int b = global.blockPeriod.load(std::memory_order::relaxed);
    ESP_LOGI("init.cpp ","blockPeriod %d", b);//nti
    xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
@@ -31,12 +22,12 @@ void initialize(void * parameter){
    xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &synchronizedTime, 3, NULL, 0);
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0);
    xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &synchronizedTime, 6, NULL, 0);
-   // esp_intr_dump(stdout);
+   esp_intr_dump(stdout);
    #ifdef useGPTimerOverESP32Timer
    #else
    // esp_timer_dump(stdout);
    #endif
-   esp_err_t probeCheck = i2c_master_probe(busHandle, as5600Address, 1);
+   esp_err_t probeCheck = i2c_master_probe(busHandle, as5600Address, 2);
    int now2 = SNAP()-now1;
    ESP_LOGI("init", "TaskCreation(us): %d, Probe Check %d", now2, probeCheck);
    vTaskDelete(NULL);
@@ -70,13 +61,18 @@ void initializeInterruptEnablePin(void * startTick6){
 
 
 #ifdef useGPTimerOverESP32Timer
-bool runOnMegaTimerIntr (gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx) {
-   BaseType_t xHigherPriorityTaskWoken;
+DRAM_ATTR std::atomic <uint32_t> ct =0;
+DRAM_ATTR std::atomic <int> lct =0;
+DRAM_ATTR BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+bool IRAM_ATTR runOnMegaTimerIntr (gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx) {
    vTaskNotifyGiveFromISR(getSectorNumberTask, &xHigherPriorityTaskWoken);
-   if(xHigherPriorityTaskWoken == pdTRUE){
-      portYIELD_FROM_ISR();
-   }
-   return (bool) xHigherPriorityTaskWoken;
+   // if((ct.fetch_add(1, std::memory_order::relaxed) % 1024) == 200){
+   //    int now= SNAP();
+   //    int dt= now - lct.load(std::memory_order::relaxed);
+   //    esp_rom_printf("yeet %d \n", dt);
+   //    lct.store(now, std::memory_order::relaxed);
+   // }
+   return ((bool) xHigherPriorityTaskWoken);
 }
 #else
 void IRAM_ATTR runOnESPTimerIntr (void * globe) { /*intrpt*/
@@ -108,7 +104,7 @@ void IRAM_ATTR runOnMCPWMIntr (void * user_ctx) { /*intrpt*/
 #endif
 
 // volatile std::atomic<int> oneTimeFlag = 0;
-bool runActualISR(void * data){
+bool IRAM_ATTR runActualISR(void * data){
    gVar_t *masterVar = (gVar_t*)data;
    BaseType_t xHigherPriorityTaskWoken2;
    int timeNow = SNAP();
@@ -155,6 +151,18 @@ void as5600initialize(void * parameter) {
       lapWatch3
    );
    
+   #ifdef useGPTimerOverESP32Timer
+   ESP_ERROR_CHECK(gptimer_new_timer(&megaTimerSetup, &megaTimer));
+   ESP_ERROR_CHECK(gptimer_register_event_callbacks(megaTimer, &megaTimerCallback, NULL));
+   ESP_ERROR_CHECK(gptimer_set_alarm_action(megaTimer, &megaTimerAlarmSetup));
+   ESP_ERROR_CHECK(gptimer_enable(megaTimer));
+   ESP_ERROR_CHECK(gptimer_get_resolution(megaTimer, &megaTimerResolution));
+   float mperiod = (float)ALARM_VAL/ megaTimerResolution;
+   ESP_LOGI(magenta, "mega timer period: %8.5f" , mperiod);
+   #else
+   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup, &gsnTimerHandle));
+   #endif
+
    xTaskNotifyGive(setupTask);
    vTaskDelete(NULL);
 }
@@ -162,9 +170,11 @@ void as5600initialize(void * parameter) {
 void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
    CLEAR_ALL_NOTIFS(NULL);
    TickType_t startTick = *(TickType_t*)startTick1;
+   #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
    int lap1 =0;
    int startTime =0;
    uint32_t printCounter=0;
+   #endif
 
    #ifdef useGPTimerOverESP32Timer
    #else
@@ -172,7 +182,7 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
    #endif
    xTaskDelayUntil(&startTick,initializationLatency);
    while(1){
-      uint32_t file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1));
+      uint32_t file1 = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS(1000000));
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
 
       #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))

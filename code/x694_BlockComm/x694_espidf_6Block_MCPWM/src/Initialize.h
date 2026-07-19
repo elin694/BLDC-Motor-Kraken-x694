@@ -45,7 +45,7 @@ constexpr i2c_device_config_t as5600Setup = {
    .scl_wait_us = 50,
    .flags = {.disable_ack_check = false}
 };
-inline i2c_master_dev_handle_t as5600Handle;
+inline DRAM_ATTR i2c_master_dev_handle_t as5600Handle;
 
 constexpr DRAM_ATTR uint8_t as5600Set = 0x36;
 constexpr DRAM_ATTR uint8_t as5600TargetRegister = 0x0e;
@@ -82,7 +82,7 @@ constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR1 = {
 // };
 
 #ifdef useGPTimerOverESP32Timer
-#define MEGA_CLOCK_SPEED (80000000)
+#define MEGA_CLOCK_SPEED (20000000)
 gptimer_handle_t megaTimer;
 gptimer_config_t megaTimerSetup = {
    .clk_src = GPTIMER_CLK_SRC_DEFAULT,
@@ -95,11 +95,14 @@ gptimer_config_t megaTimerSetup = {
    }
 };
 
+#define ALARM_VAL (uint64_t)(MEGA_CLOCK_SPEED*(estimatedI2CReadTime_us/(1.0e6)))
+// static_assert(ALARM_VAL <= 2.0);
 gptimer_alarm_config_t megaTimerAlarmSetup = {
-   .alarm_count = (uint64_t)(MEGA_CLOCK_SPEED*(0.0002f)),
+   // .alarm_count = (uint64_t)(MEGA_CLOCK_SPEED*(0.0002f)),
+   .alarm_count = ALARM_VAL,
    .reload_count =0,
    .flags = {
-      .auto_reload_on_alarm = 1
+      .auto_reload_on_alarm = true
    }
 };
 gptimer_event_callbacks_t megaTimerCallback ={
