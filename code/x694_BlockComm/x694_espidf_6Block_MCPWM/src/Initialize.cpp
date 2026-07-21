@@ -1,6 +1,5 @@
 #include "Initialize.h"
-// #include "GateControl.h"
-
+#include "Controller.h"
 #define isMinutelyCheckup(x) ((x % 1024) == 15)
 TickType_t synchronizedTime;
 TaskHandle_t initializeI2CTask= NULL;
@@ -17,17 +16,18 @@ void initialize(void * parameter){
    int b = global.blockPeriod.load(std::memory_order::relaxed);
    ESP_LOGI("init.cpp ","blockPeriod %d", b);//nti
    xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
-   // xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
-   // xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
-   // xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
-
+   xTaskCreatePinnedToCore(torqueControlLoop, "tqLoop", 3000, (void*) &global,  14, &torqueControlLoopTask, 0);
+   xTaskCreatePinnedToCore(velocityControlLoop, "vlLoop", 3000, (void*) &global,  13, &velocityControlLoopTask, 0);
+   xTaskCreatePinnedToCore(positionControlLoop, "psLoop", 3000, (void*) &global,  12, &positionControlLoopTask, 0);
+   xTaskCreatePinnedToCore(torqueControlLoop, "tqLoop", 2000, (void*) &global,  5, &stableLoopCheckTask, 0);
+   
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
    synchronizedTime = xTaskGetTickCount();
    int now1 = SNAP();
    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &synchronizedTime,  15, &getSectorNumberTask, 1);
    xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &synchronizedTime, 3, NULL, 0);
    xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0);
-   xTaskCreatePinnedToCore(initializeInterruptEnablePin, "startVtimer", 2000, &synchronizedTime, 6, NULL, 0);
+   xTaskCreatePinnedToCore(startTimersAndInterrupts, "startVtimer", 2000, &synchronizedTime, 6, NULL, 0);
    #ifdef DEBUG_ALLOW_ONE_TIME_DUMPING
    esp_intr_dump(stdout);
    #endif
@@ -39,7 +39,7 @@ void initialize(void * parameter){
    ESP_LOGI("init", "TaskCreation(us): %d, Probe Check %d", now2, probeCheck);
    vTaskDelete(NULL);
 }
-// xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, &synchronizedTime, (int)(thisTaskPriority)+3, &mathItOutTask, 0);
+
 
 void pinSetup(){
    for(int i = 0; i<6; i++){
@@ -49,20 +49,6 @@ void pinSetup(){
       gpio_set_level(gateArray[i], 0);
    }
 }
-
-void initializeInterruptEnablePin(void * startTick6){ 
-   TickType_t startTick = *(TickType_t*)startTick6;
-   ESP_LOGI(blue "init.cpp", "=====starttimer==== ");
-   xTaskDelayUntil(&startTick,initializationLatency);
-   ESP_ERROR_CHECK(mcpwm_timer_start_stop(VTimer, MCPWM_TIMER_START_NO_STOP));
-   #ifndef lastResort
-   mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
-   MCPWMx->int_clr.val=  clearReg.val;
-   MCPWMx->int_ena.timer0_tez_int_ena = 1; 
-   #endif
-   vTaskDelete(NULL);
-}
-
 
 #ifdef useGPTimerOverESP32Timer
 DRAM_ATTR std::atomic <uint32_t> ct =0;
@@ -112,7 +98,10 @@ bool IRAM_ATTR runActualISR(void * data){
    gVar_t *masterVar = (gVar_t*)data;
    BaseType_t xHigherPriorityTaskWoken2;
    int timeNow = SNAP();
-   if((timeNow - masterVar->tlog_readAS5600.load()) < ACCEPTABLE_I2C_READ_WINDOW ){
+   taskENTER_CRITICAL( &sensorMux );
+   uint32_t tlog_sensor = masterVar->tlog_readAS5600.load();
+   taskEXIT_CRITICAL( &sensorMux );
+   if((timeNow - tlog_sensor) < ACCEPTABLE_I2C_READ_WINDOW ){
       tag(cyan "V1");
       // if(oneTimeFlag.fetch_add(1,std::memory_order::relaxed) <240000){
          xTaskNotifyFromISR(executeGatesTask, 0, eIncrement, &xHigherPriorityTaskWoken2);
@@ -172,12 +161,12 @@ void as5600initialize(void * parameter) {
    vTaskDelete(NULL);
 }
 
-#define FAIL_BUFFER_SIZE (4)
-#define FAIL_THRESHOLD_TIME (FAIL_BUFFER_SIZE * 1e6) /*in us. Larger catches more*/
+#define FAIL_SLOTS (4)
+#define FAIL_THRESHOLD_TIME (FAIL_SLOTS * 1e6) /*in us. Larger catches more*/
 #define MAX_BUS_RESET_ATTEMTPS 3
 
-#define JAILBREAK_BUFFER_SIZE (2)
-#define JAILBREAK_THRESHOLD_TIME (JAILBREAK_BUFFER_SIZE * 1e6 ) /*in us*/
+#define JAILBREAK_SLOTS (2)
+#define JAILBREAK_THRESHOLD_TIME (JAILBREAK_SLOTS * 1e6 ) /*in us*/
 void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
    CLEAR_ALL_NOTIFS(NULL);
    TickType_t startTick = *(TickType_t*)startTick1;
@@ -191,10 +180,12 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
    #else
    ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTime_us));
    #endif
-   uint32_t failHistory[FAIL_BUFFER_SIZE];
+   #ifdef ENABLE_GAMBLING_ON_I2C
+   uint32_t failHistory[FAIL_SLOTS];
    uint32_t failIndex = 0;
-   uint32_t jailHistory[JAILBREAK_BUFFER_SIZE];
+   uint32_t jailHistory[JAILBREAK_SLOTS];
    uint32_t jailCell = 0;
+   #endif
 
    xTaskDelayUntil(&startTick,initializationLatency);
    while(1){
@@ -221,14 +212,18 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
 
       if(valRequestStatus == ESP_OK){
          isr2i.fetch_add(1,std::memory_order::relaxed);
+         uint32_t reading = (as5600RawDataBuf[0]<<8) | as5600RawDataBuf[1]; 
+         uint32_t tlog = SNAP();
          global.oldSectorTarget = global.sectorTarget;
          
-         uint32_t reading = (as5600RawDataBuf[0]<<8) | as5600RawDataBuf[1]; 
          global.rotorVal = reading;
          global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading) + global.dir) % 6; //0- bitsPerSector --> smaller sector
          global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
-         uint32_t tlog = SNAP();
+         taskENTER_CRITICAL( &sensorMux );
+         global.tlog_trailingReadAS5600.store(global.tlog_readAS5600.load()); /*ensure happens on same core as mathLoop*/
          global.tlog_readAS5600.store(tlog);
+         taskEXIT_CRITICAL( &sensorMux );
+
       } else{
          global.oldSectorTarget = global.sectorTarget;
          global.setMotorFreeTemporarily.store(true, std::memory_order::relaxed);
@@ -236,17 +231,17 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
          #ifdef ENABLE_GAMBLING_ON_I2C
          int timeNow = SNAP();
          /* If the time between thsi failure and the trailing failure in the queue is less than threshold, Call an demergency*/
-         if ((timeNow - failHistory[failIndex % FAIL_BUFFER_SIZE] <= FAIL_THRESHOLD_TIME ) && (failIndex >= FAIL_BUFFER_SIZE)){
+         if ((timeNow - failHistory[failIndex % FAIL_SLOTS] <= FAIL_THRESHOLD_TIME ) && (failIndex >= FAIL_SLOTS)){
             int resetAttemptsLeft;
             for( resetAttemptsLeft = MAX_BUS_RESET_ATTEMTPS ; resetAttemptsLeft > 0; resetAttemptsLeft--){
                if(i2c_master_bus_reset(busHandle) == ESP_OK){
                   failIndex = 0;
                   /*================================= JUDGEMENT DAY ====================================*/
-                  if ((timeNow - jailHistory[jailCell % JAILBREAK_BUFFER_SIZE] <= JAILBREAK_THRESHOLD_TIME ) && (jailCell >= JAILBREAK_BUFFER_SIZE)){
+                  if ((timeNow - jailHistory[jailCell % JAILBREAK_SLOTS] <= JAILBREAK_THRESHOLD_TIME ) && (jailCell >= JAILBREAK_SLOTS)){
                      /* You had One too many chances */
                      abort();
                   } else {
-                     jailHistory[jailCell++ % JAILBREAK_BUFFER_SIZE] = timeNow;
+                     jailHistory[jailCell++ % JAILBREAK_SLOTS] = timeNow;
                   }
                   /*================================= JUDGEMENT DAY ====================================*/
                   ESP_LOGW("JAILBREAK!","\n");
@@ -264,7 +259,7 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
                // ulTaskNotifyValueClear(NULL, UINT_MAX);
             }
          } else {
-            failHistory[failIndex++ % FAIL_BUFFER_SIZE] = timeNow;
+            failHistory[failIndex++ % FAIL_SLOTS] = timeNow;
          }
          #endif
          tag("#F ");

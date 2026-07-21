@@ -6,15 +6,18 @@
 
 #define as5600Address 0x36
 void pinSetup();
-
 void as5600initialize(void* parameter);
-void initializeInterruptEnablePin(void * startTick6); 
+void startTimersAndInterrupts(void * startTick6); 
+extern void mcpwmSetup ();
+/* #################### LOOPED FUCNTIONS #################### */
 #ifdef useGPTimerOverESP32Timer
 bool runOnMegaTimerIntr (gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx);
 #else
 void runOnESPTimerIntr(void * globe);
 #endif
-extern void mcpwmSetup ();
+extern void torqueControlLoop(void* pointerToTargetTorque);
+extern void velocityControlLoop(void* pointerToTargetTorque);
+extern void positionControlLoop(void* pointerToTargetTorque);
 extern void executeGates (void * parameter);
 bool runActualISR(void * data);
 void debugMonitor(void * parameter);
@@ -22,7 +25,7 @@ void getSectorNumber(void *returnValue);
 
 
 inline DRAM_ATTR mcpwm_int_st_reg_t tempStatusReg = { .val = (MCPWMx)->int_st.val };
-//+++++++++++++++++++++++++++++++++++I2C+++++++++++++++++++++++++++++++++++
+/* #################### I2C #################### */
 inline i2c_master_bus_config_t busSetup = { 
     .i2c_port = -1,
     .sda_io_num= dataPin,
@@ -60,7 +63,7 @@ inline DRAM_ATTR uint8_t as5600RawDataBuf[2] = {0x0,0x0};
 #define power_clear_mask (~(0x00000011)) //with &
 uint8_t fthRegisterData[2] = {0x00, 0x00};
 uint8_t fthRegister[3] = {0x07, 0x00, 0x00}; //stores data/ registers to write to
-//==================+++++++ADC AND MCPWM CLEAR REG
+/* #################### ADC #################### */
 
 constexpr adc_oneshot_unit_init_cfg_t adcSetup= {
    .unit_id = ADC_UNIT_1,
@@ -81,6 +84,7 @@ constexpr DRAM_ATTR inline mcpwm_int_clr_reg_t tempClearR1 = {
 //    .timer2_tez_int_clr =1
 // };
 
+/* #################### GPTIMER AND ESP_TIMER #################### */
 #ifdef useGPTimerOverESP32Timer
 #define MEGA_CLOCK_SPEED (20000000)
 gptimer_handle_t megaTimer;
@@ -112,7 +116,7 @@ gptimer_event_callbacks_t megaTimerCallback ={
 esp_timer_handle_t gsnTimerHandle;
 esp_timer_create_args_t gsnTimerSetup= {
    .callback=runOnESPTimerIntr,
-   .arg =(void*)&global,
+   .arg =(void*) &global,
    .dispatch_method=ESP_TIMER_ISR,
    .name= "i2ctimer",
    .skip_unhandled_events = true

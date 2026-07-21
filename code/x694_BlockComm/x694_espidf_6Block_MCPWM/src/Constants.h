@@ -26,11 +26,14 @@
 #define i2cClockSpeed 1250000
 #define as5600CalibrationRawValue (1916) //38 not 37 because +0.5 and trucnate = round up,30degrees to sector_per_bits is only .5, not 1.
 #define adcReadBufferSize 4
-#define cBufSize 8                                          /*For storing measured/calculated motor values*/
+#define CL_CIRCULAR_SLOTS 8                                          /*For storing measured/calculated motor values*/
 
 #define TORQUE_CL_FREQ_HZ    (5000)
-#define VELOCITY_CL_FREQ_HZ  (4000)
-#define POSITION_CL_FREQ_HZ (2000)
+#define VELOCITY_CL_FREQ_HZ  (4500)
+#define POSITION_CL_FREQ_HZ (4000)
+#define STABLE_POSITION_THRESHOLD (2) /*BiPS*/
+#define STABLE_VELOCITY_THRESHOLD (2.0) /*RPS*/
+#define STABLE_ACCEL_THRESHOLD (2.0)/*RPS PS*/
 
 
 /*#################### SHORTHANDS #################### */
@@ -68,7 +71,7 @@
 /* ------------------------------ MCPWM SHORTHANDS------------------------------ */
 #define MCPWM_HIGHSIDE_GROUP 1 
 #define MCPWM_LOWSIDE_GROUP 0
-#define mcpwm_lowSideGroupPrescaler (40)
+#define mcpwm_lowSideGroupPrescaler (2)
 #define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) 
 #define activePwmPeriod (uint32_t)(HighTimerResolution/20000)  //change to 20khz when high
 // #if ((startingDuty < minDuty) || (startingDuty > maxDuty))
@@ -227,7 +230,7 @@ readPotRepeat(
     global.dir #W
     global.targetVelocity #W
     global.targetAcceleration #W
-    global.targetPosition #W
+    globaltargetPosition_BiPS #W
     
 )
 */

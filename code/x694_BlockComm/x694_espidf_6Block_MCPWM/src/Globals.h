@@ -13,7 +13,7 @@
 /* #################### USER SET-SETTINGS #################### */
 // #define useGPTimerOverESP32Timer
 #define lastResort
-#define ENABLE_GAMBLING_ON_I2C
+// #define ENABLE_GAMBLING_ON_I2C
 #define startingDuty (0.6) //, normally .8
 // #define as5600DirPinHigh
 // #define as5600DirPinHighAtCalibration
@@ -26,6 +26,7 @@ typedef enum {
     VELOCITY_CONTROL,
     POSITION_CONTROL
 } control_type;
+
 
 typedef struct {
     mcpwm_timer_config_t timerConfig;
@@ -46,16 +47,23 @@ typedef struct{
     int oldSectorTarget = 0;
     int sectorTarget = 0; //for stator current vector
     std::atomic<uint32_t> blockPeriod = 10000.0; //6941
-    std::atomic<uint32_t> tlog_readAS5600 = 0;
+    std::atomic<uint32_t> tlog_readAS5600;
+    std::atomic<uint32_t> tlog_trailingReadAS5600 =0;
     std::atomic<bool> setMotorFreeSpin = false;
     std::atomic<bool> setMotorFreeTemporarily = false;
     int dir = 5; // 5=cw (-), 2 for ccw(+) (2 for half working AS5600)
-    control_type controlMethod = VELOCITY_CONTROL;
+    control_type controlMethod = TORQUE_CONTROL;
+    // control_type controlMethod = VELOCITY_CONTROL;
+    // control_type controlMethod = POSITION_CONTROL;
     /*PID variables*/
     int rotorVal =0; //needs to inversted
     float targetTorque =0; //target RPS
     float targetVelocity =0; //target RPS
-    int targetPosition =0; //target Position in bits
+    int targetPosition_BiPS =0; //target Position in bits
+
+    // volatile uint32_t * pTorquePID = NULL;
+    // volatile uint32_t * pVelocityPID = NULL;
+    // volatile uint32_t * pRositionPID = NULL;
 } gVar_t;
 
 /* ========================= GLOBAL VARIABLES  ========================= */
@@ -64,7 +72,8 @@ volatile DRAM_ATTR inline gVar_t global;
 // gpio 19- miso, b High side is tx2
 extern phaseMcpwm motorH[3];
 extern phaseMcpwm motorL[3];
-inline portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
+inline DRAM_ATTR portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
+inline DRAM_ATTR portMUX_TYPE sensorMux = portMUX_INITIALIZER_UNLOCKED;
 
 /* ------------------------------ DEBUG-TOGGLED VARIABLES  ------------------------------ */
 #ifdef debug_hyperFastPrints
@@ -86,6 +95,8 @@ inline TaskHandle_t setupTask= NULL;
 inline DRAM_ATTR TaskHandle_t positionControlLoopTask = NULL;
 inline DRAM_ATTR TaskHandle_t velocityControlLoopTask = NULL;
 inline DRAM_ATTR TaskHandle_t torqueControlLoopTask = NULL;
+inline DRAM_ATTR TaskHandle_t stableLoopCheckTask = NULL;
+
 inline DRAM_ATTR TaskHandle_t getSectorNumberTask= NULL;
 inline DRAM_ATTR TaskHandle_t executeGatesTask= NULL;
 
@@ -102,7 +113,6 @@ void tagFlag(bool start, int timer);
 /*#################### BACKEND #################### */
 /* ========================= AS5600 SENSOR CALIBRATION  ========================= */
 //top view of physical motor has ABC going ccw, [-30 degrees, 30 degrees) = block 0
-//((4096-global.rotorVal)+(int)((4096.0)*(38.0/36.0) - (4096-(3388)) )) ==> (4096/18+3388-val)*18/4096==>>(7711.5-v)*0.00439453
 #ifdef as5600DirPinHighAtCalibration
 #define as5600CalibratedOffset (int)((4096.0) * (38.0 / 36.0) - (as5600CalibrationRawValue) )  
 #else
@@ -120,9 +130,12 @@ void tagFlag(bool start, int timer);
 // #define debug_defCheck3      /* target bounds, float constants */
 // #define debug_defCheck4      /* software period ticks limit, uint32_T constants */
 
+/*Check software limits are within hardware specs*/
 static_assert( ( MOTOR_SPEC_MIN_VELOCITY <= SL_MIN_VELOCITY) &&  ( SL_MIN_VELOCITY < SL_MAX_VELOCITY ) && (SL_MAX_VELOCITY <= MOTOR_SPEC_MAX_VELOCITY) );
 static_assert( ( MOTOR_SPEC_MIN_TORQUE <= SL_MIN_TORQUE) && ( SL_MIN_TORQUE < SL_MAX_TORQUE ) && (SL_MAX_TORQUE <= MOTOR_SPEC_MAX_TORQUE) );
+static_assert( 0.0f < minDuty &&  minDuty < maxDuty && maxDuty < 1.0f );
 
+/*Check target Bounds are within software limits*/
 static_assert( ( -SL_MAX_VELOCITY <= TARGET_VELOCITY_LB) && ( TARGET_VELOCITY_LB < TARGET_VELOCITY_UB ) && (TARGET_VELOCITY_UB <= SL_MAX_VELOCITY) );
 static_assert( ( -SL_MAX_TORQUE <= TARGET_TORQUE_LB) && ( TARGET_TORQUE_LB < TARGET_TORQUE_UB ) && (TARGET_TORQUE_UB <= SL_MAX_TORQUE) );
 

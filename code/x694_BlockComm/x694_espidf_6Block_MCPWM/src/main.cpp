@@ -34,7 +34,8 @@ void debugMonitor (void * startTick2) {
     int stateIsCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
     taskEXIT_CRITICAL(&stepPeriodMux);
      int numGsnCycled = isr2i.load(std::memory_order::relaxed);
-    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" white " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, global.rotorVal,tempCoast,stateIsCoast,numGsnCycled);
+     int encoder = (int)global.rotorVal;
+    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" white " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, encoder, tempCoast, stateIsCoast, numGsnCycled);
 
     if(espTimer_isMinutelyCheckup(esp32timer_log_counter++)){
       #ifdef useGPTimerOverESP32Timer
@@ -112,7 +113,7 @@ uint32_t readPotOnce (bool filter, int averager) {
     }
 
     } else if (global.controlMethod == POSITION_CONTROL) {
-      global.targetPosition = (TARGET_POSITION_LB + ((TARGET_POSITION_UB - TARGET_POSITION_LB) / 4096.0f) * rawData);
+      global.targetPosition_BiPS = (TARGET_POSITION_LB + ((TARGET_POSITION_UB - TARGET_POSITION_LB) / 4096.0f) * rawData);
     }
     return rawData;
 }
