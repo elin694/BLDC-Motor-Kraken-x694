@@ -7,7 +7,7 @@
 #define as5600Address 0x36
 void pinSetup();
 void as5600initialize(void* parameter);
-void startTimersAndInterrupts(void * startTick6); 
+void startAllTimersAndInterrupts(void * startTick6); 
 extern void mcpwmSetup ();
 /* #################### LOOPED FUCNTIONS #################### */
 #ifdef useGPTimerOverESP32Timer

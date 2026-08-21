@@ -11,6 +11,14 @@
 // #define DEBUG_ALLOW_ONE_TIME_DUMPING
  
 /* #################### USER SET-SETTINGS #################### */
+/*Enable PID Modes
+not defined- open, feed forward loop (if it stalls it stalls)
+def TORQUE_CONTROL - only test Torque control loop in action
+def VELOCITY_CONTROL - only test Torque and velocity control loop in action
+def POSITION_CONTROL - only test Torque, velocity, and Postion control loop in action
+*/
+#define ALLOWED_LOOPS_TO_TEST TORQUE_CONTROL
+
 // #define useGPTimerOverESP32Timer
 #define lastResort
 // #define ENABLE_GAMBLING_ON_I2C
@@ -21,13 +29,6 @@
 
 /* #################### RUNTIME VARIABLES #################### */
 /* ========================= C++ STRUCTS ========================= */
-typedef enum {
-    TORQUE_CONTROL,
-    VELOCITY_CONTROL,
-    POSITION_CONTROL
-} control_type;
-
-
 typedef struct {
     mcpwm_timer_config_t timerConfig;
     mcpwm_operator_config_t opConfig;
@@ -52,9 +53,12 @@ typedef struct{
     std::atomic<bool> setMotorFreeSpin = false;
     std::atomic<bool> setMotorFreeTemporarily = false;
     int dir = 5; // 5=cw (-), 2 for ccw(+) (2 for half working AS5600)
-    control_type controlMethod = TORQUE_CONTROL;
-    // control_type controlMethod = VELOCITY_CONTROL;
-    // control_type controlMethod = POSITION_CONTROL;
+    #ifndef ALLOWED_LOOPS_TO_TEST 
+    #define controlk VELOCITY_CONTROL
+    #else 
+    #define controlk ALLOWED_LOOPS_TO_TEST
+    #endif
+    control_type controlMethod = controlk;
     /*PID variables*/
     int rotorVal =0; //needs to inversted
     float targetTorque =0; //target RPS
@@ -138,6 +142,10 @@ static_assert( 0.0f < minDuty &&  minDuty < maxDuty && maxDuty < 1.0f );
 /*Check target Bounds are within software limits*/
 static_assert( ( -SL_MAX_VELOCITY <= TARGET_VELOCITY_LB) && ( TARGET_VELOCITY_LB < TARGET_VELOCITY_UB ) && (TARGET_VELOCITY_UB <= SL_MAX_VELOCITY) );
 static_assert( ( -SL_MAX_TORQUE <= TARGET_TORQUE_LB) && ( TARGET_TORQUE_LB < TARGET_TORQUE_UB ) && (TARGET_TORQUE_UB <= SL_MAX_TORQUE) );
+
+#define AS5600_POLL_FREQ_HZ (1e6*1.0/estimatedI2CReadTime_us)
+/* Since calculation is done in  torque control loop, data must come in faster than  torque control period*/
+static_assert(AS5600_POLL_FREQ_HZ -100 >= TORQUE_CL_FREQ_HZ);
 
 #ifdef debug_defCheck1
 static_assert(MOTOR_SPEC_MAX_VELOCITY >= 0xFFFFFFFE);

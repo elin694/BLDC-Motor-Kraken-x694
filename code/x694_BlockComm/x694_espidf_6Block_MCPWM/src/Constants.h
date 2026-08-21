@@ -28,12 +28,12 @@
 #define adcReadBufferSize 4
 #define CL_CIRCULAR_SLOTS 8                                          /*For storing measured/calculated motor values*/
 
-#define TORQUE_CL_FREQ_HZ    (5000)
+#define TORQUE_CL_FREQ_HZ    (4900)
 #define VELOCITY_CL_FREQ_HZ  (4500)
 #define POSITION_CL_FREQ_HZ (4000)
-#define STABLE_POSITION_THRESHOLD (2) /*BiPS*/
-#define STABLE_VELOCITY_THRESHOLD (2.0) /*RPS*/
-#define STABLE_ACCEL_THRESHOLD (2.0)/*RPS PS*/
+#define STABLE_POSITION_THRESHOLD (1) /*BiPS*/
+#define STABLE_VELOCITY_THRESHOLD (1.0) /*RPS*/
+#define STABLE_ACCEL_THRESHOLD (1.0)/*RPS PS*/
 
 
 /*#################### SHORTHANDS #################### */
@@ -49,8 +49,7 @@
 #define CLEAR_ALL_NOTIFS(x) (ulTaskNotifyValueClear(x, 0xffffffff) ||  xTaskNotifyStateClear(x) )
 #define TICKS_TO_REAL_VELOCITY(x)    ( VTIMER_CLOCK / ( BLOCKSF_PER_ROTATION * x ))
 #define INPUT_TO_REAL_VELOCITY(x)   TICKS_TO_REAL_VELOCITY( (uint32_t)(VTIMER_CLOCK / (x * BLOCKS_PER_ROTATION)) )
-#define LMAP(alpha, x1, y1, x2, y2) (((y1 - y2) / (x1 - x2)) * (alpha - x2) + y2)  //linear mapping. Ensure that at least one of {Point 1, Point 2} has float
-/*. lmap input fromLow toLow    fromHigh toHigh*/
+#define LMAP(alpha, x1, y1, x2, y2) (((y1 - y2) / (x1 - x2)) * (alpha - x2) + y2)  //linear mapping. Ensure that at least one of {Point 1, Point 2} has float. f(input fromLow toLow, fromHigh toHigh)
 
 
 /* ========================= CONSTANTS SHORTHANDS ========================= */
@@ -67,12 +66,17 @@
 #define i2cWaitout (1) //in ms
 #define initializationLatency pdMS_TO_TICKS(30)
 #define MAX_MCPWM_TIMER_PERIOD (65535)
-
+typedef enum {
+    TORQUE_CONTROL,
+    VELOCITY_CONTROL,
+    POSITION_CONTROL
+} control_type;
 /* ------------------------------ MCPWM SHORTHANDS------------------------------ */
 #define MCPWM_HIGHSIDE_GROUP 1 
 #define MCPWM_LOWSIDE_GROUP 0
 #define mcpwm_lowSideGroupPrescaler (2)
-#define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) 
+// #define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) 
+#define HighTimerResolution  (uint32_t)(4e6) 
 #define activePwmPeriod (uint32_t)(HighTimerResolution/20000)  //change to 20khz when high
 // #if ((startingDuty < minDuty) || (startingDuty > maxDuty))
 // #warning "DUTY out of bounds!!!!!!!!!!!!!!!!!!!!!!!!!"

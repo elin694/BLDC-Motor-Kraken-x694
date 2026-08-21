@@ -1,14 +1,24 @@
 #include "Globals.h"
 #include "Controller.h"
 //Backend Functions, ASSES/ASSERT TARGETS IN FRONTEND
-void startTimersAndInterrupts(void * startTick6){ 
+void startAllTimersAndInterrupts(void * startTick6){ 
    TickType_t startTick = *(TickType_t*)startTick6;
    ESP_LOGI(blue "controller.cpp\n", "#######  STARTING TIMERS ####### ");
    xTaskDelayUntil(&startTick,initializationLatency);
    ESP_ERROR_CHECK(mcpwm_timer_start_stop(VTimer, MCPWM_TIMER_START_NO_STOP));
+   
+   #ifdef ALLOWED_LOOPS_TO_TEST
+   #if (ALLOWED_LOOPS_TO_TEST >= TORQUE_CONTROL)
    ESP_ERROR_CHECK( gptimer_start(torqueLoop.timer) );
+   #if (ALLOWED_LOOPS_TO_TEST >=VELOCITY_CONTROL)
    ESP_ERROR_CHECK( gptimer_start(velocityLoop.timer) );
+   #if (ALLOWED_LOOPS_TO_TEST >= POSITION_CONTROL)
    ESP_ERROR_CHECK( gptimer_start(positionLoop.timer) );
+   #endif
+   #endif
+   #endif
+   #endif
+   
    #ifndef lastResort
    mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
    MCPWMx->int_clr.val=  clearReg.val;
@@ -17,7 +27,8 @@ void startTimersAndInterrupts(void * startTick6){
    vTaskDelete(NULL);
 }
 
-#define STABLE_SLOTS 4
+/*Keeps <STABLE_SLOTS> for past history*/
+#define STABLE_SLOTS 4 
 /* WRITES ONLY TO x.overIntegration FLAGS*/
 void stableLoopCheck(void * startTick7){ //updates arrrays with new ifo
     CLEAR_ALL_NOTIFS(NULL);
@@ -31,6 +42,8 @@ void stableLoopCheck(void * startTick7){ //updates arrrays with new ifo
    xTaskDelayUntil(&startTick, initializationLatency);
    for(;;){
         loopStartTick = xTaskGetTickCount();
+
+        //slow loop so it checks the general pid trendx 
         vTaskDelayUntil( &loopStartTick, pdMS_TO_TICKS(10));
         const uint32_t idxNow = ix % STABLE_SLOTS;
         const uint32_t lastIdx = (ix - 1) % STABLE_SLOTS;
@@ -60,10 +73,14 @@ void stableLoopCheck(void * startTick7){ //updates arrrays with new ifo
 /* WRITES ONLY TO x.mindex, x.measured[] ARRAYS AND global.dir */
 void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*/
     CLEAR_ALL_NOTIFS(NULL);
+
+    /*Filling in the scaffold form*/
     #define TORQUE_CL_COUNT (CL_TIMER_FREQ_HZ / TORQUE_CL_FREQ_HZ)
     torqueLoop.timerConfig.intr_priority = TORQUE_LOOP_TIMER_INTR_PRIORITY;
     torqueLoop.alarmConfig.alarm_count =TORQUE_CL_COUNT;
     torqueLoop.callbackEvent.on_alarm = torqueCtrlCBK;
+    
+    /*Submitting the form*/
     ESP_ERROR_CHECK(gptimer_new_timer(&torqueLoop.timerConfig, &torqueLoop.timer));
     ESP_ERROR_CHECK(gptimer_set_alarm_action(torqueLoop.timer, &torqueLoop.alarmConfig));
     ESP_ERROR_CHECK(gptimer_register_event_callbacks(torqueLoop.timer, &torqueLoop.callbackEvent, &torqueLoop));
@@ -72,17 +89,26 @@ void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*
     ESP_LOGI("tqLoop", "Frequency: %d", torqueLoop.freq / TORQUE_CL_COUNT);
     int tlog_lastRecordedInteration = SNAP();
 
-    /*CONISDER case from motor stall - to SL_MIN_VELOCITY*/
+    /* Local Global Cosntants to use in this Calculation/ Torque Loop
+    - also consider case from motor stall - to SL_MIN_VELOCITY
+    */
     gVar_t* pGlobalVar = (gVar_t*) pointerToTarget;
     float* pTargetTorque = &((pGlobalVar) -> targetTorque);
+
     for(;;){
+        ulTaskNotifyTake( pdTRUE, portMAX_DELAY );
+        
         int tlog_now = SNAP();
         taskENTER_CRITICAL( &sensorMux );
         // uint32_t dt  = pGlobalVar-> tlog_readAS5600 - pGlobalVar-> tlog_trailingReadAS5600;
         uint32_t tLastRead  = pGlobalVar-> tlog_readAS5600;
         taskEXIT_CRITICAL( &sensorMux );
-
-        if(tlog_now - tLastRead < ACCEPTABLE_I2C_READ_WINDOW){
+        
+        /*Checking the last time it read ad5600 to ensure it uses updated/recent data
+            If it is recent, proceed with torque/calc
+            Else do nothing (motor stall on last position).
+        */
+        if( tlog_now - tLastRead < ACCEPTABLE_I2C_READ_WINDOW ){
             /*=========================DOING THE MATH===================================*/
             int encoder = global.rotorVal;
             // int localTime = pGlobalVar-> tlog_readAS5600;
@@ -91,17 +117,20 @@ void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*
             uint32_t pIdx = positionLoop.mindex % CL_CIRCULAR_SLOTS;
             uint32_t vLIdx = (velocityLoop.mindex++) % CL_CIRCULAR_SLOTS;
             uint32_t vIdx = velocityLoop.mindex % CL_CIRCULAR_SLOTS;
-            uint32_t tqLIdx = (torqueLoop.mindex++) % CL_CIRCULAR_SLOTS;
+            // uint32_t tqLIdx = (torqueLoop.mindex++) % CL_CIRCULAR_SLOTS;
             uint32_t tqIdx = torqueLoop.mindex % CL_CIRCULAR_SLOTS;
             float dt_s = (tlog_lastRecordedInteration - tlog_now) / 1.0e6;
+
+            //set values in current index of each array and leave them be
             positionLoop.measured[pIdx] = encoder;
             velocityLoop.measured[vIdx] = (encoder - positionLoop.measured[pLIdx]) * BITS_TO_ROTATIONS / (dt_s);
             torqueLoop.measured[tqIdx] = (velocityLoop.measured[vIdx] - velocityLoop.measured[vLIdx]) / (dt_s);
             tlog_lastRecordedInteration = tlog_now;
             /*=========================DOING THE MATH===================================*/
-            ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+            
             float targetTorque = *pTargetTorque;
-            assert( ( -SL_MAX_TORQUE <= targetTorque ) && ( targetTorque <= -SL_MAX_TORQUE ) );
+            //check within softwaare limits, but run hardware limits
+            assert( ( -SL_MAX_TORQUE <= targetTorque ) && ( targetTorque <= SL_MAX_TORQUE ) ); 
 
             if(global.controlMethod >= TORQUE_CONTROL){
                 float tqMagnitude = fabsf( targetTorque );
@@ -119,12 +148,16 @@ void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*
 }
 
 /* WRITES ONLY TO global.targetTorque, velocityLoop.lastError, velocityLoop.netError, AND velocityLoop.eidex */
-void IRAM_ATTR velocityControlLoop(void* pointerToTarget) { 
+void IRAM_ATTR velocityControlLoop(void* pointerToTarget) {  /*POSITIVE ERROR means more ways to go, negative means overshot*/
     CLEAR_ALL_NOTIFS(NULL);
+    
+    /*Filling in the scaffold form*/
     #define VELOCITY_CL_COUNT (CL_TIMER_FREQ_HZ / VELOCITY_CL_FREQ_HZ)
     velocityLoop.timerConfig.intr_priority = VELOCITY_LOOP_TIMER_INTR_PRIORITY;
     velocityLoop.alarmConfig.alarm_count =VELOCITY_CL_COUNT;
     velocityLoop.callbackEvent.on_alarm = velocityCtrlCBK;
+
+    /*Submitting the form*/
     ESP_ERROR_CHECK(gptimer_new_timer(&velocityLoop.timerConfig, &velocityLoop.timer));
     ESP_ERROR_CHECK(gptimer_set_alarm_action(velocityLoop.timer, &velocityLoop.alarmConfig));
     ESP_ERROR_CHECK(gptimer_register_event_callbacks(velocityLoop.timer, &velocityLoop.callbackEvent, &velocityLoop));
@@ -151,7 +184,7 @@ void IRAM_ATTR velocityControlLoop(void* pointerToTarget) {
                 float dt_s  = VELOCITY_CL_COUNT / velocityLoop.freq;
                 uint32_t vidx = velocityLoop.mindex;
                 uint32_t eidx = velocityLoop.eindex++; //only this loop touches it
-                float errorVel =targetVelocity- velocityLoop.measured[vidx % CL_CIRCULAR_SLOTS]; //measured updated in gsn?
+                float errorVel =targetVelocity - velocityLoop.measured[vidx % CL_CIRCULAR_SLOTS]; //measured updated in gsn?
                 float prevError = velocityLoop.lastError[eidx % CL_CIRCULAR_SLOTS];
                 float currentNetError = velocityLoop.netError + errorVel * dt_s;
 

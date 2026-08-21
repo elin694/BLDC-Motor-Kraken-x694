@@ -78,11 +78,17 @@ uint32_t readPotOnce (bool filter, int averager) {
   rawData = (rawData/2)*2;
 
   if(global.controlMethod == TORQUE_CONTROL){
-      global.targetTorque = (TARGET_TORQUE_LB + ((TARGET_TORQUE_UB - TARGET_TORQUE_LB) / 4096.0f) * rawData);
+      global.targetTorque = (TARGET_TORQUE_LB + (TARGET_TORQUE_UB - TARGET_TORQUE_LB) * rawData / 4096.0f);
       
     } else if (global.controlMethod == VELOCITY_CONTROL) {
     int processedData = (filter) ? ((averager + rawData) / (4)) : rawData;
-    float localTargetVelocity = (TARGET_VELOCITY_LB + (TARGET_VELOCITY_UB - TARGET_VELOCITY_LB)*processedData/4096.0f); /*OLD*/
+    float localTargetVelocity = (TARGET_VELOCITY_LB + (TARGET_VELOCITY_UB - TARGET_VELOCITY_LB) * processedData / 4096.0f); /*OLD*/
+
+    /*if testing, remove feed forward code
+    else, enable feedforward code*/
+    #ifdef ALLOW_LOOPS_TO_TEST
+      global.targetVelocity = localTargetVelocity;
+    #else
     vbPeriod_temp= (uint32_t)(VTIMER_CLOCK/fabsf(localTargetVelocity* BLOCKS_PER_ROTATION));  /*OLD*/
     // float localTargetVelocity = (fMin + (((fMax - fMin)/4096.0f) * processedData)); /*NEW*/
     // vbPeriod_temp= (uint32_t)((VTimerResolution / electricalCycles) / fabsf(localTargetVelocity));  /*NEW*/
@@ -111,9 +117,9 @@ uint32_t readPotOnce (bool filter, int averager) {
       }
 
     }
-
+    #endif
     } else if (global.controlMethod == POSITION_CONTROL) {
-      global.targetPosition_BiPS = (TARGET_POSITION_LB + ((TARGET_POSITION_UB - TARGET_POSITION_LB) / 4096.0f) * rawData);
+      global.targetPosition_BiPS = (TARGET_POSITION_LB + (TARGET_POSITION_UB - TARGET_POSITION_LB) * rawData / 4096.0f );
     }
     return rawData;
 }

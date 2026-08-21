@@ -8,6 +8,8 @@ void initialize(void * parameter){
    pinSetup();
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
+   
+   /*higher priority but runs on differnet core*/
    xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
    mcpwmSetup(); 
    #ifndef useGPTimerOverESP32Timer
@@ -16,18 +18,21 @@ void initialize(void * parameter){
    int b = global.blockPeriod.load(std::memory_order::relaxed);
    ESP_LOGI("init.cpp ","blockPeriod %d", b);//nti
    xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
-   xTaskCreatePinnedToCore(torqueControlLoop, "tqLoop", 3000, (void*) &global,  14, &torqueControlLoopTask, 0);
-   xTaskCreatePinnedToCore(velocityControlLoop, "vlLoop", 3000, (void*) &global,  13, &velocityControlLoopTask, 0);
-   xTaskCreatePinnedToCore(positionControlLoop, "psLoop", 3000, (void*) &global,  12, &positionControlLoopTask, 0);
-   xTaskCreatePinnedToCore(torqueControlLoop, "tqLoop", 2000, (void*) &global,  5, &stableLoopCheckTask, 0);
+   xTaskCreatePinnedToCore(torqueControlLoop, "Controller-tqLoop", 3000, (void*) &global,  14, &torqueControlLoopTask, 0);
+   xTaskCreatePinnedToCore(velocityControlLoop, "Controller-vlLoop", 3000, (void*) &global,  13, &velocityControlLoopTask, 0);
+   xTaskCreatePinnedToCore(positionControlLoop, "Controller-psLoop", 3000, (void*) &global,  12, &positionControlLoopTask, 0);
+   xTaskCreatePinnedToCore(stableLoopCheck, "Controller-IntegrationFlagLoop", 2000, (void*) &global,  5, &stableLoopCheckTask, 0);
    
+   /*Wait for as5600 initialize to ping this task*/
    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
    synchronizedTime = xTaskGetTickCount();
    int now1 = SNAP();
+   
+   /*high priority but runs on differnet core*/
    xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &synchronizedTime,  15, &getSectorNumberTask, 1);
    xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &synchronizedTime, 3, NULL, 0);
-   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0);
-   xTaskCreatePinnedToCore(startTimersAndInterrupts, "startVtimer", 2000, &synchronizedTime, 6, NULL, 0);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0); //not as important as contorl loops
+   xTaskCreatePinnedToCore(startAllTimersAndInterrupts, "Controller-startVtimer", 2000, &synchronizedTime, 7, NULL, 0);
    #ifdef DEBUG_ALLOW_ONE_TIME_DUMPING
    esp_intr_dump(stdout);
    #endif
