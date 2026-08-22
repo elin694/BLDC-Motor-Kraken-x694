@@ -76,7 +76,7 @@ typedef enum {
 #define MCPWM_LOWSIDE_GROUP 0
 #define mcpwm_lowSideGroupPrescaler (2)
 // #define HighTimerResolution  (uint32_t)(16e7/(mcpwm_lowSideGroupPrescaler)) 
-#define HighTimerResolution  (uint32_t)(4e6) 
+#define HighTimerResolution  (uint32_t)(16e7) 
 #define activePwmPeriod (uint32_t)(HighTimerResolution/20000)  //change to 20khz when high
 // #if ((startingDuty < minDuty) || (startingDuty > maxDuty))
 // #warning "DUTY out of bounds!!!!!!!!!!!!!!!!!!!!!!!!!"

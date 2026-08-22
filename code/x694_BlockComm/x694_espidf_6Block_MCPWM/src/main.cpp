@@ -93,7 +93,8 @@ uint32_t readPotOnce (bool filter, int averager) {
     // float localTargetVelocity = (fMin + (((fMax - fMin)/4096.0f) * processedData)); /*NEW*/
     // vbPeriod_temp= (uint32_t)((VTimerResolution / electricalCycles) / fabsf(localTargetVelocity));  /*NEW*/
     
-    /*Only one to write to the Blcokperiod*/
+    /*Only one to write to the Blcokperiod.
+     AVERAGER FILTER TO BE IMPLEMENTED LATAER*/
     if(global.blockPeriod != vbPeriod_temp){ 
       ESP_LOGI("Tvel", "%7.3f per.:%d ft:%d Ar:%4d, %d", localTargetVelocity, vbPeriod_temp, filter, averager, processedData);
       int dirWaitingLine = (localTargetVelocity < 0) ? (5) : (2);

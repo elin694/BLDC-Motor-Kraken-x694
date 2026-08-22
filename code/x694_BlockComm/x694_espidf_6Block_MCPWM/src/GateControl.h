@@ -1,8 +1,8 @@
 #pragma once 
 #include "Globals.h"
 // #include "driver/gpio.h"
-#define isrTickDeadTime (uint32_t)0 //isr 700ns responds time
-#define relativeDeadTime 5
+#define isrTickDeadTime (uint32_t)0 /*in ns*/
+#define relativeDeadTime 50 /*in ns*/
 // gpio 19- miso, b High side is tx2
 
 inline DRAM_ATTR phaseMcpwm motorH[3];
@@ -80,17 +80,17 @@ inline mcpwm_generator_config_t HPWMSetup = {
     }
 };
 
-
+#define DT_SCALER (HighTimerResolution * 1.0 / 1e9)
 const mcpwm_dead_time_config_t highGateDeadTimeSetup = {
-    .posedge_delay_ticks = isrTickDeadTime,
-    .negedge_delay_ticks = isrTickDeadTime,
+    .posedge_delay_ticks = ceil(isrTickDeadTime * DT_SCALER),
+    .negedge_delay_ticks = ceil(isrTickDeadTime * DT_SCALER),
     .flags = {
         // invert_output = 1;
     }
 };
 const mcpwm_dead_time_config_t lowGateDeadTimeSetup = {
-    .posedge_delay_ticks = isrTickDeadTime + relativeDeadTime,
-    .negedge_delay_ticks = isrTickDeadTime,
+    .posedge_delay_ticks = ceil( (isrTickDeadTime + relativeDeadTime) * DT_SCALER),
+    .negedge_delay_ticks = ceil( isrTickDeadTime * DT_SCALER),
     .flags = {
         // invert_output = 1;
     }
