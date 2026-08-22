@@ -104,7 +104,7 @@ bool IRAM_ATTR runActualISR(void * data){
    BaseType_t xHigherPriorityTaskWoken2;
    int timeNow = SNAP();
    taskENTER_CRITICAL( &sensorMux );
-   uint32_t tlog_sensor = masterVar->tlog_readAS5600.load();
+   uint32_t tlog_sensor = masterVar->tlog_readAS5600.load(); //gets last time sensor was read
    taskEXIT_CRITICAL( &sensorMux );
    if((timeNow - tlog_sensor) < ACCEPTABLE_I2C_READ_WINDOW ){
       tag(cyan "V1");
@@ -172,6 +172,7 @@ void as5600initialize(void * parameter) {
 
 #define JAILBREAK_SLOTS (2)
 #define JAILBREAK_THRESHOLD_TIME (JAILBREAK_SLOTS * 1e6 ) /*in us*/
+
 void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
    CLEAR_ALL_NOTIFS(NULL);
    TickType_t startTick = *(TickType_t*)startTick1;
@@ -221,10 +222,11 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
          uint32_t tlog = SNAP();
          global.oldSectorTarget = global.sectorTarget;
          
-         global.rotorVal = reading;
          global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading) + global.dir) % 6; //0- bitsPerSector --> smaller sector
          global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
+         /*Most things need to be in Critical Section since this task is on Core 1*/
          taskENTER_CRITICAL( &sensorMux );
+         global.rotorVal = reading;
          global.tlog_trailingReadAS5600.store(global.tlog_readAS5600.load()); /*ensure happens on same core as mathLoop*/
          global.tlog_readAS5600.store(tlog);
          taskEXIT_CRITICAL( &sensorMux );

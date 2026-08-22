@@ -4,11 +4,13 @@
 
 
 #define CL_TIMER_FREQ_HZ (uint32_t) (8e7/2)
+/*------------------------------POWERED BY GPTIMER------------------------------*/
 constexpr gptimer_config_t timerConfigScaffold = {
    .clk_src = GPTIMER_CLK_SRC_DEFAULT,
    .direction = GPTIMER_COUNT_UP,
    .resolution_hz = CL_TIMER_FREQ_HZ,
-   // .intr_priority = MEGA_TIMER_INTR_PRIORITY,
+   /*To be filled*/
+   // .intr_priority = MEGA_TIMER_INTR_PRIORITY, 
    .flags = {
       .intr_shared = false,
       .allow_pd = false
@@ -26,6 +28,7 @@ constexpr gptimer_alarm_config_t alarmScaffold = {
 constexpr gptimer_event_callbacks_t eventScaffold ={
    // .on_alarm = NULL
 };
+/*------------------------------PID STRUCTS------------------------------*/
 typedef struct{
    // float target = 0;
    std::atomic<uint32_t> mindex = 0;
@@ -37,13 +40,14 @@ typedef struct{
    const float kp;
    const float ki;
    const float kd;
-   /*------------------------------POWERED BY GPTIMER------------------------------*/
+
    int freq =0;
    gptimer_handle_t timer;
    gptimer_config_t timerConfig = timerConfigScaffold;
    gptimer_alarm_config_t alarmConfig = alarmScaffold;
    gptimer_event_callbacks_t callbackEvent = eventScaffold;
 } float_kpid;
+
 typedef struct{
    // int target = 0;
    std::atomic<uint32_t> mindex = 0;
@@ -55,7 +59,7 @@ typedef struct{
    const float kp;
    const float ki;
    const float kd;
-   /*------------------------------POWERED BY GPTIMER------------------------------*/
+
    int freq =0;
    gptimer_handle_t timer;
    gptimer_config_t timerConfig = timerConfigScaffold;

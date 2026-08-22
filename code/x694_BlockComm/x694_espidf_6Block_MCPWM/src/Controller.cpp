@@ -18,7 +18,7 @@ void startAllTimersAndInterrupts(void * startTick6){
    #endif
    #endif
    #endif
-   
+
    #ifndef lastResort
    mcpwm_int_clr_reg_t clearReg = {.val = ~((uint32_t)(0x00000000))};
    MCPWMx->int_clr.val=  clearReg.val;
@@ -70,7 +70,8 @@ void stableLoopCheck(void * startTick7){ //updates arrrays with new ifo
    }
 }
 
-/* WRITES ONLY TO x.mindex, x.measured[] ARRAYS AND global.dir */
+#define CL_NOTIF_INDEX 1
+/* WRITES ONLY TO x. mindex, x. measured[] ARRAYS AND global. dir */
 void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*/
     CLEAR_ALL_NOTIFS(NULL);
 
@@ -105,14 +106,14 @@ void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*
         taskEXIT_CRITICAL( &sensorMux );
         
         /*Checking the last time it read ad5600 to ensure it uses updated/recent data
-            If it is recent, proceed with torque/calc
-            Else do nothing (motor stall on last position).
+            If it is recent, proceed with torque/calc, and send the go notify of the update
+            Else do nothing (motor freeSpins).
+
+            IF the iwndow is larger than i2c read period, then there is 1 slo buffer for errors.
         */
         if( tlog_now - tLastRead < ACCEPTABLE_I2C_READ_WINDOW ){
-            /*=========================DOING THE MATH===================================*/
-            int encoder = global.rotorVal;
+            /*Changes Kinamatic Values via shift and set */
             // int localTime = pGlobalVar-> tlog_readAS5600;
-            /*what if thee's no recent read? */
             uint32_t pLIdx = (positionLoop.mindex++) % CL_CIRCULAR_SLOTS;
             uint32_t pIdx = positionLoop.mindex % CL_CIRCULAR_SLOTS;
             uint32_t vLIdx = (velocityLoop.mindex++) % CL_CIRCULAR_SLOTS;
@@ -120,14 +121,15 @@ void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*
             // uint32_t tqLIdx = (torqueLoop.mindex++) % CL_CIRCULAR_SLOTS;
             uint32_t tqIdx = torqueLoop.mindex % CL_CIRCULAR_SLOTS;
             float dt_s = (tlog_lastRecordedInteration - tlog_now) / 1.0e6;
-
-            //set values in current index of each array and leave them be
+            int encoder = global.rotorVal;
             positionLoop.measured[pIdx] = encoder;
             velocityLoop.measured[vIdx] = (encoder - positionLoop.measured[pLIdx]) * BITS_TO_ROTATIONS / (dt_s);
             torqueLoop.measured[tqIdx] = (velocityLoop.measured[vIdx] - velocityLoop.measured[vLIdx]) / (dt_s);
             tlog_lastRecordedInteration = tlog_now;
-            /*=========================DOING THE MATH===================================*/
-            
+            xTaskNotifyIndexed(velocityControlLoopTask, CL_NOTIF_INDEX, 1, eSetValueWithOverwrite);
+            xTaskNotifyIndexed(positionControlLoopTask, CL_NOTIF_INDEX, 1, eSetValueWithOverwrite);
+
+
             float targetTorque = *pTargetTorque;
             //check within softwaare limits, but run hardware limits
             assert( ( -SL_MAX_TORQUE <= targetTorque ) && ( targetTorque <= SL_MAX_TORQUE ) ); 
@@ -143,16 +145,21 @@ void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*
                 }
                 global.dir = (targetTorque < 0) ? (5) : (2);
             }
+        } else {
+            xTaskNotifyIndexed(velocityControlLoopTask, CL_NOTIF_INDEX, 0, eSetValueWithOverwrite);
+            xTaskNotifyIndexed(positionControlLoopTask, CL_NOTIF_INDEX, 0, eSetValueWithOverwrite);
         }
     }
 }
 
-/* WRITES ONLY TO global.targetTorque, velocityLoop.lastError, velocityLoop.netError, AND velocityLoop.eidex */
-void IRAM_ATTR velocityControlLoop(void* pointerToTarget) {  /*POSITIVE ERROR means more ways to go, negative means overshot*/
+/*Num ticks of CL_TIMER per Velocity_CL period*/
+#define VELOCITY_CL_COUNT (CL_TIMER_FREQ_HZ / VELOCITY_CL_FREQ_HZ)
+/* WRITES ONLY TO global. targetTorque, velocityLoop. lastError, velocityLoop. netError, AND velocityLoop. eidex */
+void IRAM_ATTR velocityControlLoop(void* pointerToTarget) { 
     CLEAR_ALL_NOTIFS(NULL);
+    /*POSITIVE ERROR means more ways to go, negative means overshot*/
     
     /*Filling in the scaffold form*/
-    #define VELOCITY_CL_COUNT (CL_TIMER_FREQ_HZ / VELOCITY_CL_FREQ_HZ)
     velocityLoop.timerConfig.intr_priority = VELOCITY_LOOP_TIMER_INTR_PRIORITY;
     velocityLoop.alarmConfig.alarm_count =VELOCITY_CL_COUNT;
     velocityLoop.callbackEvent.on_alarm = velocityCtrlCBK;
@@ -163,34 +170,39 @@ void IRAM_ATTR velocityControlLoop(void* pointerToTarget) {  /*POSITIVE ERROR me
     ESP_ERROR_CHECK(gptimer_register_event_callbacks(velocityLoop.timer, &velocityLoop.callbackEvent, &velocityLoop));
     ESP_ERROR_CHECK(gptimer_enable(velocityLoop.timer));
     ESP_ERROR_CHECK(gptimer_get_resolution(velocityLoop.timer, (uint32_t*) &velocityLoop.freq));
+    float dt_s  = VELOCITY_CL_COUNT / velocityLoop.freq;
     ESP_LOGI("vLoop", "Frequency: %d", velocityLoop.freq / VELOCITY_CL_COUNT);
     /*CONISDER case from motor stall - to SL_MIN_VELOCITY*/
     gVar_t* pGlobalVar = (gVar_t*) pointerToTarget;
     float* pTargetVelocity = &((pGlobalVar) -> targetVelocity);
+
     for(;;){
         /* +error = ahead of target ccw*/
-        ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+        ulTaskNotifyTake( pdTRUE, portMAX_DELAY); /*Wait for GPTImer call*/
         volatile float targetVelocity = *pTargetVelocity;
         assert( ( -SL_MAX_VELOCITY <= targetVelocity ) && ( targetVelocity <= -SL_MAX_VELOCITY ) );
 
         if(global.controlMethod >= VELOCITY_CONTROL){
-            int tNow = SNAP();
-            taskENTER_CRITICAL( &sensorMux );
-            // uint32_t dt  = pGlobalVar-> tlog_readAS5600 - pGlobalVar-> tlog_trailingReadAS5600;
-            uint32_t tLastRead  = pGlobalVar-> tlog_readAS5600;
-            taskEXIT_CRITICAL( &sensorMux );
+            // int tNow = SNAP();
+            // taskENTER_CRITICAL( & sensorMux );
+            // // uint32_t dt  = pGlobalVar-> tlog_readAS5600 - pGlobalVar-> tlog_trailingReadAS5600;
+            // uint32_t tLastRead  = pGlobalVar-> tlog_readAS5600;
+            // taskEXIT_CRITICAL( & sensorMux );
 
-            if(tNow - tLastRead < ACCEPTABLE_I2C_READ_WINDOW) {
-                float dt_s  = VELOCITY_CL_COUNT / velocityLoop.freq;
+            // if(tNow - tLastRead < ACCEPTABLE_I2C_READ_WINDOW) {
+            /*Check if data is recent*/
+            if (ulTaskNotifyValueClearIndexed(NULL, CL_NOTIF_INDEX, 0xffffffff) != 0){
                 uint32_t vidx = velocityLoop.mindex;
                 uint32_t eidx = velocityLoop.eindex++; //only this loop touches it
                 float errorVel =targetVelocity - velocityLoop.measured[vidx % CL_CIRCULAR_SLOTS]; //measured updated in gsn?
                 float prevError = velocityLoop.lastError[eidx % CL_CIRCULAR_SLOTS];
                 float currentNetError = velocityLoop.netError + errorVel * dt_s;
-
+                
                 float errorP = velocityLoop.kp * errorVel;
                 float errorI = velocityLoop.ki * currentNetError; /*-area*k, */
-                float errorD = velocityLoop.kd * (errorVel - prevError) / dt_s; //subtract the slope (for a + slope, error should be negative)
+                float errorD = velocityLoop.kd * (errorVel - prevError) / dt_s; 
+                //subtract the slope (for a + slope, error should be negative)
+                
                 float errorTotal  = errorP + errorI + errorD; //⍺
                 if (errorTotal > SL_MAX_TORQUE) {
                     errorTotal = SL_MAX_TORQUE;
@@ -206,12 +218,13 @@ void IRAM_ATTR velocityControlLoop(void* pointerToTarget) {  /*POSITIVE ERROR me
                 //Push targets to higher loops
                 pGlobalVar -> targetTorque = errorTotal;
                 velocityLoop.lastError[velocityLoop.eindex % CL_CIRCULAR_SLOTS] = errorVel; //save new error
+                
             }
         }
     }
 }
 
-/* WRITES ONLY TO global.targetTorque, positionLoop.lastError, positionLoop.eidex, AND positionLoop.netError */
+/* WRITES ONLY TO global. targetTorque, positionLoop. lastError, positionLoop. eidex, AND positionLoop. netError */
 void IRAM_ATTR positionControlLoop(void* pointerToTarget) { //Backend Function, ASSES/ASSERT TARGETS IN FRONTEND
     CLEAR_ALL_NOTIFS(NULL);
     #define POSITION_CL_COUNT (CL_TIMER_FREQ_HZ / POSITION_CL_FREQ_HZ)
@@ -223,25 +236,27 @@ void IRAM_ATTR positionControlLoop(void* pointerToTarget) { //Backend Function, 
     ESP_ERROR_CHECK(gptimer_register_event_callbacks(positionLoop.timer, &positionLoop.callbackEvent, &positionLoop));
     ESP_ERROR_CHECK(gptimer_enable(positionLoop.timer));
     ESP_ERROR_CHECK(gptimer_get_resolution(positionLoop.timer, (uint32_t*) &positionLoop.freq));
+    float dt_s  = POSITION_CL_COUNT / positionLoop.freq;
     ESP_LOGI("pLoop", "Frequency: %d", positionLoop.freq / POSITION_CL_COUNT);
 
     /*CONISDER case from motor stall - to SL_MIN_POSITION*/
     gVar_t* pGlobalVar = (gVar_t*) pointerToTarget;
     int* pTargetPosition = &((pGlobalVar) -> targetPosition_BiPS);
+    
     for(;;){
         ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
         int targetPosition = *pTargetPosition;
 
         if(global.controlMethod >= POSITION_CONTROL ){
-            int tNow = SNAP();
-            taskENTER_CRITICAL( &sensorMux );
-            // uint32_t dt  = pGlobalVar-> tlog_readAS5600 - pGlobalVar-> tlog_trailingReadAS5600;
-            uint32_t tLastRead  = pGlobalVar-> tlog_readAS5600;
-            taskEXIT_CRITICAL( &sensorMux );
+            // int tNow = SNAP();
+            // taskENTER_CRITICAL( & sensorMux );
+            // // uint32_t dt  = pGlobalVar-> tlog_readAS5600 - pGlobalVar-> tlog_trailingReadAS5600;
+            // uint32_t tLastRead  = pGlobalVar-> tlog_readAS5600;
+            // taskEXIT_CRITICAL( & sensorMux );
 
-            if(tNow - tLastRead < ACCEPTABLE_I2C_READ_WINDOW) {
-                float dt_s  = POSITION_CL_COUNT / positionLoop.freq;
-
+            // if(tNow - tLastRead < ACCEPTABLE_I2C_READ_WINDOW) {
+            /*Check if data is recent*/
+            if (ulTaskNotifyValueClearIndexed(NULL, CL_NOTIF_INDEX, 0xffffffff) != 0){
                 uint32_t pidx = positionLoop.mindex;
                 uint32_t eidx = positionLoop.eindex++; 
                 float errorVel =targetPosition- positionLoop.measured[pidx % CL_CIRCULAR_SLOTS]; //measured updated in gsn?

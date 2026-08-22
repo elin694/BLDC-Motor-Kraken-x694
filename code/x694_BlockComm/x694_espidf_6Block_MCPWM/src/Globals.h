@@ -17,7 +17,7 @@ def TORQUE_CONTROL - only test Torque control loop in action
 def VELOCITY_CONTROL - only test Torque and velocity control loop in action
 def POSITION_CONTROL - only test Torque, velocity, and Postion control loop in action
 */
-#define ALLOWED_LOOPS_TO_TEST TORQUE_CONTROL
+// #define ALLOWED_LOOPS_TO_TEST TORQUE_CONTROL
 
 // #define useGPTimerOverESP32Timer
 #define lastResort
@@ -77,7 +77,10 @@ volatile DRAM_ATTR inline gVar_t global;
 extern phaseMcpwm motorH[3];
 extern phaseMcpwm motorL[3];
 inline DRAM_ATTR portMUX_TYPE stepPeriodMux = portMUX_INITIALIZER_UNLOCKED;
+/*protect data transfer of Block period associated with the motor direction in feedforward*/
+
 inline DRAM_ATTR portMUX_TYPE sensorMux = portMUX_INITIALIZER_UNLOCKED;
+/*protect data transfer of encoder value associated with time*/
 
 /* ------------------------------ DEBUG-TOGGLED VARIABLES  ------------------------------ */
 #ifdef debug_hyperFastPrints

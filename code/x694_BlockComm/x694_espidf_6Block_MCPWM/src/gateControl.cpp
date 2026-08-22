@@ -32,10 +32,9 @@ void initializeLowGate () {
         motorL[i].pwmConfig.gen_gpio_num = gateArray[2*i+1];
     }
 
-    VTimerSetup.resolution_hz = VTIMER_CLOCK;
     ESP_ERROR_CHECK(mcpwm_new_timer(&VTimerSetup, &VTimer)); 
     // MCPWM0.clk_cfg.clk_prescale = mcpwm_lowSideGroupPrescaler-1;
-    // MCPWM0.timer[0].timer_cfg0.timer_prescale= 160e6/VTIMER_CLOCK/mcpwm_lowSideGroupPrescaler-1;
+    // MCPWM0.timer[0].timer_cfg0.timer_prescale= 160e6/VTIMER_ CLOCK/mcpwm_lowSideGroupPrescaler-1;
     // ESP_LOGW("GC VTimerPrescaler", "%d| GroupPrescaler %d", MCPWM0.timer[0].timer_cfg0.timer_prescale ,mcpwm_lowSideGroupPrescaler);
     for (int i = 0; i <3; i++){
         ESP_ERROR_CHECK(mcpwm_new_operator(&motorL[i].opConfig, &motorL[i].operatorModule));
@@ -111,7 +110,13 @@ void initializeTimer(){
     ESP_ERROR_CHECK(mcpwm_timer_register_event_callbacks(VTimer, &callbackFamily, (void *)&global));
     #endif
     ESP_ERROR_CHECK(mcpwm_timer_enable(VTimer));
-
+    
+    #ifdef ALLOW_LOOPS_TO_TEST
+    /*Run the cecking loop at very fast when using  control PID*/
+    #define hyperVtimerPeriod ( VTIMER_CLOCK / 1e6 *151.0)
+    ESP_ERROR_CHECK(mcpwm_timer_set_period(VTimer, hyperVtimerPeriod)); 
+    #endif
+    
     for (int i= 0; i<3; i++){
          ESP_ERROR_CHECK(mcpwm_timer_start_stop(motorH[i].timer, MCPWM_TIMER_START_NO_STOP));
     }
@@ -127,7 +132,6 @@ void IRAM_ATTR tag(const char* tag){ /*intrpt*/
 
 void tagFlag(bool start,int time){
     taskENTER_CRITICAL(&stepPeriodMux);
-    // int bp = global.blockPeriod;
     int currentTargetSector = global.sectorTarget;
     bool i2cfailed= global.setMotorFreeTemporarily.load(std::memory_order::relaxed);
     bool setMotorCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
@@ -159,7 +163,10 @@ void IRAM_ATTR executeGates (void * parameter){
                 // ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i].pwmGate0, 1, true));
             }
         } else {
-
+            //esl
+            // taskENTER_CRITICAL(&stepPeriodMux);
+            // bool motorIsInFreeSpin = global.setMotorFreeSpin;
+            // taskEXIT_CRITICAL(&stepPeriodMux);
             if(global.setMotorFreeTemporarily.load() || global.setMotorFreeSpin.load()){ //don't esrase these valeus
                 tag(yellow "EgFTFree ");
                 for(int i =2; i>-1; i--){
