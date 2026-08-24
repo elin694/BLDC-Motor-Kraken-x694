@@ -2,7 +2,6 @@
 //CAILBRATE AS5600 MAGNET
 
 BaseType_t pxHigherPriorityTaskWoken =pdFALSE;
-
 void pinSetup(){
 //    for(int i = 0; i<6; i++){
 //       gpio_reset_pin(gateArray[i]);

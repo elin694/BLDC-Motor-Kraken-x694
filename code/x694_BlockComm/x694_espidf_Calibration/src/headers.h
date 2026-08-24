@@ -4,6 +4,7 @@
 //================== #INSTALL MCPWM ==================
 #define generatorGPIO phaseCHighPort //tx2 = bh= 17
 #define phaseLowGate phaseALowPort //outwards
+/*Change Calibration number depending on your commutation style */
 #define HighTimerResolution (4e6) //2432
 #define activePwmPeriod (uint32_t)(HighTimerResolution/20000)  //change to 20khz when high
 #define startingDuty (0.8) 
@@ -13,11 +14,6 @@
 #define lowSideGroup 0
 #define MCPWM_HighsideIntrPriority 1
 #define MCPWM_LowsideIntrPriority 1
-
-
-
-
-
 
 mcpwm_timer_config_t HTimerSetup = {
     .group_id = highSideGroup,
