@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../x694_espidf_MCPWM"
+		}
+	],
+	"settings": {}
+}

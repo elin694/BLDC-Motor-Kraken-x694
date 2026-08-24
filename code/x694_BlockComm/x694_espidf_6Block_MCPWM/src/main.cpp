@@ -1,94 +1,149 @@
 //============================ 6 step commutation! with ESPIDF ============================
-#include "Initialize.h"
-#include "GateControl.h"
+// #include "GateControl.h"
 #include "Globals.h"
 //Ti sinusoidal : https://www.youtube.com/watch?v=-By_vt27Xhs&t=21s
 
 adc_oneshot_unit_handle_t adcHandle = NULL;
-uint32_t potBuffer[128];
 int rawData = 0;
-portMUX_TYPE counterMux = portMUX_INITIALIZER_UNLOCKED;
 
-void debugLog(void * parameter){
-  int tracker = 0;
+#define esp32timer_dump_cycle 8
+#ifdef DEBUG_ALLOW_DUMPING
+#define espTimer_isMinutelyCheckup(x) (((x % esp32timer_dump_cycle ) == (esp32timer_dump_cycle - 1)) )
+#else
+#define espTimer_isMinutelyCheckup(x) (((x % esp32timer_dump_cycle ) == (esp32timer_dump_cycle + 1)) )
+#endif
+
+void debugMonitor (void * startTick2) {
+  char buf[600];
+  // uint32_t task_list_log_counter = 0;
+  TickType_t startTick = *(TickType_t*) startTick2;
+  uint32_t esp32timer_log_counter = 0;
+  TickType_t loopStartTick ;
+  ESP_LOGI("Main.cpp", "EspTimer log period:%d ms!", esp32timer_dump_cycle * velPotReadPeriod * 40);
+
+  xTaskDelayUntil(&startTick,initializationLatency);
+  ESP_LOGI("main.cpp", "GOOO!\n\n");
   for(;;){
-    // #if (!defined(debug_hyperFastPrints) && !defined(debug_hyperFastPrintsWithPot))
-    #ifdef debug_printRPS
-    // ESP_LOGI("STATUS","^targetVelocity: %4.1f, vel-period %d -\n", (float)VTimerResolution/(18.0f*global.blockPeriod), (int)global.blockPeriod);
-    // esp_rom_printf("a∂c: %4d|" cyan "TRPM: %5d" green "|BPeriod %d|AS5600:%4d| Gates: %s \x1b[0K \x1b[1G",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
-    // bool bearing = global.dir;
+    loopStartTick = xTaskGetTickCount();
+    xTaskDelayUntil(&loopStartTick, pdMS_TO_TICKS(velPotReadPeriod * 40)); 
+
+    //read RPS
     taskENTER_CRITICAL(&stepPeriodMux);
-    int k = global.dir;
+    int gp = global.blockPeriod;
+    int tempCoast = global.setMotorFreeTemporarily.load(std::memory_order::relaxed);
+    int stateIsCoast = global.setMotorFreeSpin.load(std::memory_order::relaxed);
     taskEXIT_CRITICAL(&stepPeriodMux);
-    esp_rom_printf("a∂c:%4d|" cyan "TRPM:%5d" green "|BPeriod %d|AS5600:%4d| G:%s, \n",rawData, (int)(global.targetVelocity*60), global.blockPeriod, global.rotorVal, ghgl[global.sectorTarget]);
-    #endif
-    // #endif
-    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
+     int numGsnCycled = isr2i.load(std::memory_order::relaxed);
+     int encoder = (int)global.rotorVal;
+    esp_rom_printf("a∂c%4d " cyan "TRPM%5d" white " BPeriod%5d I2C%4d TCoast%d,%d-%d\n",rawData, (int)(global.targetVelocity*60), gp, encoder, tempCoast, stateIsCoast, numGsnCycled);
+
+    if(espTimer_isMinutelyCheckup(esp32timer_log_counter++)){
+      #ifdef useGPTimerOverESP32Timer
+      #else
+      ESP_LOGI("\n", blue); esp_timer_dump(stdout);
+      #endif
+      esp_rom_printf("\n\n");
+      vTaskGetRunTimeStats(buf);
+      esp_rom_printf(buf);
+    }
   }
 }
 
-void readPotRepeat(void * parameter){
+void readPotRepeat (void * startTick3) {
+  TickType_t startTick = *(TickType_t*)startTick3;
+  int history[adcReadBufferSize] = {-1,-1,-1,-1};
+  uint32_t counterIndex= 0;
+
+  xTaskDelayUntil(&startTick, initializationLatency);
   for(;;){
-    readPotOnce(parameter);
-    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod)); 
+    if(history[adcReadBufferSize-1] ==-1){
+      history[counterIndex++ % adcReadBufferSize] = readPotOnce(false, 0);
+    }else{
+      int sum=0;
+      for(int i = -1; i > (-adcReadBufferSize); i--){
+        sum+=history[(counterIndex + i) % adcReadBufferSize];
+      }
+      history[counterIndex++ % adcReadBufferSize] = readPotOnce(true, sum);
+    }
+    vTaskDelay(pdMS_TO_TICKS(velPotReadPeriod));  
   }
 }
 
 
 /*https://numbergenerator.org/numberlistrandomizer#!numbers=50&lines=1&range=1-4095&unique=true&unique_combinations=true&order_matters=false&csv=csv&del=&oddeven=&oddqty=0&sorted=true&addfilters=*/
-DRAM_ATTR uint32_t vbPeriod_temp;
-void readPotOnce(void * parameter){
+uint32_t readPotOnce (bool filter, int averager) {
+  uint32_t vbPeriod_temp;
+
   ESP_ERROR_CHECK(adc_oneshot_read(adcHandle, adcChannel, &rawData));
   rawData = (rawData/2)*2;
-  #ifdef debug_dontReadVelocityPot
-  vbPeriod_temp = debug_dontReadVelocityPot;
-  if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment
-    esp_rom_printf("ENTIRNG CRITICAL"); 
-    global.targetVelocity=VTimerResolution/(18.0f* vbPeriod_temp);
-    (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
-    taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
-    global.blockPeriod = vbPeriod_temp;
-    global.newVelPotValue =true;
-    taskEXIT_CRITICAL(&stepPeriodMux);
-  }
-  #endif
 
-  #if (!defined(debug_dontReadVelocityPot))
-  if(global.controlMethod == VELOCITY_CONTROL){
-    global.targetVelocity = (fMin+(fMax-fMin)*(float)rawData/4096);
-    vbPeriod_temp= (uint32_t)(VTimerResolution/fabsf(global.targetVelocity*(electricalCycles*6)));
+  if(global.controlMethod == TORQUE_CONTROL){
+      global.targetTorque = (TARGET_TORQUE_LB + (TARGET_TORQUE_UB - TARGET_TORQUE_LB) * rawData / 4096.0f);
+      
+    } else if (global.controlMethod == VELOCITY_CONTROL) {
+    int processedData = (filter) ? ((averager + rawData) / (4)) : rawData;
+    float localTargetVelocity = (TARGET_VELOCITY_LB + (TARGET_VELOCITY_UB - TARGET_VELOCITY_LB) * processedData / 4096.0f); /*OLD*/
+
+    /*if testing, remove feed forward code
+    else, enable feedforward code*/
+    #ifdef ALLOW_LOOPS_TO_TEST
+      global.targetVelocity = localTargetVelocity;
+    #else
+    vbPeriod_temp= (uint32_t)(VTIMER_CLOCK/fabsf(localTargetVelocity* BLOCKS_PER_ROTATION));  /*OLD*/
+    // float localTargetVelocity = (fMin + (((fMax - fMin)/4096.0f) * processedData)); /*NEW*/
+    // vbPeriod_temp= (uint32_t)((VTimerResolution / electricalCycles) / fabsf(localTargetVelocity));  /*NEW*/
     
-    bool notlegal = vbPeriod_temp >minf_HTimerPeriod;
-    if(notlegal){
-      // ESP_LOGI("F","SPIN");
-    }
-    if(global.blockPeriod != vbPeriod_temp){//needs to be instantaneous assignment 
-      taskENTER_CRITICAL(&stepPeriodMux); //300ns for enter and exit
-      (global.targetVelocity < 0) ? (global.dir = 5) : (global.dir = 2);
-      if(notlegal){
-        global.setMotorFreeSpin.store(true); //spinlock
-        global.blockPeriod  =minf_HTimerPeriod; //spinlock
-      }else{
+    /*Only one to write to the Blcokperiod.
+     AVERAGER FILTER TO BE IMPLEMENTED LATAER*/
+    if(global.blockPeriod != vbPeriod_temp){ 
+      ESP_LOGI("Tvel", "%7.3f per.:%d ft:%d Ar:%4d, %d", localTargetVelocity, vbPeriod_temp, filter, averager, processedData);
+      int dirWaitingLine = (localTargetVelocity < 0) ? (BACKWARD_DIR) : (FORWARD_DIR);
+      bool legal = vbPeriod_temp <= SL_MIN_VELOCITY_PERIOD_TICKS;
+
+      if(legal){
+        taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
         global.setMotorFreeSpin.store(false);
         global.blockPeriod = vbPeriod_temp;
+        global.dir = dirWaitingLine;
+        global.targetVelocity = localTargetVelocity;
+        taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
+        ESP_ERROR_CHECK(mcpwm_timer_set_period(VTimer, vbPeriod_temp));  
+        tag("newVel");               //set new block value on period ONLY WHEN POT HAS READ SMTH new, and updates period period on empty
+      }else{
+        taskENTER_CRITICAL(&stepPeriodMux); //read pot once, core0
+        global.setMotorFreeSpin.store(true); //spinlock
+        global.blockPeriod  =SL_MIN_VELOCITY_PERIOD_TICKS; //spinlock
+        global.dir = dirWaitingLine;
+        global.targetVelocity = localTargetVelocity;
+        taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
       }
-        global.newVelPotValue =true; //spinlock
-      taskEXIT_CRITICAL(&stepPeriodMux); //spinlock
-    }
 
-    }else if(global.controlMethod == TORQUE_CONTROL){
-      global.targetAcceleration = (aMin+(aMax-aMin)*(float)rawData/4096);
-      /*conside case from motor stall - to fMIn*/
-
-    }else if(global.controlMethod == POSITION_CONTROL){
-      global.targetPosition = (pMin+(pMax-pMin)*(float)rawData/4096);
     }
     #endif
+    } else if (global.controlMethod == POSITION_CONTROL) {
+      global.targetPosition_BiPS = (TARGET_POSITION_LB + (TARGET_POSITION_UB - TARGET_POSITION_LB) * rawData / 4096.0f );
+    }
+    return rawData;
 }
 
+#include "hal/clk_tree_hal.h"
 extern "C"{
   void app_main(){
-    xTaskCreatePinnedToCore(initialize, "SETUP", 30000, NULL, 12, &setupTask, 0); 
+    // uint32_t t1 = xPortGetRunTimeCounterValue();
+    // uint32_t t2 =snap();
+    // ESP_LOGI("\n YEEEE","\n %d,  %d\n",(int)t1,t2);
+
+    // vTaskDelay(694);
+    // t1 = xPortGetRunTimeCounterValue();
+    // t2 = snap();
+    // ESP_LOGI("\n YEEEE","\n %d,  %d\n",(int)t1,t2);
+    // vTaskDelay(10000000);
+    // vTaskDelay(pdMS_TO_TICKS(100)); //To let gate driver setup
+
+    // ESP_LOGW("main","%d", clk_hal_apb_get_freq_hz());
+    esp_rom_delay_us(100);
+    xTaskCreatePinnedToCore(initialize, "SETUP", 25000, NULL, 20, &setupTask, 0); 
+    CLEAR_ALL_NOTIFS(setupTask);
     ESP_LOGI("Checkpoint", "APP_MAIN INIT FINISHED");
   }
 }

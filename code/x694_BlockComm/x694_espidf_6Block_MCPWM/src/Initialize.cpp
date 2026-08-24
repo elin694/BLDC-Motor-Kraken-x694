@@ -1,250 +1,282 @@
 #include "Initialize.h"
-#include "GateControl.h"
-#include <bitset> 
-#include <array>
-
-#define SECTOR_PER_BITS static_cast<float>(1 / (4096.0f / (electricalCycles* 6.0f)))
-BaseType_t xHigherPriorityTaskWoken = pdFALSE; 
-UBaseType_t thisTaskPriority = uxTaskPriorityGet(setupTask);
+#include "Controller.h"
+#define isMinutelyCheckup(x) ((x % 1024) == 15)
+TickType_t synchronizedTime;
+TaskHandle_t initializeI2CTask= NULL;
+DRAM_ATTR uint32_t megaTimerResolution = 0;
 void initialize(void * parameter){   
    pinSetup();
-   vTaskDelay(pdMS_TO_TICKS(20)); //To let gate driver setup
    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adcSetup, &adcHandle));
    ESP_ERROR_CHECK(adc_oneshot_config_channel(adcHandle, adcChannel, &adcChannelSetup));
-   ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
-   ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
-   int k = global.dir;
-   #ifdef debug_dontReadVelocityPot
-   global.targetVelocity=VTimerResolution/(18.0f* debug_dontReadVelocityPot);
-   (global.targetVelocity < 0) ? (global.dir = 4) : (global.dir = 2);
-   global.blockPeriod = debug_dontReadVelocityPot;//does not affect
-   global.newVelPotValue =true; //nti
+   
+   /*higher priority but runs on differnet core*/
+   xTaskCreatePinnedToCore(as5600initialize, "Setup I2c", 3000, NULL, 22, &initializeI2CTask, 1); 
+   mcpwmSetup(); 
+   #ifndef useGPTimerOverESP32Timer
+   ESP_ERROR_CHECK(esp_timer_create(&gsnTimerSetup, &gsnTimerHandle));
    #endif
-      readPotOnce(NULL);
-      int k2 = global.dir;
-      ESP_LOGE("init.cpp","Priming Vpot blockPeriod %d| new velocityflag: %d, dir before read%d after%d", global.blockPeriod, global.newVelPotValue,k,k2);//nti
-      as5600initialize(); 
-   xTaskCreatePinnedToCore(getSectorNumber, "SETUP", 8000, NULL,  24, &getSectorNumberTask, 1);
-   xTaskNotifyStateClearIndexed(getSectorNumberTask,0);
-   ulTaskNotifyValueClear(getSectorNumberTask ,0);
-
-   mcpwmSetup(global.sectorTarget); //blockPeriod has to be bigger than estimatedI2CReadTimeInMicros*µsToTicksInt
-   // ESP_LOGW("init.cpp"," maximum target RPs; %6.3f, minimum target RPS: %6.3f",fMin, fMax);
-   #ifdef enableReadPotRepeat
-   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 10000, NULL, 10, NULL,0);
-   // ESP_LOGW("init.cpp", "nableReadPotRepeat");
-   #endif 
-   xTaskCreatePinnedToCore(debugLog, "debugLog", 5000, NULL, 5, NULL, 0);
-   // xTaskCreatePinnedToCore(mathItOut, "mathItOut", 10000, NULL, (int)(thisTaskPriority)+3, NULL, 0);
+   int b = global.blockPeriod.load(std::memory_order::relaxed);
+   ESP_LOGI("init.cpp ","blockPeriod %d", b);//nti
+   xTaskCreatePinnedToCore(executeGates, ".exe", 3000, NULL,  15, &executeGatesTask, 0);
+   xTaskCreatePinnedToCore(torqueControlLoop, "Controller-tqLoop", 3000, (void*) &global,  14, &torqueControlLoopTask, 0);
+   xTaskCreatePinnedToCore(velocityControlLoop, "Controller-vlLoop", 3000, (void*) &global,  13, &velocityControlLoopTask, 0);
+   xTaskCreatePinnedToCore(positionControlLoop, "Controller-psLoop", 3000, (void*) &global,  12, &positionControlLoopTask, 0);
+   xTaskCreatePinnedToCore(stableLoopCheck, "Controller-IntegrationFlagLoop", 2000, (void*) &global,  5, &stableLoopCheckTask, 0);
+   
+   /*Wait for as5600 initialize to ping this task*/
+   ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+   synchronizedTime = xTaskGetTickCount();
+   int now1 = SNAP();
+   
+   /*high priority but runs on differnet core*/
+   xTaskCreatePinnedToCore(getSectorNumber, "gsn", 8000, &synchronizedTime,  15, &getSectorNumberTask, 1);
+   xTaskCreatePinnedToCore(debugMonitor, "debugLog", 5000, &synchronizedTime, 3, NULL, 0);
+   xTaskCreatePinnedToCore(readPotRepeat, "readPotRepeat", 2000, &synchronizedTime, 6, NULL,0); //not as important as contorl loops
+   xTaskCreatePinnedToCore(startAllTimersAndInterrupts, "Controller-startVtimer", 2000, &synchronizedTime, 7, NULL, 0);
+   #ifdef DEBUG_ALLOW_ONE_TIME_DUMPING
+   esp_intr_dump(stdout);
+   #endif
+   #ifndef useGPTimerOverESP32Timer
+   // esp_timer_dump(stdout);
+   #endif
+   esp_err_t probeCheck = i2c_master_probe(busHandle, as5600Address, 2);
+   int now2 = SNAP()-now1;
+   ESP_LOGI("init", "TaskCreation(us): %d, Probe Check %d", now2, probeCheck);
    vTaskDelete(NULL);
 }
 
-int mod6 (int value){ //for single add
-    if(value > 5){
-        value -= 6;
-    } else if(value < 0){
-        value += 6;
-    }
-    return value;
-}
 
 void pinSetup(){
-   gpio_reset_pin(clockPin);
-   gpio_reset_pin(dataPin);
    for(int i = 0; i<6; i++){
       gpio_reset_pin(gateArray[i]);
-      gpio_set_direction(gateArray[i], GPIO_MODE_INPUT_OUTPUT);
+      gpio_set_direction(gateArray[i], GPIO_MODE_OUTPUT);
       gpio_set_pull_mode(gateArray[i], GPIO_FLOATING);
+      gpio_set_level(gateArray[i], 0);
    }
 }
 
-void IRAM_ATTR runOnMCPWMIntr(void * returnValue) {
+#ifdef useGPTimerOverESP32Timer
+DRAM_ATTR std::atomic <uint32_t> ct =0;
+DRAM_ATTR std::atomic <int> lct =0;
+DRAM_ATTR BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+bool IRAM_ATTR runOnMegaTimerIntr (gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx) {
+   vTaskNotifyGiveFromISR(getSectorNumberTask, &xHigherPriorityTaskWoken);
+   // if((ct.fetch_add(1, std::memory_order::relaxed) % 1024) == 200){
+   //    int now= SNAP();
+   //    int dt= now - lct.load(std::memory_order::relaxed);
+   //    esp_rom_printf("yeet %d \n", dt);
+   //    lct.store(now, std::memory_order::relaxed);
+   // }
+   return ((bool) xHigherPriorityTaskWoken);
+}
+#else
+void IRAM_ATTR runOnESPTimerIntr (void * globe) { /*intrpt*/
+   BaseType_t xHigherPriorityTaskWoken;
+   vTaskNotifyGiveFromISR(getSectorNumberTask, &xHigherPriorityTaskWoken);
+   if(xHigherPriorityTaskWoken == pdTRUE){
+      xHigherPriorityTaskWoken =pdFALSE;
+      esp_timer_isr_dispatch_need_yield();
+   }
+}
+#endif
+
+
+#ifdef lastResort
+bool IRAM_ATTR VTimerCallback (mcpwm_timer_handle_t timer, const mcpwm_timer_event_data_t *edata, void *user_ctx) { /*intrpt*/
+   return runActualISR(user_ctx);
+}
+#else
+void IRAM_ATTR runOnMCPWMIntr (void * user_ctx) { /*intrpt*/
    tempStatusReg.val =  (MCPWMx)->int_st.val;   
    if(tempStatusReg.val){ //in case of ghost interrupts
-
-      if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS BTIMER, TIMER ID 1 IS  LTIMER
-         if(global.newPhaseSwitchFlag.load()){
-            #ifdef debug_fastPrints
-            esp_rom_printf(blue "B");
-            #elif defined(debug_hyperFastPrints)
-            darray[dindex[0].fetch_add(1)]= blue "B ";
-            #endif
-            xHigherPriorityTaskWoken =pdFALSE;
-            vTaskNotifyGiveIndexedFromISR(getSectorNumberTask, 0, &xHigherPriorityTaskWoken);
-            MCPWMx-> int_clr.val = tempClearR1.val;
-            if(xHigherPriorityTaskWoken == pdTRUE){
-               portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-            }
-         }else{
-            MCPWMx-> int_clr.val = tempClearR1.val;
-         }
+      if(tempStatusReg.timer0_tez_int_st){ //TIMER ID 0 IS VTIMER
+         runActualISR(user_ctx);
+         MCPWMx->int_clr.val = tempClearR1.val;
          return;
-         /*CASE 1 ABOVE*/
-
-      } else if(tempStatusReg.timer1_tez_int_st){ /* BLV*/
-         
-         if(global.readAS5600.exchange(false)){
-            if(global.newPhaseSwitchFlag.exchange(false)){
-               //if global.readAS5600==false, the read is taking too long, so might as well let motor freespin
-               // global.newPhaseSwitchFlag.exchange(false);
-               executeGates(false);
-            }
-         // } else{
-         //    if(global.newPhaseSwitchFlag.exchange(false)){
-         //       executeGates(true);
-         //    }
-         }
-         MCPWMx->int_clr.val = (tempClearR2.val | tempClearR3.val);
-         return;
-         /*CASE 2 ABOVE*/
-
-      } else if(tempStatusReg.timer2_tez_int_st){
-         #ifdef debug_fastPrints
-         esp_rom_printf(magenta "V");
-         #elif defined(debug_hyperFastPrints)
-         darray[dindex[0].fetch_add(1)] = magenta "V";
-         #endif
-         global.newPhaseSwitchFlag.store(true);
-         MCPWMx-> int_clr.val = tempClearR3.val;
-         /*CASE 3 ABOVE*/
-      }
+      } 
    }  
 }
+#endif
 
-void as5600initialize() {
-   #define fth_sf_set_mask (0b00011100 | 0b00000011) //.5 bit error at 11 =sf
-   uint8_t fthRegisterData[1] = {0x00};
-   uint8_t fthRegister[2] = {0x07, 0x00};
-   isr2CurrentTime =esp_timer_get_time();
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, 
-      fthRegister, //address to start on
-      (size_t)1, //write 1 byte's woth from fthRegister
-      fthRegisterData, //where to save the read data
-      (size_t)1, //read 1 byte
-      /*alpha*/20*i2cWaitout)
+// volatile std::atomic<int> oneTimeFlag = 0;
+bool IRAM_ATTR runActualISR(void * data){
+   gVar_t *masterVar = (gVar_t*)data;
+   BaseType_t xHigherPriorityTaskWoken2;
+   int timeNow = SNAP();
+   taskENTER_CRITICAL( &sensorMux );
+   uint32_t tlog_sensor = masterVar->tlog_readAS5600.load(); //gets last time sensor was read
+   taskEXIT_CRITICAL( &sensorMux );
+   if((timeNow - tlog_sensor) < ACCEPTABLE_I2C_READ_WINDOW ){
+      tag(cyan "V1");
+      // if(oneTimeFlag.fetch_add(1,std::memory_order::relaxed) <240000){
+         xTaskNotifyFromISR(executeGatesTask, 0, eIncrement, &xHigherPriorityTaskWoken2);
+      // }
+   }
+   //  else { //COMING SOON!
+   //    tag(cyan "V2");
+   //    /*execute gates only if we have a valid i2c*/;
+   //    #define FAST_BLOCK_RPS (4096.0f/(5**18*estimatedI2CReadTime_us)) //bits/s, whree 5 = min # samples. 3.33k RPM @ 200us
+   //    if(global.measuredVel > FAST_BLOCK_RPS) {
+   //       xTaskNotifyFromISR(executeGatesTask, ExecuteGate_FreeSpin_NotifVal, eSetValueWithOverwrite, &xHigherPriorityTaskWoken2);
+   //    }
+   // }
+   if(xHigherPriorityTaskWoken2 == pdTRUE) {
+      xHigherPriorityTaskWoken2 = pdFALSE;
+      portYIELD_FROM_ISR();
+      return true;
+   }
+   return false;
+}
+
+void as5600initialize(void * parameter) {
+   ESP_ERROR_CHECK(i2c_new_master_bus(&busSetup, & busHandle));
+   ESP_ERROR_CHECK(i2c_master_bus_add_device(busHandle, &as5600Setup, &as5600Handle));
+
+   int startWatch  =SNAP();
+   ESP_ERROR_CHECK(i2c_master_transmit_receive( as5600Handle, fthRegister, 1, fthRegisterData, 2, -1 ) ); //read current settings
+   /* (dev_handle), pointer-pointed addr to start on, # bytes to write, saved data, # bytes to save, waitout */
+   
+   int lapWatch =SNAP()-startWatch;
+   fthRegister[1]= ( (fthRegisterData[0] & fth_sf_clear_mask) | fth_sf_set_mask); //read and set the fth and sf bits
+   fthRegister[2]= ( (fthRegisterData[1] & power_clear_mask) | power_set_mask); //read and set the pm  bits to 00
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 3, fthRegisterData, 1, -1));
+   int lapWatch2 =SNAP()-startWatch;
+   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, 1, fthRegisterData, 2, -1));
+   int lapWatch3 =SNAP()-startWatch;
+   fthRegisterData[1] = (fthRegisterData[1] && (~power_clear_mask));
+   ESP_LOGI(magenta "init.cpp", "\nas5600 FTH & SF + PM Registers set to %d+%d\n1st REG read time:%4d \nSF-FTH write time:%4d REG_Check time:%4d ", 
+      (int)fthRegisterData[0],
+      (int)fthRegisterData[1],
+      lapWatch,
+      lapWatch2,
+      lapWatch3
    );
    
-   isr2CurrentTime2 =esp_timer_get_time()-isr2CurrentTime;
-   
-   fthRegister[1]= (fthRegisterData[0] & 0b11000000) | fth_sf_set_mask; //rese
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister,(size_t)2, fthRegisterData, (size_t)1, /*alpha*/20*i2cWaitout));
-   isr2CurrentTime =esp_timer_get_time()-isr2CurrentTime;
-   
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, fthRegister, (size_t)1, fthRegisterData, (size_t)1, /*alpha*/20*i2cWaitout));
-   //150*4096*16/1000000 =9.8 lsb in 1 sample time ==> round up so it changes to slow filter faster
-   ESP_LOGI(magenta "init.cpp", "as5600 Fast Fillter Threshold Set: %d \n", (int)fthRegisterData[0]);
-   //===================================GET A STARTING SECTOR VALUE ===================================
-   /*TIMETHETIMER ttt*/int t1= esp_timer_get_time();
-   ESP_ERROR_CHECK(i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, as5600WriteSize,as5600RawDataBuf, as5600ReadSize, /*alpha*/20*i2cWaitout));
-   t1= esp_timer_get_time() - t1;esp_rom_printf("==first i2c readTime: %d,%d,%d\n", isr2CurrentTime2, isr2CurrentTime,t1);
+   #ifdef useGPTimerOverESP32Timer
+   ESP_ERROR_CHECK(gptimer_new_timer(&megaTimerSetup, &megaTimer));
+   ESP_ERROR_CHECK(gptimer_set_alarm_action(megaTimer, &megaTimerAlarmSetup));
+   ESP_ERROR_CHECK(gptimer_register_event_callbacks(megaTimer, &megaTimerCallback, NULL));
+   ESP_ERROR_CHECK(gptimer_enable(megaTimer));
+   ESP_ERROR_CHECK(gptimer_get_resolution(megaTimer, &megaTimerResolution));
+   float mperiod = (float)ALARM_VAL/ megaTimerResolution;
+   ESP_LOGI(magenta, "mega timer period: %8.5f" , mperiod);
+   #endif
 
-   global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1];
-   int newBNumber = (int)((getRotorValAdjusted(global.rotorVal) * SECTOR_PER_BITS)+global.dir)%6; //0- bitsPerSector --> smaller sector
-   global.oldSectorTarget = newBNumber; 
-   global.sectorTarget = newBNumber;
+   xTaskNotifyGive(setupTask);
+   vTaskDelete(NULL);
 }
 
-//    #include "esp_private/pm_impl.h"
-// #include "esp_pm.h"
-// #include "esp_private/esp_clk.h"
-void IRAM_ATTR getSectorNumber(void *returnValue){
-   // uint32_t file1 =0; //where to save notif value for counting sephamore- ensure it is 1()
-   vTaskDelay(pdMS_TO_TICKS(20));
+#define FAIL_SLOTS (4)
+#define FAIL_THRESHOLD_TIME (FAIL_SLOTS * 1e6) /*in us. Larger catches more*/
+#define MAX_BUS_RESET_ATTEMTPS 3
+
+#define JAILBREAK_SLOTS (2)
+#define JAILBREAK_THRESHOLD_TIME (JAILBREAK_SLOTS * 1e6 ) /*in us*/
+
+void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
+   CLEAR_ALL_NOTIFS(NULL);
+   TickType_t startTick = *(TickType_t*)startTick1;
+   #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
+   int lap1 =0;
+   int startTime =0;
+   uint32_t printCounter=0;
+   #endif
+   #ifdef useGPTimerOverESP32Timer
+   ESP_ERROR_CHECK(gptimer_start ( megaTimer ) );
+   #else
+   ESP_ERROR_CHECK(esp_timer_start_periodic(gsnTimerHandle, estimatedI2CReadTime_us));
+   #endif
+   #ifdef ENABLE_GAMBLING_ON_I2C
+   uint32_t failHistory[FAIL_SLOTS];
+   uint32_t failIndex = 0;
+   uint32_t jailHistory[JAILBREAK_SLOTS];
+   uint32_t jailCell = 0;
+   #endif
+
+   xTaskDelayUntil(&startTick,initializationLatency);
    while(1){
-      // vTaskSuspend(NULL);
-      file1 = ulTaskNotifyTakeIndexed(0, pdTRUE, pdMS_TO_TICKS(1000));
-      #ifdef debug_fastPrints
-      // esp_rom_printf("GSN");
-      #elif defined(debug_hyperFastPrints)
-      darray[dindex[0].fetch_add(1)]= "GSN ";
-      #endif
+      uint32_t file1 = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS(1000000));
       // xTaskNotifyWaitIndexed(0, ULONG_MAX,ULONG_MAX, &file1, pdMS_TO_TICKS(1000));
-      #if (defined(debug_spamPrintTimeISR1))
-         if(!(isr2CurrentCounter++%16)){ 
-         /*TIMETHETIMER ttt*/isr2CurrentTime= esp_timer_get_time(); 
-         isr2CurrentCounterCounted =true;
-      }
-      #endif
 
-      assert(as5600Handle != nullptr);
-      // assert(&as5600TargetRegister != nullptr);
-      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, 
-         &as5600TargetRegister, 
-         1,
-         (uint8_t*)as5600RawDataBuf, 
-         2, 
-         /*alpha*/ i2cWaitout
-      );
-      #if defined(debug_spamPrintTimeISR1)
-      if(isr2CurrentCounterCounted){
-         isr2CurrentTime2 = esp_timer_get_time() - isr2CurrentTime;
-      }
-      #endif
-      if(valRequestStatus != ESP_ERR_INVALID_STATE){
-         global.rotorVal = (as5600RawDataBuf[0]<<8)|as5600RawDataBuf[1]; 
-
-         global.oldSectorTarget = global.sectorTarget;
-         global.sectorTarget = static_cast<uint32_t>((getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)+global.dir) % 6; //0- bitsPerSector --> smaller sector
-         int as5600location = (int)(getRotorValAdjusted(global.rotorVal)* SECTOR_PER_BITS)%6;
-         as5600BfieldVectorSector.store(as5600location);
-         global.setMotorFreeTemporarily.store(false);
-      } else{
-         global.setMotorFreeTemporarily.store(true);
-         global.oldSectorTarget=global.sectorTarget;
-         #if defined(debug_hyperFastPrints)
-            darray[dindex[0].fetch_add(1)]= "I2cF& ";
+      #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
+      if(isMinutelyCheckup(++printCounter)){ 
+         startTime= SNAP(); 
+         #ifdef debug_useTagFlag
+         tagFlag(true,0); //tags before and after transmit
          #endif
       }
-      preloadGates();
-      global.readAS5600 = true;
+      #endif
+      esp_err_t valRequestStatus= i2c_master_transmit_receive(as5600Handle, &as5600TargetRegister, 1, as5600RawDataBuf, 2, i2cWaitout);
+      #if (defined(debug_i2cTransmitTime) || defined(debug_useTagFlag))
+      if(isMinutelyCheckup(printCounter)){ 
+         lap1 = SNAP() - startTime;
+         #if (!defined(debug_i2cTransmitTime) && defined(debug_useTagFlag))
+         tagFlag(false, lap1); //tags before and after transmit
+         #endif
+      }
+      #endif
 
-      #if defined(debug_spamPrintTimeISR1)
-      if(isr2CurrentCounterCounted){
-         isr2CurrentTime = esp_timer_get_time() - isr2CurrentTime;      esp_rom_printf("@%d+%d,%d" SET_CURSOR_FRONT  , isr2CurrentTime2,isr2CurrentTime,file1);
-         isr2CurrentCounterCounted =false;
+      if(valRequestStatus == ESP_OK){
+         isr2i.fetch_add(1,std::memory_order::relaxed);
+         uint32_t reading = (as5600RawDataBuf[0]<<8) | as5600RawDataBuf[1]; 
+         uint32_t tlog = SNAP();
+         global.oldSectorTarget = global.sectorTarget;
+         
+         global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading) + global.dir) % COMMUTATION_BLOCKS; //0- bitsPerSector --> smaller sector
+         global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
+         /*Most things need to be in Critical Section since this task is on Core 1*/
+         taskENTER_CRITICAL( &sensorMux );
+         global.rotorVal = reading;
+         global.tlog_trailingReadAS5600.store(global.tlog_readAS5600.load()); /*ensure happens on same core as mathLoop*/
+         global.tlog_readAS5600.store(tlog);
+         taskEXIT_CRITICAL( &sensorMux );
+
+      } else{
+         global.oldSectorTarget = global.sectorTarget;
+         global.setMotorFreeTemporarily.store(true, std::memory_order::relaxed);
+
+         #ifdef ENABLE_GAMBLING_ON_I2C
+         int timeNow = SNAP();
+         /* If the time between thsi failure and the trailing failure in the queue is less than threshold, Call an demergency*/
+         if ((timeNow - failHistory[failIndex % FAIL_SLOTS] <= FAIL_THRESHOLD_TIME ) && (failIndex >= FAIL_SLOTS)){
+            int resetAttemptsLeft;
+            for( resetAttemptsLeft = MAX_BUS_RESET_ATTEMTPS ; resetAttemptsLeft > 0; resetAttemptsLeft--){
+               if(i2c_master_bus_reset(busHandle) == ESP_OK){
+                  failIndex = 0;
+                  /*================================= JUDGEMENT DAY ====================================*/
+                  if ((timeNow - jailHistory[jailCell % JAILBREAK_SLOTS] <= JAILBREAK_THRESHOLD_TIME ) && (jailCell >= JAILBREAK_SLOTS)){
+                     /* You had One too many chances */
+                     abort();
+                  } else {
+                     jailHistory[jailCell++ % JAILBREAK_SLOTS] = timeNow;
+                  }
+                  /*================================= JUDGEMENT DAY ====================================*/
+                  ESP_LOGW("JAILBREAK!","\n");
+                  break;
+                  resetAttemptsLeft = -1;
+               }  else {
+                  /* Resetting Failed*/
+                  esp_rom_printf("Roblox police on me! \n");
+               }
+            }
+            if( resetAttemptsLeft == 0){
+               abort();
+            } else { /* sucess! */
+               failIndex = 0;
+               // ulTaskNotifyValueClear(NULL, UINT_MAX);
+            }
+         } else {
+            failHistory[failIndex++ % FAIL_SLOTS] = timeNow;
+         }
+         #endif
+         tag("#F ");
+      }
+
+      #if defined(debug_i2cTransmitTime)
+      if(isMinutelyCheckup(printCounter)){ 
+         startTime = SNAP() - startTime;      esp_rom_printf("@%d+%d,%d \n"  , lap1,startTime,file1);
       }
       #endif
    }
-}
-
-void mathItOut(void *parameter){
-   for(;;){
-      if(global.rotorVal != -1){ //if a new position is recorded
-         /* +error = ahead of target ccw*/
-         uint32_t newThetas[3] = {global.rotorVal, global.measuredPositions[0], global.measuredPositions[1]};
-         float newOmegas[2] = {
-            (newThetas[0] - newThetas[1])/(float)(SetAs5600PollPeriod*timerResolution),
-            (newThetas[1] - newThetas[2])/((float)SetAs5600PollPeriod*timerResolution),
-         };
-         float newAlphas[1] = {(newOmegas[0] - newOmegas[1])/((float)SetAs5600PollPeriod*timerResolution)};
-         
-         if(global.controlMethod == VELOCITY_CONTROL){
-            float errorVel =global.targetVelocity- global.measureVelocities[0];
-            float prevArea =1;
-            float prevError =1;
-            float dt = SetAs5600PollPeriod/timerResolution;
-            float errorP = kPID[VELOCITY_CONTROL][0]*errorVel;
-            /*Conditation
-            if error area = 0;  the result is 0
-            f(previous area, error, dt)*/
-            float errorI = kPID[VELOCITY_CONTROL][1]*(dt * errorVel +prevArea); /*-area*k, */
-            float errorD = kPID[VELOCITY_CONTROL][2]*(errorVel-prevError)/dt; //subtract the slope (for a + slope, error should be negative)
-            /*finally changes set cmpVal*/
-            float errorTotal  = errorP +errorI+errorD; //⍺
-            //error can theoretically go from 0 to infinity for 1 c. ->
-         }
-         /*
-         measure 1, target 4| measure 2, target 5
-         if + error --> error = 3 = k, 
-         measure + error = target
-
-         */
-         // global.measuredPositions = newThetas;
-         // global.measureVelocities = newOmegas;
-         // global.measureAccelerations = newAlphas;
-         global.rotorVal = -1;
-         
-      }
-   }
-}
    
+}
