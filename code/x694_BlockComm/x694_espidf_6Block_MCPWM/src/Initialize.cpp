@@ -115,7 +115,7 @@ bool IRAM_ATTR runActualISR(void * data){
    //  else { //COMING SOON!
    //    tag(cyan "V2");
    //    /*execute gates only if we have a valid i2c*/;
-   //    #define FAST_BLOCK_RPS (4096.0f/(5*18*estimatedI2CReadTime_us)) //bits/s, whree 5 = min # samples. 3.33k RPM @ 200us
+   //    #define FAST_BLOCK_RPS (4096.0f/(5**18*estimatedI2CReadTime_us)) //bits/s, whree 5 = min # samples. 3.33k RPM @ 200us
    //    if(global.measuredVel > FAST_BLOCK_RPS) {
    //       xTaskNotifyFromISR(executeGatesTask, ExecuteGate_FreeSpin_NotifVal, eSetValueWithOverwrite, &xHigherPriorityTaskWoken2);
    //    }
@@ -222,7 +222,7 @@ void IRAM_ATTR getSectorNumber (void * startTick1){ /*GSNG*/
          uint32_t tlog = SNAP();
          global.oldSectorTarget = global.sectorTarget;
          
-         global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading) + global.dir) % 6; //0- bitsPerSector --> smaller sector
+         global.sectorTarget = (uint32_t)(getRotorValAdjusted(reading) + global.dir) % COMMUTATION_BLOCKS; //0- bitsPerSector --> smaller sector
          global.setMotorFreeTemporarily.store(false, std::memory_order::relaxed);
          /*Most things need to be in Critical Section since this task is on Core 1*/
          taskENTER_CRITICAL( &sensorMux );

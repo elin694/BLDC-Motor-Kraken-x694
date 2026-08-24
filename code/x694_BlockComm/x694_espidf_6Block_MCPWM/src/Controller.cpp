@@ -143,7 +143,7 @@ void IRAM_ATTR torqueControlLoop(void* pointerToTarget) { /* WRITES ALL INDEXES*
                 for(int i=2; i>-1; i--){
                     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motorH[i].comparator0, (1.0 - targetDuty)*(activePwmPeriod/2.0)));
                 }
-                global.dir = (targetTorque < 0) ? (5) : (2);
+                global.dir = (targetTorque < 0) ? (BACKWARD_DIR) : (FORWARD_DIR);
             }
         } else {
             xTaskNotifyIndexed(velocityControlLoopTask, CL_NOTIF_INDEX, 0, eSetValueWithOverwrite);

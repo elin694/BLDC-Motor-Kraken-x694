@@ -11,20 +11,8 @@
 // #define DEBUG_ALLOW_ONE_TIME_DUMPING
  
 /* #################### USER SET-SETTINGS #################### */
-/*Enable PID Modes
-not defined- open, feed forward loop (if it stalls it stalls)
-def TORQUE_CONTROL - only test Torque control loop in action
-def VELOCITY_CONTROL - only test Torque and velocity control loop in action
-def POSITION_CONTROL - only test Torque, velocity, and Postion control loop in action
-*/
-// #define ALLOWED_LOOPS_TO_TEST TORQUE_CONTROL
-
 // #define useGPTimerOverESP32Timer
 #define lastResort
-// #define ENABLE_GAMBLING_ON_I2C
-#define startingDuty (0.6) //, normally .8
-// #define as5600DirPinHigh
-// #define as5600DirPinHighAtCalibration
 
 
 /* #################### RUNTIME VARIABLES #################### */
@@ -52,7 +40,7 @@ typedef struct{
     std::atomic<uint32_t> tlog_trailingReadAS5600 =0;
     std::atomic<bool> setMotorFreeSpin = false;
     std::atomic<bool> setMotorFreeTemporarily = false;
-    int dir = 5; // 5=cw (-), 2 for ccw(+) (2 for half working AS5600)
+    int dir = SIX_BLOCK_CCW; // 5=cw (-), 2 for ccw(+) (2 for half working AS5600)
     #ifndef ALLOWED_LOOPS_TO_TEST 
     #define controlk VELOCITY_CONTROL
     #else 
@@ -118,10 +106,28 @@ void tagFlag(bool start, int timer);
 
 
 /*#################### BACKEND #################### */
+/* ========================= BLOCK COMMUTATION  ========================= */
+#if (COMMUTATION_BLOCKS == 6)
+#define FORWARD_DIR SIX_BLOCK_CCW
+#define BACKWARD_DIR SIX_BLOCK_CW
+#elif (COMMUTATION_BLOCKS == 12)
+#define FORWARD_DIR TWELVE_BLOCK_CCW
+#define BACKWARD_DIR TWELVE_BLOCK_CW
+#else
+#warning "UnACCEPTALE BLOCK COMM STYLE"
+#endif
 /* ========================= AS5600 SENSOR CALIBRATION  ========================= */
 //top view of physical motor has ABC going ccw, [-30 degrees, 30 degrees) = block 0
+//[0 degrees, 30 degrees) = block 0
+#define ENCODER_CALIBRATION_BLOCK 1
+#if (COMMUTATION_BLOCKS == 6)
+#define ENCODER_OFFSET_SCALAR (36.0 + 2 * ENCODER_CALIBRATION_BLOCK)
+#elif (COMMUTATION_BLOCKS == 12)
+#define ENCODER_OFFSET_SCALAR (36.0 + ENCODER_CALIBRATION_BLOCK)
+#endif 
+
 #ifdef as5600DirPinHighAtCalibration
-#define as5600CalibratedOffset (int)((4096.0) * (38.0 / 36.0) - (as5600CalibrationRawValue) )  
+#define as5600CalibratedOffset (int)((4096.0) * (ENCODER_OFFSET_SCALAR / 36.0) - (as5600CalibrationRawValue) )  
 #else
 #define as5600CalibratedOffset (int)((4096.0) * (38.0 / 36.0) - (4096 - as5600CalibrationRawValue) )  
 #endif

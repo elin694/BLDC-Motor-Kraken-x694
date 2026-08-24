@@ -177,8 +177,8 @@ void IRAM_ATTR executeGates (void * parameter){
             } else {  //not freespinning = active control
                 tag(yellow "EgFFSw ");
                 for(int i =4; i>-1; i-=2){
-                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i] * -1, true));
-                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, gateLevelCycle[global.sectorTarget][i+1], true));
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorH[i/2].pwmGate0, sixBlockGateLevelCycle[global.sectorTarget][i] * -1, true));
+                    ESP_ERROR_CHECK(mcpwm_generator_set_force_level(motorL[i/2].pwmGate0, sixBlockGateLevelCycle[global.sectorTarget][i+1], true));
                 }
             }
         }

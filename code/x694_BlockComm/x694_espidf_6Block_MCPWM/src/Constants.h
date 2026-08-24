@@ -19,8 +19,22 @@
 #include <cmath> 
 #include <atomic>
 
+/*#################### TOGGLEABLES #################### */
+ /*Enable PID Modes
+not defined- open, feed forward loop (if it stalls it stalls)
+def TORQUE_CONTROL - only test Torque control loop in action
+def VELOCITY_CONTROL - only test Torque and velocity control loop in action
+def POSITION_CONTROL - only test Torque, velocity, and Postion control loop in action
+*/
+#define ALLOWED_LOOPS_TO_TEST TORQUE_CONTROL
+// #define ENABLE_GAMBLING_ON_I2C
+// #define as5600DirPinHigh
+// #define as5600DirPinHighAtCalibration
+#define COMMUTATION_BLOCKS 6
+#define startingDuty (0.6) //, normally .8
+
 /*#################### TUNEABLES #################### */
-#define ACCEPTABLE_I2C_READ_WINDOW 230
+#define ACCEPTABLE_I2C_READ_WINDOW 210
 #define estimatedI2CReadTime_us (uint32_t)(200) //694
 #define velPotReadPeriod (int)(20) //set velocity via pot 1
 #define i2cClockSpeed 1250000
@@ -35,12 +49,8 @@
 #define STABLE_VELOCITY_THRESHOLD (1.0) /*RPS*/
 #define STABLE_ACCEL_THRESHOLD (1.0)/*RPS PS*/
 
-
 /*#################### SHORTHANDS #################### */
 /* ========================= FUNCTION SHORTHANDS ========================= */
-#ifdef useGPTimerOverESP32Timer
-#else
-#endif
 #define SNAP() esp_timer_get_time()
 
 #define time240() esp_cpu_get_cycle_count()
@@ -53,8 +63,8 @@
 
 
 /* ========================= CONSTANTS SHORTHANDS ========================= */
-#define BLOCKSF_PER_ROTATION (18.0f) //constexpr is defineable compile time costant 
-#define BLOCKS_PER_ROTATION (18) 
+#define BLOCKSF_PER_ROTATION (COMMUTATION_BLOCKS * 3.0f) //constexpr is defineable compile time costant 
+#define BLOCKS_PER_ROTATION (COMMUTATION_BLOCKS * 3) 
 #define BITS_TO_ROTATIONS (1/4096.0)
 #define ROTATIONS_TO_BITS (4096.0)
 #define VTICKS_PER_BLOCK (VTIMER_CLOCK / BLOCKS_PER_ROTATION) /* VP = VTIMER_CLOCK / 18  */
@@ -66,6 +76,12 @@
 #define i2cWaitout (1) //in ms
 #define initializationLatency pdMS_TO_TICKS(30)
 #define MAX_MCPWM_TIMER_PERIOD (65535)
+
+#define SIX_BLOCK_CCW 2
+#define SIX_BLOCK_CW 5
+#define TWELVE_BLOCK_CCW 3
+#define TWELVE_BLOCK_CW 10
+
 typedef enum {
     TORQUE_CONTROL,
     VELOCITY_CONTROL,
@@ -85,14 +101,29 @@ typedef enum {
 // constexpr int steps[6][3] ={ {-1,1,0}, {-1,0,1}, {0,-1,1}, {1,-1,0}, {1,0,-1}, {0,1,-1} }; 
 // constexpr int activeLowGate[6]= {0,0,1,1,2,2}; //given index of current sector, tells which phase is high
 // constexpr int activeHighGate[6]= {1,2,2,0,0,1}; //given index of current sector, tells which phase is high
-DRAM_ATTR constexpr int gateLevelCycle[6][6] = { //ah al bh bl ch cl
+DRAM_ATTR constexpr int sixBlockGateLevelCycle[6][6] = { //ah al bh bl ch cl
     {0, 1, 1, 0, 0, 0}, //block 0,  HLHLHL
     {0, 1, 0, 0, 1, 0},
     {0, 0, 0, 1, 1, 0},
     {1, 0, 0, 1, 0, 0},
     {1, 0, 0, 0, 0, 1},
     {0, 0, 1, 0, 0, 1}
+}; /*into the origin is positive current*/
+DRAM_ATTR constexpr int twelveBlockGateLevelCycle[12][6] = { //ah al bh bl ch cl
+    {0, 1, 1, 0, 1, 0}, // additional 12B states
+    {0, 1, 0, 0, 1, 0},
+    {0, 1, 0, 1, 1, 0}, // additional 12B states
+    {0, 0, 0, 1, 1, 0},
+    {1, 0, 0, 1, 1, 0}, // additional 12B states
+    {1, 0, 0, 1, 0, 0},
+    {1, 0, 0, 1, 0, 1}, // additional 12B states
+    {1, 0, 0, 0, 0, 1},
+    {1, 0, 1, 0, 0, 1}, // additional 12B states
+    {0, 0, 1, 0, 0, 1},
+    {0, 1, 1, 0, 0, 1}, // additional 12B states
+    {0, 1, 1, 0, 0, 0}
 };
+
 
 /* ========================= PIN (SHORTHANDS)========================= */
 #define phaseAHighPort GPIO_NUM_33
@@ -176,13 +207,14 @@ float * int
 -1. * int does carry sign (treated as uint32_t)
 uint32_t/uint32_t truncates
 follows Order of operations (ex 400000 / 18 * 100 = 2222200 )
-*/
-/* 
 ####################
 =========================
 ------------------------------
+*/
+/* ========================= PREPROCESSOR DIRECTIVE RULES ========================= */
 
 
+/*
 //tracking all interstate variables
 tag - darray [dindex #W]  #W
 
@@ -201,7 +233,7 @@ runOnESPTimerIntr( ) --> getSectorNumberTask(
 )
 
 VTIMER TEZ --> VTimerCallback/runOnMCPWMIntr(tempStatusReg #WR) --> runActualISR( 
---------------READ ONLY--------------
+    --------------READ ONLY--------------
     global.tlog_readAs5600, #R
 )--> executeGatesTask(
     --------------READ ONLY--------------
@@ -212,10 +244,10 @@ VTIMER TEZ --> VTimerCallback/runOnMCPWMIntr(tempStatusReg #WR) --> runActualISR
 )
 //===============LOOPED TASKS####################==
 debugMonitor(
---------------READ ONLY--------------
+    --------------READ ONLY--------------
     isr2i ++
     rawData
-
+    
     global.rotorVal
     global.blockPeriod
     global.setMotorFreeSpin
@@ -228,7 +260,7 @@ readPotRepeat(
     global.controlMethod, #R
     --------------WRITE--------------
     rawData, #WR
-
+    
     global.blockPeriod #WR
     global.setMotorFreeSpin #W
     global.dir #W
